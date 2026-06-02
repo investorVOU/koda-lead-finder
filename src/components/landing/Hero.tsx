@@ -26,7 +26,7 @@ export function Hero() {
             website prompt, and writes your cold-call script — so you can land clients in minutes.
           </p>
 
-          <div class="" className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
               <Link to="/signup">
                 Start 7-day free trial
