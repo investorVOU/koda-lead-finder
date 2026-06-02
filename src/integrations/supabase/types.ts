@@ -199,7 +199,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      use_search_credit: { Args: never; Returns: Json }
+      use_search_credit: { Args: { p_uid: string }; Returns: Json }
     }
     Enums: {
       lead_status: "new" | "contacted" | "proposal" | "closed"
