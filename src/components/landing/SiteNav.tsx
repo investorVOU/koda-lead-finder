@@ -10,6 +10,7 @@ const links = [
   { label: "How it works", href: "#how" },
   { label: "Pricing", href: "#pricing" },
   { label: "Reviews", href: "#reviews" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 export function SiteNav() {
