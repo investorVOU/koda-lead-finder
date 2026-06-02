@@ -34,8 +34,12 @@ export function SiteNav() {
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Button variant="ghost">Sign in</Button>
-          <Button variant="hero">Start free trial</Button>
+          <Button variant="ghost" asChild>
+            <Link to="/login">Sign in</Link>
+          </Button>
+          <Button variant="hero" asChild>
+            <Link to="/signup">Start free trial</Link>
+          </Button>
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
