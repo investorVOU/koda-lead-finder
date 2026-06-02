@@ -64,8 +64,12 @@ export function SiteNav() {
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-2">
-              <Button variant="ghost">Sign in</Button>
-              <Button variant="hero">Start free trial</Button>
+              <Button variant="ghost" asChild>
+                <Link to="/login" onClick={() => setOpen(false)}>Sign in</Link>
+              </Button>
+              <Button variant="hero" asChild>
+                <Link to="/signup" onClick={() => setOpen(false)}>Start free trial</Link>
+              </Button>
             </div>
           </nav>
         </div>
