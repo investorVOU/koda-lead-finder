@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -9,6 +10,7 @@ const links = [
   { label: "How it works", href: "#how" },
   { label: "Pricing", href: "#pricing" },
   { label: "Reviews", href: "#reviews" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 export function SiteNav() {
@@ -33,8 +35,12 @@ export function SiteNav() {
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Button variant="ghost">Sign in</Button>
-          <Button variant="hero">Start free trial</Button>
+          <Button variant="ghost" asChild>
+            <Link to="/login">Sign in</Link>
+          </Button>
+          <Button variant="hero" asChild>
+            <Link to="/signup">Start free trial</Link>
+          </Button>
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
@@ -59,8 +65,12 @@ export function SiteNav() {
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-2">
-              <Button variant="ghost">Sign in</Button>
-              <Button variant="hero">Start free trial</Button>
+              <Button variant="ghost" asChild>
+                <Link to="/login" onClick={() => setOpen(false)}>Sign in</Link>
+              </Button>
+              <Button variant="hero" asChild>
+                <Link to="/signup" onClick={() => setOpen(false)}>Start free trial</Link>
+              </Button>
             </div>
           </nav>
         </div>

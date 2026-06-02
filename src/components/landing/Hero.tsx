@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import dashboardPreview from "@/assets/dashboard-preview.jpg";
@@ -26,12 +27,14 @@ export function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button variant="hero" size="xl" className="w-full sm:w-auto">
-              Start 7-day free trial
-              <ArrowRight className="size-4" />
+            <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
+              <Link to="/signup">
+                Start 7-day free trial
+                <ArrowRight className="size-4" />
+              </Link>
             </Button>
-            <Button variant="outline" size="xl" className="w-full sm:w-auto">
-              See how it works
+            <Button variant="outline" size="xl" className="w-full sm:w-auto" asChild>
+              <a href="#how">See how it works</a>
             </Button>
           </div>
 

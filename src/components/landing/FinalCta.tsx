@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -17,9 +18,12 @@ export function FinalCta() {
             variant="secondary"
             size="xl"
             className="mt-8 bg-card text-foreground hover:bg-card/90"
+            asChild
           >
-            Start 7-day free trial
-            <ArrowRight className="size-4" />
+            <Link to="/signup">
+              Start 7-day free trial
+              <ArrowRight className="size-4" />
+            </Link>
           </Button>
         </div>
       </div>
