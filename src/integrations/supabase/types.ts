@@ -14,16 +14,196 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          onboarded: boolean
+          primary_niche: string | null
+          target_location: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          onboarded?: boolean
+          primary_niche?: string | null
+          target_location?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          onboarded?: boolean
+          primary_niche?: string | null
+          target_location?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      saved_leads: {
+        Row: {
+          address: string | null
+          ai_prompt: string | null
+          business_name: string
+          call_script: string | null
+          category: string | null
+          created_at: string
+          has_website: boolean
+          id: string
+          location: string | null
+          maps_url: string | null
+          notes: string | null
+          phone: string | null
+          place_id: string | null
+          rating: number | null
+          review_count: number | null
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          address?: string | null
+          ai_prompt?: string | null
+          business_name: string
+          call_script?: string | null
+          category?: string | null
+          created_at?: string
+          has_website?: boolean
+          id?: string
+          location?: string | null
+          maps_url?: string | null
+          notes?: string | null
+          phone?: string | null
+          place_id?: string | null
+          rating?: number | null
+          review_count?: number | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          address?: string | null
+          ai_prompt?: string | null
+          business_name?: string
+          call_script?: string | null
+          category?: string | null
+          created_at?: string
+          has_website?: boolean
+          id?: string
+          location?: string | null
+          maps_url?: string | null
+          notes?: string | null
+          phone?: string | null
+          place_id?: string | null
+          rating?: number | null
+          review_count?: number | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      search_logs: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          location: string | null
+          results_count: number
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          results_count?: number
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          results_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          billing_cycle: string
+          created_at: string
+          credits_reset_at: string
+          current_period_end: string | null
+          id: string
+          plan: Database["public"]["Enums"]["plan_tier"]
+          provider: string | null
+          provider_customer_id: string | null
+          provider_subscription_id: string | null
+          search_credits_total: number
+          search_credits_used: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_cycle?: string
+          created_at?: string
+          credits_reset_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["plan_tier"]
+          provider?: string | null
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          search_credits_total?: number
+          search_credits_used?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_cycle?: string
+          created_at?: string
+          credits_reset_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["plan_tier"]
+          provider?: string | null
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          search_credits_total?: number
+          search_credits_used?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      use_search_credit: { Args: never; Returns: Json }
     }
     Enums: {
-      [_ in never]: never
+      lead_status: "new" | "contacted" | "proposal" | "closed"
+      plan_tier: "trial" | "pro" | "max"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +330,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lead_status: ["new", "contacted", "proposal", "closed"],
+      plan_tier: ["trial", "pro", "max"],
+    },
   },
 } as const
