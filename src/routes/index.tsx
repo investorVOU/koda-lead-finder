@@ -40,6 +40,7 @@ function Index() {
         <HowItWorks />
         <Testimonials />
         <Pricing />
+        <FAQ />
         <FinalCta />
       </main>
       <SiteFooter />
