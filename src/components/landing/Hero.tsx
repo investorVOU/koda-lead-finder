@@ -26,13 +26,15 @@ export function Hero() {
             website prompt, and writes your cold-call script — so you can land clients in minutes.
           </p>
 
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button variant="hero" size="xl" className="w-full sm:w-auto">
-              Start 7-day free trial
-              <ArrowRight className="size-4" />
+          <div class="" className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
+              <Link to="/signup">
+                Start 7-day free trial
+                <ArrowRight className="size-4" />
+              </Link>
             </Button>
-            <Button variant="outline" size="xl" className="w-full sm:w-auto">
-              See how it works
+            <Button variant="outline" size="xl" className="w-full sm:w-auto" asChild>
+              <a href="#how">See how it works</a>
             </Button>
           </div>
 
