@@ -132,6 +132,15 @@ export async function claimWebhookEvent(provider: Provider, eventId: string): Pr
   return !error;
 }
 
+// Release a claim so a provider retry can re-process after a handler failure.
+export async function releaseWebhookEvent(provider: Provider, eventId: string): Promise<void> {
+  await supabaseAdmin
+    .from("webhook_events")
+    .delete()
+    .eq("provider", provider)
+    .eq("event_id", eventId);
+}
+
 // ---- Fulfillment ----
 export async function applySubscription(args: {
   userId: string;
