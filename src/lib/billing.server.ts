@@ -120,22 +120,23 @@ export async function applySubscription(args: {
   if (!plan || !args.userId) return;
   const reset = args.periodEnd ?? new Date(Date.now() + 30 * 86_400_000).toISOString();
 
-  const update: Record<string, unknown> = {
-    plan: plan.id,
-    status: "active",
-    billing_cycle: "monthly",
-    provider: args.provider,
-    search_credits_total: plan.credits,
-    search_credits_used: 0,
-    credits_reset_at: reset,
-    current_period_end: args.periodEnd ?? null,
-    updated_at: new Date().toISOString(),
-  };
-  if (args.providerCustomerId) update.provider_customer_id = args.providerCustomerId;
-  if (args.providerSubscriptionId) update.provider_subscription_id = args.providerSubscriptionId;
-  if (args.providerSubscriptionToken) update.provider_subscription_token = args.providerSubscriptionToken;
-
-  await supabaseAdmin.from("subscriptions").update(update).eq("user_id", args.userId);
+  await supabaseAdmin
+    .from("subscriptions")
+    .update({
+      plan: plan.id,
+      status: "active",
+      billing_cycle: "monthly",
+      provider: args.provider,
+      search_credits_total: plan.credits,
+      search_credits_used: 0,
+      credits_reset_at: reset,
+      current_period_end: args.periodEnd ?? null,
+      provider_customer_id: args.providerCustomerId ?? undefined,
+      provider_subscription_id: args.providerSubscriptionId ?? undefined,
+      provider_subscription_token: args.providerSubscriptionToken ?? undefined,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", args.userId);
 
   await supabaseAdmin.from("payment_history").insert({
     user_id: args.userId,
