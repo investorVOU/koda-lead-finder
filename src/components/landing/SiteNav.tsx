@@ -39,7 +39,7 @@ export function SiteNav() {
             <Link to="/login">Sign in</Link>
           </Button>
           <Button variant="hero" asChild>
-            <Link to="/signup">Start free trial</Link>
+            <Link to="/signup">Get started</Link>
           </Button>
         </div>
 
