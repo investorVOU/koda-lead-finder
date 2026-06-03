@@ -93,6 +93,35 @@ export function verifyPaystackSignature(payload: string, header: string | null, 
   return timingSafeEqual(a, b);
 }
 
+// Get (or lazily create + cache) a Paystack recurring plan code for a plan.
+export async function getPaystackPlanCode(plan: {
+  id: string;
+  name: string;
+  ngn: number;
+}): Promise<string> {
+  const { data } = await supabaseAdmin
+    .from("provider_plans")
+    .select("provider_plan_code")
+    .eq("provider", "paystack")
+    .eq("plan_id", plan.id)
+    .eq("cycle", "monthly")
+    .maybeSingle();
+  const existing = (data as { provider_plan_code?: string } | null)?.provider_plan_code;
+  if (existing) return existing;
+
+  const res = await paystackFetch<{ data: { plan_code: string } }>("/plan", "POST", {
+    name: `KodaRai ${plan.name}`,
+    amount: plan.ngn * 100,
+    interval: "monthly",
+    currency: "NGN",
+  });
+  const code = res.data.plan_code;
+  await supabaseAdmin
+    .from("provider_plans")
+    .insert({ provider: "paystack", plan_id: plan.id, cycle: "monthly", provider_plan_code: code });
+  return code;
+}
+
 // ---- Idempotency ----
 // Returns true if this is the first time we've seen the event (safe to process).
 export async function claimWebhookEvent(provider: Provider, eventId: string): Promise<boolean> {
