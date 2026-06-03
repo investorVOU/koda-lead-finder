@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      payment_history: {
+        Row: {
+          amount: number
+          created_at: string
+          credits_granted: number
+          currency: string
+          description: string | null
+          id: string
+          kind: string
+          plan_id: string | null
+          provider: string
+          provider_reference: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          credits_granted?: number
+          currency?: string
+          description?: string | null
+          id?: string
+          kind: string
+          plan_id?: string | null
+          provider: string
+          provider_reference?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credits_granted?: number
+          currency?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          plan_id?: string | null
+          provider?: string
+          provider_reference?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
@@ -47,6 +92,33 @@ export type Database = {
           primary_niche?: string | null
           target_location?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      provider_plans: {
+        Row: {
+          created_at: string
+          cycle: string
+          id: string
+          plan_id: string
+          provider: string
+          provider_plan_code: string
+        }
+        Insert: {
+          created_at?: string
+          cycle?: string
+          id?: string
+          plan_id: string
+          provider: string
+          provider_plan_code: string
+        }
+        Update: {
+          created_at?: string
+          cycle?: string
+          id?: string
+          plan_id?: string
+          provider?: string
+          provider_plan_code?: string
         }
         Relationships: []
       }
@@ -150,13 +222,15 @@ export type Database = {
           credits_reset_at: string
           current_period_end: string | null
           id: string
-          plan: Database["public"]["Enums"]["plan_tier"]
+          plan: string
           provider: string | null
           provider_customer_id: string | null
           provider_subscription_id: string | null
+          provider_subscription_token: string | null
           search_credits_total: number
           search_credits_used: number
           status: string
+          topup_credits: number
           updated_at: string
           user_id: string
         }
@@ -166,13 +240,15 @@ export type Database = {
           credits_reset_at?: string
           current_period_end?: string | null
           id?: string
-          plan?: Database["public"]["Enums"]["plan_tier"]
+          plan?: string
           provider?: string | null
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
+          provider_subscription_token?: string | null
           search_credits_total?: number
           search_credits_used?: number
           status?: string
+          topup_credits?: number
           updated_at?: string
           user_id: string
         }
@@ -182,15 +258,38 @@ export type Database = {
           credits_reset_at?: string
           current_period_end?: string | null
           id?: string
-          plan?: Database["public"]["Enums"]["plan_tier"]
+          plan?: string
           provider?: string | null
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
+          provider_subscription_token?: string | null
           search_credits_total?: number
           search_credits_used?: number
           status?: string
+          topup_credits?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_events: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          provider: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          provider: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          provider?: string
         }
         Relationships: []
       }
