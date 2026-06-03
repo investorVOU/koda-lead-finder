@@ -71,7 +71,7 @@ function BillingPage() {
 
   const cancel = async () => {
     setBusy("cancel");
-    const res = await runCancel({});
+    const res = await runCancel();
     setBusy(null);
     if ("error" in res) {
       toast.error(res.message);
