@@ -104,7 +104,7 @@ function DashboardPage() {
             defaultLocation={profile?.target_location ?? undefined}
           />
 
-          {(searched || loading) && !(!searched && loading) && (
+          {(loading || searched) && (
             <div className="mt-5 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 {loading ? "Searching…" : `${shown.length} result${shown.length === 1 ? "" : "s"}`}
