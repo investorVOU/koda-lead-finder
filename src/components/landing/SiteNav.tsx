@@ -39,7 +39,7 @@ export function SiteNav() {
             <Link to="/login">Sign in</Link>
           </Button>
           <Button variant="hero" asChild>
-            <Link to="/signup">Start free trial</Link>
+            <Link to="/signup">Get started</Link>
           </Button>
         </div>
 
@@ -69,7 +69,7 @@ export function SiteNav() {
                 <Link to="/login" onClick={() => setOpen(false)}>Sign in</Link>
               </Button>
               <Button variant="hero" asChild>
-                <Link to="/signup" onClick={() => setOpen(false)}>Start free trial</Link>
+                <Link to="/signup" onClick={() => setOpen(false)}>Get started</Link>
               </Button>
             </div>
           </nav>

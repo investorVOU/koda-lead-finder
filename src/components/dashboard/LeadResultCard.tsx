@@ -128,28 +128,30 @@ export function LeadResultCard({
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant={saved ? "soft" : "outline"} size="sm" onClick={saveLead} disabled={saving || saved}>
-            {saving ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : saved ? (
-              <BookmarkCheck className="size-4" />
-            ) : (
-              <Bookmark className="size-4" />
-            )}
-            {saved ? "Saved" : "Save"}
+        <div className="mt-4 space-y-2">
+          <Button variant="hero" size="sm" className="w-full" onClick={() => generate("website_prompt")}>
+            <Sparkles className="size-4" /> Generate AI Website Prompt
           </Button>
-          <Button variant="hero" size="sm" onClick={() => generate("website_prompt")}>
-            <Sparkles className="size-4" /> AI Prompt
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => generate("call_script")}>
-            <PhoneCall className="size-4" /> Call Script
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <a href={lead.mapsUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" /> Maps
-            </a>
-          </Button>
+          <div className="grid grid-cols-3 gap-2">
+            <Button variant={saved ? "soft" : "outline"} size="sm" onClick={saveLead} disabled={saving || saved}>
+              {saving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : saved ? (
+                <BookmarkCheck className="size-4" />
+              ) : (
+                <Bookmark className="size-4" />
+              )}
+              {saved ? "Saved" : "Save"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => generate("call_script")}>
+              <PhoneCall className="size-4" /> Script
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <a href={lead.mapsUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="size-4" /> Maps
+              </a>
+            </Button>
+          </div>
         </div>
       </div>
 

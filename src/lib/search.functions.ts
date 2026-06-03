@@ -72,7 +72,7 @@ export const findLeads = createServerFn({ method: "POST" })
     if (!credit.allowed) {
       return {
         error: "no_credits",
-        message: "You're out of search credits for this period. Upgrade to keep searching.",
+        message: "You're out of leads. Subscribe or buy a lead pack to keep searching.",
         remaining: 0,
       } as const;
     }

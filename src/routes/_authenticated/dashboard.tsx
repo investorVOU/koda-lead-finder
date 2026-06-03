@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -8,6 +8,8 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
 import { SearchForm } from "@/components/dashboard/SearchForm";
 import { LeadResultCard } from "@/components/dashboard/LeadResultCard";
+import { LeadResultSkeleton } from "@/components/dashboard/LeadResultSkeleton";
+import { Button } from "@/components/ui/button";
 import { findLeads } from "@/lib/search.functions";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/lib/queries";
@@ -17,6 +19,8 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Lead Finder — KodaRai" }] }),
   component: DashboardPage,
 });
+
+const PAGE_SIZE = 6;
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -29,10 +33,12 @@ function DashboardPage() {
   const [searched, setSearched] = useState(false);
   const [meta, setMeta] = useState<{ category: string; location: string }>({ category: "", location: "" });
   const [onlyNoWebsite, setOnlyNoWebsite] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const handleSearch = async (category: string, location: string) => {
     setLoading(true);
     setMeta({ category, location });
+    setVisibleCount(PAGE_SIZE);
     const res = await runSearch({ data: { category, location } });
     setLoading(false);
     setSearched(true);
@@ -52,6 +58,33 @@ function DashboardPage() {
   };
 
   const shown = onlyNoWebsite ? results.filter((r) => !r.hasWebsite) : results;
+  const visible = shown.slice(0, visibleCount);
+  const hasMore = visibleCount < shown.length;
+
+  // Reset paging when the filter changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [onlyNoWebsite]);
+
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMore = useCallback(() => {
+    setVisibleCount((c) => Math.min(c + PAGE_SIZE, shown.length));
+  }, [shown.length]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   return (
     <DashboardShell>
@@ -71,10 +104,10 @@ function DashboardPage() {
             defaultLocation={profile?.target_location ?? undefined}
           />
 
-          {searched && (
+          {(loading || searched) && (
             <div className="mt-5 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {shown.length} result{shown.length === 1 ? "" : "s"}
+                {loading ? "Searching…" : `${shown.length} result${shown.length === 1 ? "" : "s"}`}
               </p>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -82,19 +115,53 @@ function DashboardPage() {
                   checked={onlyNoWebsite}
                   onChange={(e) => setOnlyNoWebsite(e.target.checked)}
                   className="size-4 accent-[var(--primary)]"
+                  disabled={loading}
                 />
                 No-website only
               </label>
             </div>
           )}
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {shown.map((lead) => (
-              <LeadResultCard key={lead.placeId} lead={lead} category={meta.category} location={meta.location} />
-            ))}
-          </div>
+          {/* Loading skeletons */}
+          {loading && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <LeadResultSkeleton key={i} />
+              ))}
+            </div>
+          )}
 
-          {!searched && (
+          {/* Results */}
+          {!loading && visible.length > 0 && (
+            <>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {visible.map((lead) => (
+                  <LeadResultCard
+                    key={lead.placeId}
+                    lead={lead}
+                    category={meta.category}
+                    location={meta.location}
+                  />
+                ))}
+              </div>
+
+              {hasMore && (
+                <div ref={sentinelRef} className="mt-6 flex justify-center">
+                  <Button variant="outline" onClick={loadMore}>
+                    Load more leads
+                  </Button>
+                </div>
+              )}
+              {!hasMore && shown.length > PAGE_SIZE && (
+                <p className="mt-6 text-center text-xs text-muted-foreground">
+                  You've reached the end — {shown.length} leads shown.
+                </p>
+              )}
+            </>
+          )}
+
+          {/* Empty states */}
+          {!searched && !loading && (
             <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
               <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
                 <Search className="size-6" />
@@ -111,7 +178,7 @@ function DashboardPage() {
               <Sparkles className="size-6 text-muted-foreground" />
               <h3 className="mt-3 font-semibold">No matching leads</h3>
               <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                Try a different category or location, or uncheck “No-website only”.
+                Try a different category or location, or uncheck "No-website only".
               </p>
             </div>
           )}

@@ -11,8 +11,8 @@ export function FinalCta() {
             Start finding clients today
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-primary-foreground/90">
-            Get 20 free searches. No credit card required. Land your first client before your trial
-            ends.
+            Grab a $2 lead pack and land your first client this week. Pay by card or Paystack —
+            cancel anytime.
           </p>
           <Button
             variant="secondary"
@@ -21,7 +21,7 @@ export function FinalCta() {
             asChild
           >
             <Link to="/signup">
-              Start 7-day free trial
+              Get your first client for $2
               <ArrowRight className="size-4" />
             </Link>
           </Button>
