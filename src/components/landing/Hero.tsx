@@ -29,7 +29,7 @@ export function Hero() {
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
               <Link to="/signup">
-                Start 7-day free trial
+                Get your first client for $2
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -40,12 +40,12 @@ export function Hero() {
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
-              <Star className="size-3.5 fill-warning text-warning" /> 20 free searches
+              <Star className="size-3.5 fill-warning text-warning" /> Lead packs from $2
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="size-3.5 text-primary" /> Works worldwide
             </span>
-            <span>No credit card required</span>
+            <span>Pay by card or Paystack</span>
           </div>
         </div>
 

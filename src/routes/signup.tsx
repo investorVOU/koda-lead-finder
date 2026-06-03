@@ -73,8 +73,8 @@ function SignupPage() {
 
   return (
     <AuthShell
-      title="Start your free trial"
-      subtitle="7 days free · 20 searches · no credit card required."
+      title="Create your account"
+      subtitle="Start finding clients. Lead packs from $2 · pay by card or Paystack."
       footer={
         <>
           Already have an account?{" "}
