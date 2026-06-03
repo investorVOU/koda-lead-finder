@@ -15,8 +15,8 @@ const faqs = [
     a: "KodaRai works worldwide. It's especially popular with freelancers in the USA, UK, Canada, Australia, and across Africa including Nigeria. Just enter any city and country or ZIP code.",
   },
   {
-    q: "What are search credits?",
-    a: "Each search uses one credit. Your plan includes a set number of credits per month (20 on the free trial, 200 on Pro, 500 on Max). Credits reset automatically each billing period.",
+    q: "How do leads work?",
+    a: "Every search uses one lead. Monthly plans include a lead allowance that renews each billing cycle (60 on Starter, 250 on Pro, 800 on Agency). Prefer no subscription? Buy a one-time lead pack from $2 — those top-up leads never expire.",
   },
   {
     q: "What do the AI tools actually generate?",
