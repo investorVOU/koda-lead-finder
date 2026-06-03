@@ -81,8 +81,8 @@ export const Route = createFileRoute("/api/public/webhooks/stripe")({
           }
         } catch (e) {
           console.error("stripe webhook handler error", e);
-          // Returning 500 lets Stripe retry; the event row remains so retries
-          // are still deduped on the type+id we already claimed.
+          // Release the claim so Stripe's retry can re-process this event.
+          await releaseWebhookEvent("stripe", String(event.id));
           return new Response("handler error", { status: 500 });
         }
 
