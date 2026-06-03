@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Radar, Search, Bookmark, CreditCard } from "lucide-react";
+import { LogOut, Radar, Search, Bookmark, CreditCard, ReceiptText } from "lucide-react";
 import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/dashboard", label: "Lead Finder", icon: Search },
   { to: "/leads", label: "Saved Leads", icon: Bookmark },
   { to: "/billing", label: "Billing", icon: CreditCard },
+  { to: "/invoices", label: "Invoices", icon: ReceiptText },
 ] as const;
 
 export function DashboardShell({ children }: { children: ReactNode }) {
