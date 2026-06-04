@@ -37,8 +37,13 @@ export function Hero() {
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <Button variant="outline" size="xl" className="w-full sm:w-auto" asChild>
-              <a href="#how">See how it works</a>
+            <Button
+              variant="outline"
+              size="xl"
+              className="w-full sm:w-auto"
+              onClick={() => setDemoOpen(true)}
+            >
+              <PlayCircle className="size-5" /> Watch 2-min demo
             </Button>
           </div>
 
