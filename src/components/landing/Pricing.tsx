@@ -6,9 +6,9 @@ import { PLANS, PACKS, formatNgn } from "@/lib/billing";
 export function Pricing() {
   return (
     <section id="pricing" className="border-y border-border bg-secondary/40">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">Pricing that fits your hustle</h2>
+          <h2 className="text-2xl font-bold sm:text-4xl">Pricing that fits your hustle</h2>
           <p className="mt-4 text-muted-foreground">
             Get your first client for $2. Pay in USD with card or in Naira with Paystack. Cancel anytime.
           </p>
