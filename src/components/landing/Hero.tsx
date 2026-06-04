@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, MapPin, Sparkles, Star } from "lucide-react";
+import { ArrowRight, MapPin, PlayCircle, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { VideoModal } from "@/components/landing/VideoModal";
+import { DEMO_VIDEO } from "@/lib/videos";
 import dashboardPreview from "@/assets/dashboard-preview.jpg";
 
 export function Hero() {
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
     <section className="relative overflow-hidden bg-[image:var(--gradient-hero)]">
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-16 sm:pt-24">
