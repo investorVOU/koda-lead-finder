@@ -31,7 +31,14 @@ export function SiteNav() {
               {l.label}
             </a>
           ))}
+          <Link
+            to="/learn"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Academy
+          </Link>
         </nav>
+
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
