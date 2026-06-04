@@ -60,15 +60,35 @@ export function Hero() {
 
         <div className="relative mx-auto mt-14 max-w-5xl">
           <div className="absolute -inset-x-8 -top-8 -z-10 h-40 bg-[image:var(--gradient-primary)] opacity-20 blur-3xl" />
-          <img
-            src={dashboardPreview}
-            alt="KodaRai lead finder dashboard showing local businesses without websites"
-            width={1280}
-            height={896}
-            className="w-full rounded-2xl border border-border bg-card shadow-[var(--shadow-lg)]"
-          />
+          <button
+            type="button"
+            onClick={() => setDemoOpen(true)}
+            className="group relative block w-full overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-lg)]"
+            aria-label="Watch the KodaRai demo"
+          >
+            <img
+              src={dashboardPreview}
+              alt="KodaRai lead finder dashboard showing local businesses without websites"
+              width={1280}
+              height={896}
+              className="w-full"
+            />
+            <span className="absolute inset-0 flex items-center justify-center bg-foreground/0 transition-colors group-hover:bg-foreground/10">
+              <span className="flex items-center gap-2 rounded-full bg-background/90 px-4 py-2.5 text-sm font-semibold text-foreground shadow-[var(--shadow-md)] backdrop-blur transition-transform group-hover:scale-105">
+                <PlayCircle className="size-5 text-primary" /> Watch demo
+              </span>
+            </span>
+          </button>
         </div>
       </div>
+
+      <VideoModal
+        open={demoOpen}
+        onOpenChange={setDemoOpen}
+        youtubeId={DEMO_VIDEO.youtubeId}
+        title={DEMO_VIDEO.title}
+        description={DEMO_VIDEO.description}
+      />
     </section>
   );
 }
