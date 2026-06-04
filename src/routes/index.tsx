@@ -39,6 +39,7 @@ function Index() {
         <Hero />
         <Features />
         <HowItWorks />
+        <LearnPreview />
         <Testimonials />
         <Pricing />
         <FAQ />
