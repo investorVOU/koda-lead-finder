@@ -35,26 +35,28 @@ const features = [
 
 export function Features() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
+    <section id="features" className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-3xl font-bold sm:text-4xl">Everything you need to land clients</h2>
-        <p className="mt-4 text-muted-foreground">
+        <h2 className="text-2xl font-bold sm:text-4xl">Everything you need to land clients</h2>
+        <p className="mt-3 text-muted-foreground sm:mt-4">
           From finding the right prospect to closing the deal — KodaRai handles the busywork so you
           can focus on building websites.
         </p>
       </div>
 
-      <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
         {features.map((f) => (
           <div
             key={f.title}
-            className="group rounded-2xl border border-border bg-card p-6 transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-md)]"
+            className="group flex gap-4 rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-[var(--shadow-md)] sm:block sm:p-6 sm:hover:-translate-y-1"
           >
-            <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors group-hover:bg-[image:var(--gradient-primary)] group-hover:text-primary-foreground">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors group-hover:bg-[image:var(--gradient-primary)] group-hover:text-primary-foreground">
               <f.icon className="size-5" />
             </span>
-            <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{f.desc}</p>
+            <div>
+              <h3 className="text-base font-semibold sm:mt-4 sm:text-lg">{f.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground sm:mt-2">{f.desc}</p>
+            </div>
           </div>
         ))}
       </div>

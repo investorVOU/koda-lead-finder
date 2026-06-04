@@ -42,15 +42,15 @@ const testimonials = [
 
 export function Testimonials() {
   return (
-    <section id="reviews" className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
+    <section id="reviews" className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-3xl font-bold sm:text-4xl">Loved by freelancers worldwide</h2>
-        <p className="mt-4 text-muted-foreground">
+        <h2 className="text-2xl font-bold sm:text-4xl">Loved by freelancers worldwide</h2>
+        <p className="mt-3 text-muted-foreground sm:mt-4">
           Designers and agencies use KodaRai to fill their pipeline every week.
         </p>
       </div>
 
-      <Carousel opts={{ align: "start", loop: true }} className="mt-14">
+      <Carousel opts={{ align: "start", loop: true }} className="mt-10 sm:mt-14">
         <CarouselContent className="-ml-4">
           {testimonials.map((t) => (
             <CarouselItem key={t.name} className="pl-4 sm:basis-1/2 lg:basis-1/3">

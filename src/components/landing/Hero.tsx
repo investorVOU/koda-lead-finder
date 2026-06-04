@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, MapPin, Sparkles, Star } from "lucide-react";
+import { ArrowRight, MapPin, PlayCircle, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { VideoModal } from "@/components/landing/VideoModal";
+import { DEMO_VIDEO } from "@/lib/videos";
 import dashboardPreview from "@/assets/dashboard-preview.jpg";
 
 export function Hero() {
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
     <section className="relative overflow-hidden bg-[image:var(--gradient-hero)]">
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-16 sm:pt-24">
@@ -33,8 +37,13 @@ export function Hero() {
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <Button variant="outline" size="xl" className="w-full sm:w-auto" asChild>
-              <a href="#how">See how it works</a>
+            <Button
+              variant="outline"
+              size="xl"
+              className="w-full sm:w-auto"
+              onClick={() => setDemoOpen(true)}
+            >
+              <PlayCircle className="size-5" /> Watch 2-min demo
             </Button>
           </div>
 
@@ -51,15 +60,35 @@ export function Hero() {
 
         <div className="relative mx-auto mt-14 max-w-5xl">
           <div className="absolute -inset-x-8 -top-8 -z-10 h-40 bg-[image:var(--gradient-primary)] opacity-20 blur-3xl" />
-          <img
-            src={dashboardPreview}
-            alt="KodaRai lead finder dashboard showing local businesses without websites"
-            width={1280}
-            height={896}
-            className="w-full rounded-2xl border border-border bg-card shadow-[var(--shadow-lg)]"
-          />
+          <button
+            type="button"
+            onClick={() => setDemoOpen(true)}
+            className="group relative block w-full overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-lg)]"
+            aria-label="Watch the KodaRai demo"
+          >
+            <img
+              src={dashboardPreview}
+              alt="KodaRai lead finder dashboard showing local businesses without websites"
+              width={1280}
+              height={896}
+              className="w-full"
+            />
+            <span className="absolute inset-0 flex items-center justify-center bg-foreground/0 transition-colors group-hover:bg-foreground/10">
+              <span className="flex items-center gap-2 rounded-full bg-background/90 px-4 py-2.5 text-sm font-semibold text-foreground shadow-[var(--shadow-md)] backdrop-blur transition-transform group-hover:scale-105">
+                <PlayCircle className="size-5 text-primary" /> Watch demo
+              </span>
+            </span>
+          </button>
         </div>
       </div>
+
+      <VideoModal
+        open={demoOpen}
+        onOpenChange={setDemoOpen}
+        youtubeId={DEMO_VIDEO.youtubeId}
+        title={DEMO_VIDEO.title}
+        description={DEMO_VIDEO.description}
+      />
     </section>
   );
 }

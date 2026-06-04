@@ -34,10 +34,10 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <section id="faq" className="mx-auto max-w-3xl px-4 py-20 sm:py-28">
+    <section id="faq" className="mx-auto max-w-3xl px-4 py-14 sm:py-28">
       <div className="text-center">
-        <h2 className="text-3xl font-bold sm:text-4xl">Frequently asked questions</h2>
-        <p className="mt-4 text-muted-foreground">Everything you need to know before you start.</p>
+        <h2 className="text-2xl font-bold sm:text-4xl">Frequently asked questions</h2>
+        <p className="mt-3 text-muted-foreground sm:mt-4">Everything you need to know before you start.</p>
       </div>
 
       <Accordion type="single" collapsible className="mt-10">

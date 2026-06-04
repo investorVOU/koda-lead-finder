@@ -6,11 +6,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/landing/Logo";
 
 const links = [
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Reviews", href: "#reviews" },
-  { label: "FAQ", href: "#faq" },
+  { label: "Features", href: "/#features" },
+  { label: "How it works", href: "/#how" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "Reviews", href: "/#reviews" },
+  { label: "FAQ", href: "/#faq" },
 ];
 
 export function SiteNav() {
@@ -31,7 +31,14 @@ export function SiteNav() {
               {l.label}
             </a>
           ))}
+          <Link
+            to="/learn"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Academy
+          </Link>
         </nav>
+
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
@@ -64,6 +71,13 @@ export function SiteNav() {
                 {l.label}
               </a>
             ))}
+            <Link
+              to="/learn"
+              onClick={() => setOpen(false)}
+              className="rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Academy
+            </Link>
             <div className="mt-2 flex flex-col gap-2">
               <Button variant="ghost" asChild>
                 <Link to="/login" onClick={() => setOpen(false)}>Sign in</Link>
