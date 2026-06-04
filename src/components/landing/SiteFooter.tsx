@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/landing/Logo";
 
 export function SiteFooter() {
@@ -13,10 +14,10 @@ export function SiteFooter() {
             </p>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <a href="#features" className="hover:text-foreground">Features</a>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
-            <a href="#reviews" className="hover:text-foreground">Reviews</a>
-            <a href="#how" className="hover:text-foreground">How it works</a>
+            <a href="/#features" className="hover:text-foreground">Features</a>
+            <a href="/#pricing" className="hover:text-foreground">Pricing</a>
+            <a href="/#reviews" className="hover:text-foreground">Reviews</a>
+            <Link to="/learn" className="hover:text-foreground">Academy</Link>
           </nav>
         </div>
         <div className="mt-8 border-t border-border pt-6 text-center text-xs text-muted-foreground">
