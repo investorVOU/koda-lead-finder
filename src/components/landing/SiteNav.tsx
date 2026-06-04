@@ -71,6 +71,13 @@ export function SiteNav() {
                 {l.label}
               </a>
             ))}
+            <Link
+              to="/learn"
+              onClick={() => setOpen(false)}
+              className="rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Academy
+            </Link>
             <div className="mt-2 flex flex-col gap-2">
               <Button variant="ghost" asChild>
                 <Link to="/login" onClick={() => setOpen(false)}>Sign in</Link>
