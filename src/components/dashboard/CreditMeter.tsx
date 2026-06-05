@@ -3,6 +3,8 @@ import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
 import { PLAN_LABELS } from "@/lib/billing";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { PlansDialog } from "@/components/dashboard/PlansDialog";
 
 export function CreditMeter({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
