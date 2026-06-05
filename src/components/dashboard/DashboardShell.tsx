@@ -1,6 +1,8 @@
 import { type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Radar, Search, Bookmark, CreditCard, ReceiptText } from "lucide-react";
+import { LogOut, Radar } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSearch, faBookmark, faCreditCard, faReceipt } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
