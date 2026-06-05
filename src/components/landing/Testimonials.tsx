@@ -1,10 +1,11 @@
+import { useCallback, useEffect, useState } from "react";
 import { Star } from "lucide-react";
+import Autoplay from "embla-carousel-autoplay";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
+  type CarouselApi,
 } from "@/components/ui/carousel";
 
 const testimonials = [
@@ -41,6 +42,20 @@ const testimonials = [
 ];
 
 export function Testimonials() {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    setCurrent(api.selectedScrollSnap());
+    api.on("select", () => setCurrent(api.selectedScrollSnap()));
+  }, [api]);
+
+  const scrollTo = useCallback(
+    (index: number) => api?.scrollTo(index),
+    [api],
+  );
+
   return (
     <section id="reviews" className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
       <div className="mx-auto max-w-2xl text-center">
@@ -50,21 +65,26 @@ export function Testimonials() {
         </p>
       </div>
 
-      <Carousel opts={{ align: "start", loop: true }} className="mt-10 sm:mt-14">
-        <CarouselContent className="-ml-4">
+      <Carousel
+        setApi={setApi}
+        opts={{ align: "start", loop: true, containScroll: "trimSnaps" }}
+        plugins={[Autoplay({ delay: 4000, stopOnInteraction: true })]}
+        className="mt-10 sm:mt-14"
+      >
+        <CarouselContent className="-ml-3 sm:-ml-4">
           {testimonials.map((t) => (
-            <CarouselItem key={t.name} className="pl-4 sm:basis-1/2 lg:basis-1/3">
-              <figure className="flex h-full flex-col rounded-2xl border border-border bg-card p-6">
+            <CarouselItem key={t.name} className="pl-3 sm:basis-1/2 lg:basis-1/3 sm:pl-4">
+              <figure className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm transition-shadow hover:shadow-md">
                 <div className="flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} className="size-4 fill-warning text-warning" />
                   ))}
                 </div>
-                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground">
+                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground sm:text-[15px]">
                   “{t.quote}”
                 </blockquote>
-                <figcaption className="mt-5 flex items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-full bg-accent font-semibold text-accent-foreground">
+                <figcaption className="mt-6 flex items-center gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-full bg-accent font-semibold text-accent-foreground text-sm">
                     {t.name.charAt(0)}
                   </span>
                   <span className="text-sm">
@@ -76,11 +96,23 @@ export function Testimonials() {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <div className="mt-6 flex justify-center gap-2">
-          <CarouselPrevious className="static translate-y-0" />
-          <CarouselNext className="static translate-y-0" />
-        </div>
       </Carousel>
+
+      {/* Dot indicators */}
+      <div className="mt-8 flex justify-center gap-2">
+        {testimonials.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => scrollTo(i)}
+            className={`h-2 rounded-full transition-all ${
+              i === current
+                ? "w-6 bg-primary"
+                : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+            }`}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
+      </div>
     </section>
   );
 }
