@@ -3,6 +3,8 @@ import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
 import { PLAN_LABELS } from "@/lib/billing";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { PlansDialog } from "@/components/dashboard/PlansDialog";
 
 export function CreditMeter({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
@@ -55,10 +57,18 @@ export function CreditMeter({ compact = false }: { compact?: boolean }) {
       ) : topup > 0 ? (
         <p className="mt-3 text-xs text-muted-foreground">{topup} top-up leads · never expire</p>
       ) : (
-        <p className="mt-3 text-xs text-muted-foreground">
-          No leads yet — subscribe or buy a lead pack to start searching.
-        </p>
+        <>
+          <p className="mt-3 text-xs text-muted-foreground">
+            No leads yet — subscribe or buy a lead pack to start searching.
+          </p>
+          <PlansDialog>
+            <Button variant="hero" size="sm" className="mt-3 w-full">
+              <Zap className="size-4" /> Buy a plan
+            </Button>
+          </PlansDialog>
+        </>
       )}
     </div>
   );
 }
+
