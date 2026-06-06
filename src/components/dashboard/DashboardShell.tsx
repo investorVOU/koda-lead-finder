@@ -20,6 +20,7 @@ const navItems: { to: string; label: string; icon: IconDefinition }[] = [
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
