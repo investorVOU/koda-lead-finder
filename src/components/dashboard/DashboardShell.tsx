@@ -95,7 +95,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <Link
               key={item.to}
               to={item.to}
-              ref={(el) => (navRefs.current[index] = el)}
+              ref={(el) => {
+                navRefs.current[index] = el;
+              }}
               onKeyDown={(e) => handleNavKeyDown(e, index)}
               aria-label={item.label}
               className="flex flex-col items-center justify-center gap-1 rounded-lg py-2 text-[10px] font-medium text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
