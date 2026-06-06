@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { LogOut, Radar } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch, faBookmark, faCreditCard, faReceipt } from "@fortawesome/free-solid-svg-icons";
@@ -20,6 +20,7 @@ const navItems: { to: string; label: string; icon: IconDefinition }[] = [
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -59,7 +60,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:py-8">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-6 pb-20 sm:py-8 md:pb-8">
+        <div key={location.pathname} className="animate-page-enter">
+          {children}
+        </div>
+      </main>
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden">
@@ -69,7 +74,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-muted-foreground transition-colors"
-              activeProps={{ className: "text-primary" }}
+              activeProps={{ className: "text-primary bottom-nav-active" }}
             >
               <FontAwesomeIcon icon={item.icon} className="size-5" />
               <span>{item.label}</span>
