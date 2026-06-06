@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useRef, type KeyboardEvent } from "react";
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { LogOut, Radar } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -25,6 +25,25 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const handleSignOut = async () => {
     await signOut();
     navigate({ to: "/login" });
+  };
+
+  const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+
+  const handleNavKeyDown = (e: KeyboardEvent<HTMLAnchorElement>, index: number) => {
+    let next: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      next = (index + 1) % navItems.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      next = (index - 1 + navItems.length) % navItems.length;
+    } else if (e.key === "Home") {
+      next = 0;
+    } else if (e.key === "End") {
+      next = navItems.length - 1;
+    }
+    if (next !== null) {
+      e.preventDefault();
+      navRefs.current[next]?.focus();
+    }
   };
 
   return (
@@ -67,13 +86,21 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden">
+      <nav
+        aria-label="Primary"
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden"
+      >
         <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-2">
-          {navItems.map((item) => (
+          {navItems.map((item, index) => (
             <Link
               key={item.to}
               to={item.to}
-              className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-muted-foreground transition-colors"
+              ref={(el) => {
+                navRefs.current[index] = el;
+              }}
+              onKeyDown={(e) => handleNavKeyDown(e, index)}
+              aria-label={item.label}
+              className="flex flex-col items-center justify-center gap-1 rounded-lg py-2 text-[10px] font-medium text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               activeProps={{ className: "text-primary bottom-nav-active" }}
             >
               <FontAwesomeIcon icon={item.icon} className="size-5" />
@@ -82,6 +109,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           ))}
         </div>
       </nav>
+
     </div>
   );
 }

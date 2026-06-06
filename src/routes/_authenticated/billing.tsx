@@ -260,7 +260,7 @@ function BillingPage() {
 
                   <div className="mt-4 space-y-2">
                     <Button
-                      variant="soft"
+                      variant="hero"
                       className="w-full"
                       disabled={busy !== null}
                       onClick={() => checkout("stripe", "pack", p.id, p.id + "stripe")}
@@ -272,8 +272,8 @@ function BillingPage() {
                       )}
                     </Button>
                     <Button
-                      variant="ghost"
-                      className="w-full"
+                      variant="outline"
+                      className="w-full border-primary/40 text-foreground"
                       disabled={busy !== null}
                       onClick={() => checkout("paystack", "pack", p.id, p.id + "paystack")}
                     >
@@ -283,6 +283,7 @@ function BillingPage() {
                         `Paystack · ${formatNgn(p.ngn)}`
                       )}
                     </Button>
+
                   </div>
                 </div>
               ))}

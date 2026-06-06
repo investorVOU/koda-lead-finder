@@ -129,7 +129,7 @@ export function PlansDialog({ children }: { children: ReactNode }) {
                 <p className="mt-0.5 text-xs text-muted-foreground">Never expire</p>
                 <div className="mt-4 space-y-2">
                   <Button
-                    variant="soft"
+                    variant="hero"
                     size="sm"
                     className="w-full"
                     disabled={busy !== null}
@@ -138,9 +138,9 @@ export function PlansDialog({ children }: { children: ReactNode }) {
                     {busy === p.id + "stripe" ? <Loader2 className="size-4 animate-spin" /> : "Buy with Card"}
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="w-full"
+                    className="w-full border-primary/40 text-foreground"
                     disabled={busy !== null}
                     onClick={() => checkout("paystack", "pack", p.id, p.id + "paystack")}
                   >
@@ -150,6 +150,7 @@ export function PlansDialog({ children }: { children: ReactNode }) {
                       `Paystack · ${formatNgn(p.ngn)}`
                     )}
                   </Button>
+
                 </div>
               </div>
             ))}
