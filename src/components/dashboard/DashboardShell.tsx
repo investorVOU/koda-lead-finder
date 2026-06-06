@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { LogOut, Radar } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch, faBookmark, faCreditCard, faReceipt } from "@fortawesome/free-solid-svg-icons";
