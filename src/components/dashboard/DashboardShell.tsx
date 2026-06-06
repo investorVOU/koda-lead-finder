@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useRef, type KeyboardEvent } from "react";
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { LogOut, Radar } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
