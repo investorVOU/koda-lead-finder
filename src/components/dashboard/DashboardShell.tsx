@@ -27,6 +27,25 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     navigate({ to: "/login" });
   };
 
+  const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+
+  const handleNavKeyDown = (e: KeyboardEvent<HTMLAnchorElement>, index: number) => {
+    let next: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      next = (index + 1) % navItems.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      next = (index - 1 + navItems.length) % navItems.length;
+    } else if (e.key === "Home") {
+      next = 0;
+    } else if (e.key === "End") {
+      next = navItems.length - 1;
+    }
+    if (next !== null) {
+      e.preventDefault();
+      navRefs.current[next]?.focus();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
