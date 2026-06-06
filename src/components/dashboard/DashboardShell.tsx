@@ -74,7 +74,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-muted-foreground transition-colors"
-              activeProps={{ className: "text-primary" }}
+              activeProps={{ className: "text-primary bottom-nav-active" }}
             >
               <FontAwesomeIcon icon={item.icon} className="size-5" />
               <span>{item.label}</span>
