@@ -86,13 +86,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden">
+      <nav
+        aria-label="Primary"
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden"
+      >
         <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-2">
-          {navItems.map((item) => (
+          {navItems.map((item, index) => (
             <Link
               key={item.to}
               to={item.to}
-              className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-muted-foreground transition-colors"
+              ref={(el) => (navRefs.current[index] = el)}
+              onKeyDown={(e) => handleNavKeyDown(e, index)}
+              aria-label={item.label}
+              className="flex flex-col items-center justify-center gap-1 rounded-lg py-2 text-[10px] font-medium text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               activeProps={{ className: "text-primary bottom-nav-active" }}
             >
               <FontAwesomeIcon icon={item.icon} className="size-5" />
@@ -101,6 +107,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           ))}
         </div>
       </nav>
+
     </div>
   );
 }
