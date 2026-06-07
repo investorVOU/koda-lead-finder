@@ -46,6 +46,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const [content, setContent] = useState("");
   const [genLoading, setGenLoading] = useState(false);
   const [outreachOpen, setOutreachOpen] = useState(false);
+  const [proposalOpen, setProposalOpen] = useState(false);
   const [dealInput, setDealInput] = useState(String(lead.deal_value || ""));
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["saved-leads", user?.id] });
