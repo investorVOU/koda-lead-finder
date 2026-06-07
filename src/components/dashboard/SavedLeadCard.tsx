@@ -200,6 +200,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
       />
 
       <OutreachDialog open={outreachOpen} onOpenChange={setOutreachOpen} lead={lead} />
+      <ProposalDialog open={proposalOpen} onOpenChange={setProposalOpen} lead={lead} />
     </>
   );
 }
