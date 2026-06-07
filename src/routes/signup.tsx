@@ -30,7 +30,7 @@ function SignupPage() {
   const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/onboarding" });
+    if (!loading && user) navigate({ to: "/trial-welcome" });
   }, [user, loading, navigate]);
 
   const resetCaptcha = () => {
@@ -53,7 +53,7 @@ function SignupPage() {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin + "/onboarding",
+        emailRedirectTo: window.location.origin + "/trial-welcome",
         data: { full_name: fullName },
         ...(captchaToken ? { captchaToken } : {}),
       },
@@ -66,7 +66,7 @@ function SignupPage() {
     }
     if (data.session) {
       toast.success("Account created! Let's set you up.");
-      navigate({ to: "/onboarding" });
+      navigate({ to: "/trial-welcome" });
     } else {
       toast.success("Check your email to confirm your account.");
     }
@@ -76,7 +76,7 @@ function SignupPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin + "/onboarding" },
+      options: { redirectTo: window.location.origin + "/trial-welcome" },
     });
     if (error) {
       setBusy(false);
@@ -87,7 +87,7 @@ function SignupPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Start finding clients. Lead packs from $2 · pay by card or Paystack."
+      subtitle="Start free · find your first client today"
       footer={
         <>
           Already have an account?{" "}
