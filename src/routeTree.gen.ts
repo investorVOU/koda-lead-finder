@@ -25,6 +25,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticated/invoices'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedChoosePlanRouteImport } from './routes/_authenticated/choose-plan'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks/stripe'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
@@ -108,6 +109,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedChoosePlanRoute = AuthenticatedChoosePlanRouteImport.update({
+  id: '/choose-plan',
+  path: '/choose-plan',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/choose-plan': typeof AuthenticatedChoosePlanRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/invoices': typeof AuthenticatedInvoicesRoute
   '/leads': typeof AuthenticatedLeadsRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/choose-plan': typeof AuthenticatedChoosePlanRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/invoices': typeof AuthenticatedInvoicesRoute
   '/leads': typeof AuthenticatedLeadsRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
+  '/_authenticated/choose-plan': typeof AuthenticatedChoosePlanRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/invoices': typeof AuthenticatedInvoicesRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/trial-welcome'
     | '/billing'
+    | '/choose-plan'
     | '/dashboard'
     | '/invoices'
     | '/leads'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/trial-welcome'
     | '/billing'
+    | '/choose-plan'
     | '/dashboard'
     | '/invoices'
     | '/leads'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/trial-welcome'
     | '/_authenticated/billing'
+    | '/_authenticated/choose-plan'
     | '/_authenticated/dashboard'
     | '/_authenticated/invoices'
     | '/_authenticated/leads'
@@ -382,6 +394,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/choose-plan': {
+      id: '/_authenticated/choose-plan'
+      path: '/choose-plan'
+      fullPath: '/choose-plan'
+      preLoaderRoute: typeof AuthenticatedChoosePlanRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/billing': {
       id: '/_authenticated/billing'
       path: '/billing'
@@ -408,6 +427,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
+  AuthenticatedChoosePlanRoute: typeof AuthenticatedChoosePlanRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedInvoicesRoute: typeof AuthenticatedInvoicesRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
@@ -416,6 +436,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
+  AuthenticatedChoosePlanRoute: AuthenticatedChoosePlanRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedInvoicesRoute: AuthenticatedInvoicesRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,

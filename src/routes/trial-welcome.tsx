@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import confetti from "canvas-confetti";
 import {
   Sparkles,
   ArrowRight,
@@ -54,7 +55,43 @@ export default function TrialWelcomePage() {
 
   useEffect(() => {
     const t = setTimeout(() => setAnimIn(true), 80);
-    return () => clearTimeout(t);
+
+    // Burst from both sides like a birthday 🎉
+    const fire = (x: number, angle: number) =>
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        angle,
+        origin: { x, y: 0.6 },
+        colors: ["#2a9d6f", "#1ec98a", "#a7f3d0", "#fbbf24", "#f87171", "#818cf8"],
+      });
+
+    const burst = setTimeout(() => {
+      fire(0.15, 60);
+      fire(0.85, 120);
+    }, 300);
+
+    const burst2 = setTimeout(() => {
+      fire(0.2, 55);
+      fire(0.8, 125);
+    }, 700);
+
+    const burst3 = setTimeout(() => {
+      confetti({
+        particleCount: 120,
+        spread: 100,
+        origin: { x: 0.5, y: 0.5 },
+        colors: ["#2a9d6f", "#1ec98a", "#fbbf24", "#f87171", "#818cf8"],
+        scalar: 1.1,
+      });
+    }, 1200);
+
+    return () => {
+      clearTimeout(t);
+      clearTimeout(burst);
+      clearTimeout(burst2);
+      clearTimeout(burst3);
+    };
   }, []);
 
   return (
