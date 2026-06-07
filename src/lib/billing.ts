@@ -36,12 +36,13 @@ export interface FreePlan {
 export const FREE_PLAN: FreePlan = {
   id: "free",
   name: "Free",
-  tagline: "Get started with no credit card",
-  credits: 2,
+  tagline: "Dashboard access, no searches",
+  credits: 0,
   features: [
-    "2 leads / month",
-    "Basic lead info",
-    "Save to pipeline",
+    "0 lead searches",
+    "Full dashboard access",
+    "View saved leads",
+    "Upgrade any time",
   ],
 };
 

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
-import { FREE_PLAN } from "@/lib/billing";
 
 export const Route = createFileRoute("/trial-welcome")({
   head: () => ({ meta: [{ title: "Welcome to Kodarai — Free 3-Day Trial" }] }),
@@ -144,7 +143,7 @@ export default function TrialWelcomePage() {
           {/* After trial */}
           <div className="border-t border-border bg-muted/30 px-6 py-4">
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">After 3 days</span> — you'll drop to the free plan ({FREE_PLAN.credits} searches/month) at no charge. Upgrade any time to keep your full access.
+              <span className="font-medium text-foreground">After 3 days</span> — you'll drop to the free plan (dashboard access only, no searches) at no charge. Upgrade any time to keep searching.
             </p>
           </div>
         </div>
@@ -152,7 +151,7 @@ export default function TrialWelcomePage() {
         {/* Plan tier chips */}
         <div className="mt-5 grid grid-cols-3 gap-3">
           {[
-            { label: "Free",    sub: "2 leads/mo" },
+            { label: "Free",    sub: "0 searches" },
             { label: "Starter", sub: "$4/mo · 60 leads" },
             { label: "Pro",     sub: "$12/mo · 250 leads", active: true },
           ].map(({ label, sub, active }) => (
