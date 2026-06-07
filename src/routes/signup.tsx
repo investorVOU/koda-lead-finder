@@ -141,6 +141,7 @@ function SignupPage() {
           <HCaptcha
             ref={captchaRef}
             sitekey={HCAPTCHA_SITE_KEY}
+            theme={document.documentElement.classList.contains("dark") ? "dark" : "light"}
             onVerify={setCaptchaToken}
             onExpire={resetCaptcha}
           />
