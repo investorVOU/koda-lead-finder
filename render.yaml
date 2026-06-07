@@ -26,6 +26,10 @@ services:
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
         value: sb_publishable_9tJur7wChKpKQ8BcldPFtw_ccSktsOH
 
+      # ── hCaptcha ────────────────────────────────────────────────────
+      - key: VITE_HCAPTCHA_SITE_KEY
+        sync: false          # hcaptcha.com → Sites → Site key (public)
+
       # ── AI & Search ─────────────────────────────────────────────────
       - key: LOVABLE_API_KEY
         sync: false          # Lovable AI gateway key

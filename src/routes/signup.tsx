@@ -1,13 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell, GoogleButton } from "@/components/auth/AuthShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+
+const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string;
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
@@ -23,15 +26,26 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/onboarding" });
   }, [user, loading, navigate]);
 
+  const resetCaptcha = () => {
+    captchaRef.current?.resetCaptcha();
+    setCaptchaToken(null);
+  };
+
   const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (HCAPTCHA_SITE_KEY && !captchaToken) {
+      toast.error("Please complete the captcha");
       return;
     }
     setBusy(true);
@@ -41,9 +55,11 @@ function SignupPage() {
       options: {
         emailRedirectTo: window.location.origin + "/onboarding",
         data: { full_name: fullName },
+        ...(captchaToken ? { captchaToken } : {}),
       },
     });
     setBusy(false);
+    resetCaptcha();
     if (error) {
       toast.error(error.message);
       return;
@@ -120,6 +136,16 @@ function SignupPage() {
             required
           />
         </div>
+
+        {HCAPTCHA_SITE_KEY && (
+          <HCaptcha
+            ref={captchaRef}
+            sitekey={HCAPTCHA_SITE_KEY}
+            onVerify={setCaptchaToken}
+            onExpire={resetCaptcha}
+          />
+        )}
+
         <Button type="submit" variant="hero" size="lg" className="w-full" disabled={busy}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : "Create account"}
         </Button>

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Loader2, Mail, MessageSquare, User, Send, CheckCircle2 } from "lucide-react";
 import { SiteNav } from "@/components/landing/SiteNav";
@@ -77,6 +77,13 @@ function ContactPage() {
     <>
       <SiteNav />
       <main className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          Back to home
+        </Link>
         {/* Header */}
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-medium text-primary">Get in touch</p>
