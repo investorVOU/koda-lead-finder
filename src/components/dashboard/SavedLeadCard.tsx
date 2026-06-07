@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Star, Trash2, ExternalLink, Sparkles, PhoneCall, Loader2 } from "lucide-react";
+import { Star, Trash2, ExternalLink, Sparkles, PhoneCall, MessageCircle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,7 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { GenerateDialog } from "@/components/dashboard/GenerateDialog";
+import { OutreachDialog } from "@/components/dashboard/OutreachDialog";
 import { generateContent } from "@/lib/ai.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -29,6 +31,7 @@ export interface SavedLead {
   category: string | null;
   location: string | null;
   status: LeadStatusValue;
+  deal_value: number;
 }
 
 export function SavedLeadCard({ lead }: { lead: SavedLead }) {
@@ -41,6 +44,8 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const [dialogDesc, setDialogDesc] = useState("");
   const [content, setContent] = useState("");
   const [genLoading, setGenLoading] = useState(false);
+  const [outreachOpen, setOutreachOpen] = useState(false);
+  const [dealInput, setDealInput] = useState(String(lead.deal_value || ""));
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["saved-leads", user?.id] });
 
@@ -51,6 +56,18 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
       return;
     }
     invalidate();
+  };
+
+  const saveDealValue = async () => {
+    const value = Number(dealInput) || 0;
+    if (value === lead.deal_value) return;
+    const { error } = await supabase.from("saved_leads").update({ deal_value: value }).eq("id", lead.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    invalidate();
+    toast.success("Deal value saved");
   };
 
   const remove = async () => {
@@ -95,6 +112,8 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
     setContent(res.content);
   };
 
+  const showDealValue = lead.status === "closed" || lead.status === "paid";
+
   return (
     <>
       <div className="rounded-xl border border-border bg-card p-4">
@@ -127,12 +146,31 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
           </SelectContent>
         </Select>
 
+        {showDealValue && (
+          <div className="mt-2 flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">$</span>
+            <Input
+              type="number"
+              min={0}
+              value={dealInput}
+              onChange={(e) => setDealInput(e.target.value)}
+              onBlur={saveDealValue}
+              placeholder="Deal value"
+              className="h-8 text-xs"
+              aria-label={`Deal value for ${lead.business_name}`}
+            />
+          </div>
+        )}
+
         <div className="mt-3 flex items-center gap-1">
           <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("website_prompt")} aria-label="AI prompt">
             <Sparkles className="size-4" />
           </Button>
           <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("call_script")} aria-label="Call script">
             <PhoneCall className="size-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => setOutreachOpen(true)} aria-label="Outreach templates">
+            <MessageCircle className="size-4" />
           </Button>
           {lead.maps_url && (
             <Button variant="ghost" size="icon" className="size-8" asChild>
@@ -155,6 +193,8 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
         content={content}
         loading={genLoading}
       />
+
+      <OutreachDialog open={outreachOpen} onOpenChange={setOutreachOpen} lead={lead} />
     </>
   );
 }
