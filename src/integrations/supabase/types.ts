@@ -130,6 +130,7 @@ export type Database = {
           call_script: string | null
           category: string | null
           created_at: string
+          deal_value: number
           has_website: boolean
           id: string
           location: string | null
@@ -151,6 +152,7 @@ export type Database = {
           call_script?: string | null
           category?: string | null
           created_at?: string
+          deal_value?: number
           has_website?: boolean
           id?: string
           location?: string | null
@@ -172,6 +174,7 @@ export type Database = {
           call_script?: string | null
           category?: string | null
           created_at?: string
+          deal_value?: number
           has_website?: boolean
           id?: string
           location?: string | null
@@ -301,7 +304,7 @@ export type Database = {
       use_search_credit: { Args: { p_uid: string }; Returns: Json }
     }
     Enums: {
-      lead_status: "new" | "contacted" | "proposal" | "closed"
+      lead_status: "new" | "contacted" | "proposal" | "closed" | "paid"
       plan_tier: "trial" | "pro" | "max"
     }
     CompositeTypes: {
@@ -430,7 +433,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      lead_status: ["new", "contacted", "proposal", "closed"],
+      lead_status: ["new", "contacted", "proposal", "closed", "paid"],
       plan_tier: ["trial", "pro", "max"],
     },
   },

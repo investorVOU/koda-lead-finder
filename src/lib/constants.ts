@@ -25,7 +25,7 @@ export const LEAD_CATEGORIES = [
   "Event Planning",
 ] as const;
 
-export const LEAD_STATUSES = ["new", "contacted", "proposal", "closed"] as const;
+export const LEAD_STATUSES = ["new", "contacted", "proposal", "closed", "paid"] as const;
 export type LeadStatusValue = (typeof LEAD_STATUSES)[number];
 
 export const STATUS_LABELS: Record<LeadStatusValue, string> = {
@@ -33,6 +33,7 @@ export const STATUS_LABELS: Record<LeadStatusValue, string> = {
   contacted: "Contacted",
   proposal: "Proposal",
   closed: "Closed",
+  paid: "Paid",
 };
 
 export const PLAN_LABELS: Record<string, string> = {
