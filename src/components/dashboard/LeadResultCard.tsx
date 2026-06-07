@@ -22,6 +22,8 @@ import { analyzeReviews } from "@/lib/reviews.functions";
 import type { ReviewAnalysis } from "@/lib/reviews.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useSubscription, isFreeTrial } from "@/lib/queries";
+import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
 import type { LeadResult } from "@/lib/constants";
 
 export function LeadResultCard({
@@ -38,6 +40,12 @@ export function LeadResultCard({
   const runGenerate = useServerFn(generateContent);
   const runAnalyzeReviews = useServerFn(analyzeReviews);
 
+  const { data: subscription } = useSubscription(user?.id);
+  const trialUser = isFreeTrial(subscription);
+
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState("");
+
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -52,7 +60,13 @@ export function LeadResultCard({
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewAnalysis, setReviewAnalysis] = useState<ReviewAnalysis | null>(null);
 
+  const gate = (feature: string) => {
+    setUpgradeFeature(feature);
+    setUpgradeOpen(true);
+  };
+
   const saveLead = async () => {
+    if (trialUser) { gate("Saving leads"); return; }
     if (!user || saved) return;
     setSaving(true);
     const { error } = await supabase.from("saved_leads").insert({
@@ -80,6 +94,10 @@ export function LeadResultCard({
   };
 
   const generate = async (kind: "website_prompt" | "call_script") => {
+    if (trialUser) {
+      gate(kind === "website_prompt" ? "AI Website Prompts" : "Cold Call Scripts");
+      return;
+    }
     setGenKind(kind);
     setDialogTitle(kind === "website_prompt" ? "AI Website Prompt" : "Cold Call Script");
     setDialogDesc(
@@ -237,6 +255,12 @@ export function LeadResultCard({
         businessName={lead.name}
         analysis={reviewAnalysis}
         loading={reviewLoading}
+      />
+
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        feature={upgradeFeature}
       />
     </>
   );

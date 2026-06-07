@@ -69,6 +69,10 @@ export function useSubscription(userId: string | undefined) {
   });
 }
 
+export function isFreeTrial(sub: Subscription | null | undefined): boolean {
+  return !sub || sub.plan === "trial" || sub.status === "pending_plan" || sub.status === "trialing";
+}
+
 export function usePaymentHistory(userId: string | undefined) {
   return useQuery({
     queryKey: ["payment-history", userId],
