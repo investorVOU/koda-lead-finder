@@ -95,6 +95,39 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_previews: {
+        Row: {
+          id: string
+          user_id: string
+          slug: string
+          business_name: string
+          prompt_content: string
+          views: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          slug: string
+          business_name: string
+          prompt_content: string
+          views?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          slug?: string
+          business_name?: string
+          prompt_content?: string
+          views?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       provider_plans: {
         Row: {
           created_at: string
@@ -302,6 +335,7 @@ export type Database = {
     }
     Functions: {
       use_search_credit: { Args: { p_uid: string }; Returns: Json }
+      increment_preview_views: { Args: { p_slug: string }; Returns: undefined }
     }
     Enums: {
       lead_status: "new" | "contacted" | "proposal" | "closed" | "paid"

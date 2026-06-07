@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { FadeUp } from "./FadeUp";
 import { Star } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
 import {
@@ -58,12 +59,14 @@ export function Testimonials() {
 
   return (
     <section id="reviews" className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
-      <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-2xl font-bold sm:text-4xl">Loved by freelancers worldwide</h2>
-        <p className="mt-3 text-muted-foreground sm:mt-4">
-          Designers and agencies use KodaRai to fill their pipeline every week.
-        </p>
-      </div>
+      <FadeUp>
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-2xl font-bold sm:text-4xl">Loved by freelancers worldwide</h2>
+          <p className="mt-3 text-muted-foreground sm:mt-4">
+            Designers and agencies use KodaRai to fill their pipeline every week.
+          </p>
+        </div>
+      </FadeUp>
 
       <Carousel
         setApi={setApi}

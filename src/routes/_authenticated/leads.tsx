@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Bookmark, Loader2, Download } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { SavedLeadCard, type SavedLead } from "@/components/dashboard/SavedLeadCard";
 import { LeadStats } from "@/components/dashboard/LeadStats";
+import { ExportDialog } from "@/components/dashboard/ExportDialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { LEAD_STATUSES, STATUS_LABELS } from "@/lib/constants";
-import { exportLeadsToCsv } from "@/lib/csv";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({ meta: [{ title: "Saved Leads — KodaRai" }] }),
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/leads")({
 
 function LeadsPage() {
   const { user } = useAuth();
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["saved-leads", user?.id],
@@ -43,12 +45,8 @@ function LeadsPage() {
           </p>
         </div>
         {hasLeads && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportLeadsToCsv(leads!)}
-          >
-            <Download className="size-4" /> Export CSV
+          <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+            <Download className="size-4" /> Export
           </Button>
         )}
       </div>
@@ -86,7 +84,9 @@ function LeadsPage() {
                       <SavedLeadCard key={lead.id} lead={lead} />
                     ))}
                     {items.length === 0 && (
-                      <p className="px-1 py-6 text-center text-xs text-muted-foreground">Nothing here yet</p>
+                      <p className="px-1 py-6 text-center text-xs text-muted-foreground">
+                        Nothing here yet
+                      </p>
                     )}
                   </div>
                 </div>
@@ -94,6 +94,10 @@ function LeadsPage() {
             })}
           </div>
         </>
+      )}
+
+      {hasLeads && (
+        <ExportDialog open={exportOpen} onOpenChange={setExportOpen} leads={leads!} />
       )}
     </DashboardShell>
   );

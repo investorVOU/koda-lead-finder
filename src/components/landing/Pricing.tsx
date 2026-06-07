@@ -2,17 +2,20 @@ import { Check } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PLANS, PACKS, formatNgn } from "@/lib/billing";
+import { FadeUp } from "./FadeUp";
 
 export function Pricing() {
   return (
     <section id="pricing" className="border-y border-border bg-secondary/40">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold sm:text-4xl">Pricing that fits your hustle</h2>
-          <p className="mt-4 text-muted-foreground">
-            Get your first client for $2. Pay in USD with card or in Naira with Paystack. Cancel anytime.
-          </p>
-        </div>
+        <FadeUp>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-2xl font-bold sm:text-4xl">Pricing that fits your hustle</h2>
+            <p className="mt-4 text-muted-foreground">
+              Get your first client for $2. Pay in USD with card or in Naira with Paystack. Cancel anytime.
+            </p>
+          </div>
+        </FadeUp>
 
         {/* Monthly plans */}
         <div className="mt-14 grid items-start gap-6 lg:grid-cols-3">

@@ -2,7 +2,17 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Star, Trash2, ExternalLink, Sparkles, PhoneCall, MessageCircle, FileText } from "lucide-react";
+import {
+  Star,
+  Trash2,
+  ExternalLink,
+  Sparkles,
+  PhoneCall,
+  MessageCircle,
+  FileText,
+  MessageSquareText,
+  Check,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -15,13 +25,17 @@ import { Input } from "@/components/ui/input";
 import { GenerateDialog } from "@/components/dashboard/GenerateDialog";
 import { OutreachDialog } from "@/components/dashboard/OutreachDialog";
 import { ProposalDialog } from "@/components/dashboard/ProposalDialog";
+import { ReviewDialog } from "@/components/dashboard/ReviewDialog";
 import { generateContent } from "@/lib/ai.functions";
+import { analyzeReviews } from "@/lib/reviews.functions";
+import type { ReviewAnalysis } from "@/lib/reviews.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { LEAD_STATUSES, STATUS_LABELS, type LeadStatusValue } from "@/lib/constants";
 
 export interface SavedLead {
   id: string;
+  place_id: string | null;
   business_name: string;
   address: string | null;
   phone: string | null;
@@ -39,14 +53,22 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const runGenerate = useServerFn(generateContent);
+  const runAnalyzeReviews = useServerFn(analyzeReviews);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogDesc, setDialogDesc] = useState("");
   const [content, setContent] = useState("");
   const [genLoading, setGenLoading] = useState(false);
+  const [genKind, setGenKind] = useState<"website_prompt" | "call_script">("website_prompt");
+
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [proposalOpen, setProposalOpen] = useState(false);
+
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewAnalysis, setReviewAnalysis] = useState<ReviewAnalysis | null>(null);
+
   const [dealInput, setDealInput] = useState(String(lead.deal_value || ""));
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["saved-leads", user?.id] });
@@ -63,7 +85,10 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const saveDealValue = async () => {
     const value = Number(dealInput) || 0;
     if (value === lead.deal_value) return;
-    const { error } = await supabase.from("saved_leads").update({ deal_value: value }).eq("id", lead.id);
+    const { error } = await supabase
+      .from("saved_leads")
+      .update({ deal_value: value })
+      .eq("id", lead.id);
     if (error) {
       toast.error(error.message);
       return;
@@ -83,6 +108,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   };
 
   const generate = async (kind: "website_prompt" | "call_script") => {
+    setGenKind(kind);
     setDialogTitle(kind === "website_prompt" ? "AI Website Prompt" : "Cold Call Script");
     setDialogDesc(
       kind === "website_prompt"
@@ -112,6 +138,28 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
       return;
     }
     setContent(res.content);
+  };
+
+  const openReviews = async () => {
+    if (!lead.place_id) return;
+    setReviewAnalysis(null);
+    setReviewLoading(true);
+    setReviewOpen(true);
+    const res = await runAnalyzeReviews({
+      data: {
+        placeId: lead.place_id,
+        businessName: lead.business_name,
+        category: lead.category ?? "",
+        location: lead.location ?? "",
+      },
+    });
+    setReviewLoading(false);
+    if ("error" in res) {
+      toast.error(res.message);
+      setReviewOpen(false);
+      return;
+    }
+    setReviewAnalysis(res.analysis);
   };
 
   const showDealValue = lead.status === "closed" || lead.status === "paid";
@@ -156,35 +204,91 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
               min={0}
               value={dealInput}
               onChange={(e) => setDealInput(e.target.value)}
-              onBlur={saveDealValue}
+              onKeyDown={(e) => e.key === "Enter" && saveDealValue()}
               placeholder="Deal value"
               className="h-8 text-xs"
               aria-label={`Deal value for ${lead.business_name}`}
             />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 text-primary"
+              onClick={saveDealValue}
+              aria-label="Save deal value"
+            >
+              <Check className="size-4" />
+            </Button>
           </div>
         )}
 
-        <div className="mt-3 flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("website_prompt")} aria-label="AI prompt">
+        <div className="mt-3 flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => generate("website_prompt")}
+            aria-label="AI prompt"
+          >
             <Sparkles className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("call_script")} aria-label="Call script">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => generate("call_script")}
+            aria-label="Call script"
+          >
             <PhoneCall className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => setOutreachOpen(true)} aria-label="Outreach templates">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => setOutreachOpen(true)}
+            aria-label="Outreach templates"
+          >
             <MessageCircle className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => setProposalOpen(true)} aria-label="Proposal PDF">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => setProposalOpen(true)}
+            aria-label="Proposal PDF"
+          >
             <FileText className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={openReviews}
+            disabled={!lead.place_id || lead.review_count === 0}
+            aria-label="Analyze reviews"
+            title="Analyze Google reviews"
+          >
+            <MessageSquareText className="size-4" />
           </Button>
           {lead.maps_url && (
             <Button variant="ghost" size="icon" className="size-8" asChild>
-              <a href={lead.maps_url} target="_blank" rel="noopener noreferrer" aria-label="Open in Maps">
+              <a
+                href={lead.maps_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open in Maps"
+              >
                 <ExternalLink className="size-4" />
               </a>
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="ml-auto size-8 text-destructive" onClick={remove} aria-label="Delete">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto size-8 text-destructive"
+            onClick={remove}
+            aria-label="Delete"
+          >
             <Trash2 className="size-4" />
           </Button>
         </div>
@@ -197,10 +301,20 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
         description={dialogDesc}
         content={content}
         loading={genLoading}
+        kind={genKind}
+        businessName={lead.business_name}
       />
 
       <OutreachDialog open={outreachOpen} onOpenChange={setOutreachOpen} lead={lead} />
       <ProposalDialog open={proposalOpen} onOpenChange={setProposalOpen} lead={lead} />
+
+      <ReviewDialog
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        businessName={lead.business_name}
+        analysis={reviewAnalysis}
+        loading={reviewLoading}
+      />
     </>
   );
 }

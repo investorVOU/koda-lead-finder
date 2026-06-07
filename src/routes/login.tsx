@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,22 +41,21 @@ function LoginPage() {
     navigate({ to: "/dashboard" });
   };
 
-  const handleMagicLink = async () => {
+  const handleForgotPassword = async () => {
     if (!email) {
       toast.error("Enter your email first");
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin + "/dashboard" },
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/reset-password",
     });
     setBusy(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Magic link sent! Check your inbox.");
+    toast.success("Password reset email sent! Check your inbox.");
   };
 
   const handleGoogle = async () => {
@@ -124,10 +123,10 @@ function LoginPage() {
         type="button"
         variant="ghost"
         className="mt-3 w-full"
-        onClick={handleMagicLink}
+        onClick={handleForgotPassword}
         disabled={busy}
       >
-        <Mail className="size-4" /> Email me a magic link
+        <KeyRound className="size-4" /> Forgot password?
       </Button>
     </AuthShell>
   );

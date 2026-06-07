@@ -1,7 +1,6 @@
 // Demo + sales-training video library for KodaRai.
-// Paste real YouTube video IDs into `youtubeId` (the part after watch?v=).
-// Cards render beautifully even before IDs are added; the player shows a
-// friendly "coming soon" state until a valid ID is present.
+// Priority order in the modal: youtubeId → instagramUrl → tiktokUrl → "coming soon"
+// TikTok: paste the full video URL (https://www.tiktok.com/@user/video/ID) or just the numeric ID.
 
 export type LearnCategory = "Cold Calling" | "Sales & Closing" | "Using KodaRai";
 
@@ -10,12 +9,16 @@ export interface LearnVideo {
   title: string;
   description: string;
   youtubeId: string;
+  instagramUrl?: string;
+  tiktokUrl?: string;
   category: LearnCategory;
   duration: string;
 }
 
 export const DEMO_VIDEO = {
-  youtubeId: "", // ← paste your product demo YouTube ID here
+  youtubeId: "",
+  instagramUrl: "",
+  tiktokUrl: "https://www.tiktok.com/@gb_buildz/video/7645025213599468813",
   title: "See KodaRai in action",
   description:
     "Watch how freelancers find top-rated businesses with no website, generate a site in minutes, and get paid.",
@@ -33,6 +36,7 @@ export const LEARN_VIDEOS: LearnVideo[] = [
     title: "Your first cold call, step by step",
     description: "A simple, repeatable opener that gets local business owners to actually listen.",
     youtubeId: "",
+    instagramUrl: "https://www.instagram.com/reel/DZNzMjjBCnu/",
     category: "Cold Calling",
     duration: "8 min",
   },
@@ -41,6 +45,7 @@ export const LEARN_VIDEOS: LearnVideo[] = [
     title: "Handling 'we're not interested'",
     description: "Turn the most common brush-off into a real conversation without being pushy.",
     youtubeId: "",
+    instagramUrl: "https://www.instagram.com/reel/DZSofz1RrOK/",
     category: "Cold Calling",
     duration: "6 min",
   },

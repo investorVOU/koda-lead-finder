@@ -7,6 +7,7 @@ import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
+import { AvatarUpload } from "@/components/dashboard/AvatarUpload";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
@@ -18,7 +19,7 @@ const navItems: { to: string; label: string; icon: IconDefinition }[] = [
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
-  const { signOut } = useAuth();
+  const { user, profile, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,6 +47,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     }
   };
 
+  const displayName =
+    profile?.full_name?.split(" ")[0] ||
+    user?.user_metadata?.full_name?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
+    "there";
+
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
@@ -71,6 +78,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <div className="hidden sm:block">
               <CreditMeter compact />
             </div>
+
+            {/* Greeting + avatar */}
+            <div className="flex items-center gap-2">
+              <span className="hidden text-sm font-medium text-muted-foreground sm:block">
+                Hi, <span className="text-foreground">{displayName}</span>
+              </span>
+              <AvatarUpload
+                avatarUrl={profile?.avatar_url ?? null}
+                name={displayName}
+                onUpload={refreshProfile}
+                size={34}
+              />
+            </div>
+
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sign out">
               <LogOut className="size-5" />
@@ -109,7 +130,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           ))}
         </div>
       </nav>
-
     </div>
   );
 }

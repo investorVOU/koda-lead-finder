@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/landing/SiteNav";
 import { Hero } from "@/components/landing/Hero";
+import { LogosCarousel } from "@/components/landing/LogosCarousel";
 import { Features } from "@/components/landing/Features";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LearnPreview } from "@/components/landing/LearnPreview";
@@ -37,6 +38,7 @@ function Index() {
       <SiteNav />
       <main>
         <Hero />
+        <LogosCarousel />
         <Features />
         <HowItWorks />
         <LearnPreview />

@@ -2,10 +2,24 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Star, MapPin, Phone, Bookmark, BookmarkCheck, Sparkles, PhoneCall, ExternalLink, Loader2 } from "lucide-react";
+import {
+  Star,
+  MapPin,
+  Phone,
+  Bookmark,
+  BookmarkCheck,
+  Sparkles,
+  PhoneCall,
+  ExternalLink,
+  Loader2,
+  MessageSquareText,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GenerateDialog } from "@/components/dashboard/GenerateDialog";
+import { ReviewDialog } from "@/components/dashboard/ReviewDialog";
 import { generateContent } from "@/lib/ai.functions";
+import { analyzeReviews } from "@/lib/reviews.functions";
+import type { ReviewAnalysis } from "@/lib/reviews.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import type { LeadResult } from "@/lib/constants";
@@ -22,14 +36,21 @@ export function LeadResultCard({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const runGenerate = useServerFn(generateContent);
+  const runAnalyzeReviews = useServerFn(analyzeReviews);
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogDesc, setDialogDesc] = useState("");
   const [content, setContent] = useState("");
   const [genLoading, setGenLoading] = useState(false);
+  const [genKind, setGenKind] = useState<"website_prompt" | "call_script">("website_prompt");
+
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewAnalysis, setReviewAnalysis] = useState<ReviewAnalysis | null>(null);
 
   const saveLead = async () => {
     if (!user || saved) return;
@@ -59,6 +80,7 @@ export function LeadResultCard({
   };
 
   const generate = async (kind: "website_prompt" | "call_script") => {
+    setGenKind(kind);
     setDialogTitle(kind === "website_prompt" ? "AI Website Prompt" : "Cold Call Script");
     setDialogDesc(
       kind === "website_prompt"
@@ -88,6 +110,27 @@ export function LeadResultCard({
       return;
     }
     setContent(res.content);
+  };
+
+  const openReviews = async () => {
+    setReviewAnalysis(null);
+    setReviewLoading(true);
+    setReviewOpen(true);
+    const res = await runAnalyzeReviews({
+      data: {
+        placeId: lead.placeId,
+        businessName: lead.name,
+        category,
+        location,
+      },
+    });
+    setReviewLoading(false);
+    if ("error" in res) {
+      toast.error(res.message);
+      setReviewOpen(false);
+      return;
+    }
+    setReviewAnalysis(res.analysis);
   };
 
   return (
@@ -121,7 +164,10 @@ export function LeadResultCard({
             </span>
           )}
           {lead.phone && (
-            <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+            <a
+              href={`tel:${lead.phone}`}
+              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+            >
               <Phone className="size-3.5" />
               {lead.phone}
             </a>
@@ -129,11 +175,21 @@ export function LeadResultCard({
         </div>
 
         <div className="mt-4 space-y-2">
-          <Button variant="hero" size="sm" className="w-full" onClick={() => generate("website_prompt")}>
+          <Button
+            variant="hero"
+            size="sm"
+            className="w-full"
+            onClick={() => generate("website_prompt")}
+          >
             <Sparkles className="size-4" /> Generate AI Website Prompt
           </Button>
-          <div className="grid grid-cols-3 gap-2">
-            <Button variant={saved ? "soft" : "outline"} size="sm" onClick={saveLead} disabled={saving || saved}>
+          <div className="grid grid-cols-4 gap-2">
+            <Button
+              variant={saved ? "soft" : "outline"}
+              size="sm"
+              onClick={saveLead}
+              disabled={saving || saved}
+            >
               {saving ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : saved ? (
@@ -145,6 +201,15 @@ export function LeadResultCard({
             </Button>
             <Button variant="outline" size="sm" onClick={() => generate("call_script")}>
               <PhoneCall className="size-4" /> Script
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openReviews}
+              disabled={lead.reviewCount === 0}
+              title={lead.reviewCount === 0 ? "No reviews" : "Analyze reviews"}
+            >
+              <MessageSquareText className="size-4" /> Reviews
             </Button>
             <Button variant="ghost" size="sm" asChild>
               <a href={lead.mapsUrl} target="_blank" rel="noopener noreferrer">
@@ -162,6 +227,16 @@ export function LeadResultCard({
         description={dialogDesc}
         content={content}
         loading={genLoading}
+        kind={genKind}
+        businessName={lead.name}
+      />
+
+      <ReviewDialog
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        businessName={lead.name}
+        analysis={reviewAnalysis}
+        loading={reviewLoading}
       />
     </>
   );

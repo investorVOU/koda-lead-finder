@@ -1,12 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, MapPin, PlayCircle, Star, Phone, Sparkles } from "lucide-react";
+import { ArrowRight, MapPin, PlayCircle, Star, Phone, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoModal } from "@/components/landing/VideoModal";
 import { DEMO_VIDEO } from "@/lib/videos";
 
+const HERO_PHRASES = [
+  { line1: "Find high-rated businesses", highlight: "without websites", line2: "& close them fast" },
+  { line1: "Turn no-website leads into", highlight: "paying clients", line2: "in minutes" },
+  { line1: "Land web design clients", highlight: "before they search", line2: "for an agency" },
+  { line1: "Stop cold pitching — find", highlight: "businesses that need you", line2: "right now" },
+];
+
 export function Hero() {
   const [demoOpen, setDemoOpen] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndex((i) => (i + 1) % HERO_PHRASES.length);
+        setVisible(true);
+      }, 400);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <section className="relative overflow-hidden border-b border-border bg-background">
@@ -38,10 +58,17 @@ export function Hero() {
               AI-powered lead generation
             </span>
 
-            <h1 className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.4rem]">
-              Find high-rated businesses{" "}
-              <span className="text-primary">without websites</span>{" "}
-              & close them fast
+            <h1
+              className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.4rem]"
+              style={{
+                opacity: visible ? 1 : 0,
+                transform: visible ? "translateY(0)" : "translateY(10px)",
+                transition: "opacity 0.4s ease, transform 0.4s ease",
+              }}
+            >
+              {HERO_PHRASES[index].line1}{" "}
+              <span className="text-primary">{HERO_PHRASES[index].highlight}</span>{" "}
+              {HERO_PHRASES[index].line2}
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg lg:mx-0">
@@ -86,7 +113,7 @@ export function Hero() {
               <div className="flex items-center justify-between px-1 pb-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <span className="flex size-6 items-center justify-center rounded-md bg-accent text-accent-foreground">
-                    <Sparkles className="size-3.5" />
+                    <Search className="size-3.5" />
                   </span>
                   Lead Finder
                 </div>
@@ -123,6 +150,8 @@ export function Hero() {
         open={demoOpen}
         onOpenChange={setDemoOpen}
         youtubeId={DEMO_VIDEO.youtubeId}
+        instagramUrl={DEMO_VIDEO.instagramUrl}
+        tiktokUrl={DEMO_VIDEO.tiktokUrl}
         title={DEMO_VIDEO.title}
         description={DEMO_VIDEO.description}
       />
@@ -168,7 +197,7 @@ function LeadCard({
       </div>
       <div className="mt-3 flex gap-2">
         <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 py-1.5 text-[11px] font-semibold text-primary">
-          <Sparkles className="size-3" /> AI prompt
+          AI prompt
         </span>
         <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent py-1.5 text-[11px] font-semibold text-accent-foreground">
           <Phone className="size-3" /> Call script

@@ -51,6 +51,8 @@ export function LearnPreview() {
         open={active !== null}
         onOpenChange={(o) => !o && setActive(null)}
         youtubeId={active?.youtubeId ?? ""}
+        instagramUrl={active?.instagramUrl}
+        tiktokUrl={active?.tiktokUrl}
         title={active?.title ?? ""}
         description={active?.description}
       />

@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Force Nitro to run with the Node.js preset for self-hosting on Render.
+  // Without this, Nitro only fires inside Lovable Cloud builds.
+  nitro: { preset: "node-server" },
 });
