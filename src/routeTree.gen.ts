@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrialWelcomeRouteImport } from './routes/trial-welcome'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -28,6 +29,11 @@ import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticate
 import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks/stripe'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 
+const TrialWelcomeRoute = TrialWelcomeRouteImport.update({
+  id: '/trial-welcome',
+  path: '/trial-welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/trial-welcome': typeof TrialWelcomeRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/invoices': typeof AuthenticatedInvoicesRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/trial-welcome': typeof TrialWelcomeRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/invoices': typeof AuthenticatedInvoicesRoute
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/trial-welcome': typeof TrialWelcomeRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/invoices': typeof AuthenticatedInvoicesRoute
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/trial-welcome'
     | '/billing'
     | '/dashboard'
     | '/invoices'
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/trial-welcome'
     | '/billing'
     | '/dashboard'
     | '/invoices'
@@ -228,6 +239,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/trial-welcome'
     | '/_authenticated/billing'
     | '/_authenticated/dashboard'
     | '/_authenticated/invoices'
@@ -249,6 +261,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  TrialWelcomeRoute: typeof TrialWelcomeRoute
   ApiPingRoute: typeof ApiPingRoute
   PreviewSlugRoute: typeof PreviewSlugRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
@@ -257,6 +270,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/trial-welcome': {
+      id: '/trial-welcome'
+      path: '/trial-welcome'
+      fullPath: '/trial-welcome'
+      preLoaderRoute: typeof TrialWelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -416,6 +436,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  TrialWelcomeRoute: TrialWelcomeRoute,
   ApiPingRoute: ApiPingRoute,
   PreviewSlugRoute: PreviewSlugRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,

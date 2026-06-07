@@ -25,6 +25,26 @@ export interface Pack {
   highlight?: boolean;
 }
 
+export interface FreePlan {
+  id: "free";
+  name: string;
+  tagline: string;
+  credits: number;
+  features: string[];
+}
+
+export const FREE_PLAN: FreePlan = {
+  id: "free",
+  name: "Free",
+  tagline: "Get started with no credit card",
+  credits: 2,
+  features: [
+    "2 leads / month",
+    "Basic lead info",
+    "Save to pipeline",
+  ],
+};
+
 export const PLANS: Plan[] = [
   {
     id: "starter",

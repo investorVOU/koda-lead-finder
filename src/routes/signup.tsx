@@ -30,7 +30,7 @@ function SignupPage() {
   const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/trial-welcome" });
+    if (!loading && user) navigate({ to: "/choose-plan" });
   }, [user, loading, navigate]);
 
   const resetCaptcha = () => {
@@ -53,7 +53,7 @@ function SignupPage() {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin + "/trial-welcome",
+        emailRedirectTo: window.location.origin + "/choose-plan",
         data: { full_name: fullName },
         ...(captchaToken ? { captchaToken } : {}),
       },
@@ -66,7 +66,7 @@ function SignupPage() {
     }
     if (data.session) {
       toast.success("Account created! Let's set you up.");
-      navigate({ to: "/trial-welcome" });
+      navigate({ to: "/choose-plan" });
     } else {
       toast.success("Check your email to confirm your account.");
     }
@@ -76,7 +76,7 @@ function SignupPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin + "/trial-welcome" },
+      options: { redirectTo: window.location.origin + "/choose-plan" },
     });
     if (error) {
       setBusy(false);
