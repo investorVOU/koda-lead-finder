@@ -174,6 +174,9 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
           <Button variant="ghost" size="icon" className="size-8" onClick={() => setOutreachOpen(true)} aria-label="Outreach templates">
             <MessageCircle className="size-4" />
           </Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => setProposalOpen(true)} aria-label="Proposal PDF">
+            <FileText className="size-4" />
+          </Button>
           {lead.maps_url && (
             <Button variant="ghost" size="icon" className="size-8" asChild>
               <a href={lead.maps_url} target="_blank" rel="noopener noreferrer" aria-label="Open in Maps">
