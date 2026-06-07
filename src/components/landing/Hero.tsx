@@ -80,8 +80,7 @@ export function Hero() {
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
               <Button variant="hero" size="xl" className="w-full sm:w-auto" asChild>
                 <Link to="/signup">
-                  Get your first client
-                  <ArrowRight className="size-4" />
+                  Get your first client <ArrowRight className="size-4" />
                 </Link>
               </Button>
               <Button
