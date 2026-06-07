@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
-    meta: [{ title: "Create your account — KodaRai" }],
+    meta: [{ title: "Create your account — Kodarai" }],
   }),
   component: SignupPage,
 });

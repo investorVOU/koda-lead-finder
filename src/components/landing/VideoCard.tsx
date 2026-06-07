@@ -4,7 +4,7 @@ import type { LearnCategory } from "@/lib/videos";
 const ICONS: Record<LearnCategory, typeof Phone> = {
   "Cold Calling": Phone,
   "Sales & Closing": Handshake,
-  "Using KodaRai": Sparkles,
+  "Using Kodarai": Sparkles,
 };
 
 export function categoryIcon(category: LearnCategory) {

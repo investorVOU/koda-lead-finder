@@ -5,8 +5,8 @@ import { SiteFooter } from "@/components/landing/SiteFooter";
 export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
-      { title: "Terms of Service — KodaRai" },
-      { name: "description", content: "Read the Terms of Service for KodaRai." },
+      { title: "Terms of Service — Kodarai" },
+      { name: "description", content: "Read the Terms of Service for Kodarai." },
     ],
   }),
   component: TermsPage,
@@ -28,7 +28,7 @@ function TermsPage() {
         <div className="prose prose-sm sm:prose-base max-w-none space-y-8 text-foreground [&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_p]:text-muted-foreground [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:text-muted-foreground [&_li]:leading-relaxed">
 
           <p>
-            Welcome to KodaRai ("we", "our", "us"). By accessing or using our website at{" "}
+            Welcome to Kodarai ("we", "our", "us"). By accessing or using our website at{" "}
             <a href="https://kodarai.xyz" className="text-primary underline underline-offset-4">kodarai.xyz</a>{" "}
             and any related services (collectively the "Service"), you agree to be bound by these Terms of Service.
             If you do not agree, please do not use the Service.
@@ -36,7 +36,7 @@ function TermsPage() {
 
           <h2>1. Eligibility</h2>
           <p>
-            You must be at least 18 years old to use KodaRai. By using the Service you represent and
+            You must be at least 18 years old to use Kodarai. By using the Service you represent and
             warrant that you meet this requirement and that you have the legal capacity to enter into a
             binding agreement.
           </p>
@@ -51,7 +51,7 @@ function TermsPage() {
 
           <h2>3. Subscriptions & Payments</h2>
           <p>
-            KodaRai offers both free trial and paid subscription plans. By purchasing a plan you
+            Kodarai offers both free trial and paid subscription plans. By purchasing a plan you
             authorise us to charge the applicable fees to your chosen payment method. All fees are
             stated in USD unless otherwise specified. We also accept Naira payments via Paystack.
           </p>
@@ -75,7 +75,7 @@ function TermsPage() {
           <h2>5. Intellectual Property</h2>
           <p>
             All content, branding, and software included in the Service are owned by or licensed to
-            KodaRai. You are granted a limited, non-exclusive, non-transferable licence to use the
+            Kodarai. You are granted a limited, non-exclusive, non-transferable licence to use the
             Service for your personal or internal business purposes. You retain ownership of any content
             you upload or generate through the Service.
           </p>
@@ -83,7 +83,7 @@ function TermsPage() {
           <h2>6. AI-Generated Content</h2>
           <p>
             The Service uses artificial intelligence to generate website prompts and cold-call scripts.
-            This content is provided for informational purposes only. KodaRai makes no guarantee as to
+            This content is provided for informational purposes only. Kodarai makes no guarantee as to
             its accuracy, completeness, or fitness for any particular purpose. You are solely responsible
             for reviewing, editing, and using any AI-generated content.
           </p>
@@ -98,7 +98,7 @@ function TermsPage() {
 
           <h2>8. Limitation of Liability</h2>
           <p>
-            To the fullest extent permitted by law, KodaRai and its officers, employees, and affiliates
+            To the fullest extent permitted by law, Kodarai and its officers, employees, and affiliates
             shall not be liable for any indirect, incidental, special, consequential, or punitive damages
             arising out of or related to your use of the Service, even if we have been advised of the
             possibility of such damages. Our total liability shall not exceed the amount you paid to us

@@ -11,13 +11,13 @@ import { LEARN_VIDEOS, LEARN_CATEGORIES, type LearnVideo } from "@/lib/videos";
 export const Route = createFileRoute("/learn")({
   head: () => ({
     meta: [
-      { title: "Sales Academy — Cold Calling & Closing | KodaRai" },
+      { title: "Sales Academy — Cold Calling & Closing | Kodarai" },
       {
         name: "description",
         content:
-          "Free video lessons on cold calling, sales, and closing web design clients — plus how to get the most out of KodaRai.",
+          "Free video lessons on cold calling, sales, and closing web design clients — plus how to get the most out of Kodarai.",
       },
-      { property: "og:title", content: "KodaRai Sales Academy" },
+      { property: "og:title", content: "Kodarai Sales Academy" },
       {
         property: "og:description",
         content: "Learn cold calling and sales to land more web design clients — free video lessons.",

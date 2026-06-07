@@ -1,8 +1,8 @@
-// Demo + sales-training video library for KodaRai.
+// Demo + sales-training video library for Kodarai.
 // Priority order in the modal: youtubeId → instagramUrl → tiktokUrl → "coming soon"
 // TikTok: paste the full video URL (https://www.tiktok.com/@user/video/ID) or just the numeric ID.
 
-export type LearnCategory = "Cold Calling" | "Sales & Closing" | "Using KodaRai";
+export type LearnCategory = "Cold Calling" | "Sales & Closing" | "Using Kodarai";
 
 export interface LearnVideo {
   id: string;
@@ -19,7 +19,7 @@ export const DEMO_VIDEO = {
   youtubeId: "",
   instagramUrl: "",
   tiktokUrl: "https://www.tiktok.com/@gb_buildz/video/7645025213599468813",
-  title: "See KodaRai in action",
+  title: "See Kodarai in action",
   description:
     "Watch how freelancers find top-rated businesses with no website, generate a site in minutes, and get paid.",
 };
@@ -27,7 +27,7 @@ export const DEMO_VIDEO = {
 export const LEARN_CATEGORIES: LearnCategory[] = [
   "Cold Calling",
   "Sales & Closing",
-  "Using KodaRai",
+  "Using Kodarai",
 ];
 
 export const LEARN_VIDEOS: LearnVideo[] = [
@@ -86,7 +86,7 @@ export const LEARN_VIDEOS: LearnVideo[] = [
     title: "Finding no-website leads in 60 seconds",
     description: "Use the Lead Finder to surface high-rated businesses missing a website.",
     youtubeId: "",
-    category: "Using KodaRai",
+    category: "Using Kodarai",
     duration: "5 min",
   },
   {
@@ -94,7 +94,7 @@ export const LEARN_VIDEOS: LearnVideo[] = [
     title: "From lead to live site with AI prompts",
     description: "Generate a build prompt and ship a demo site the same day you call.",
     youtubeId: "",
-    category: "Using KodaRai",
+    category: "Using Kodarai",
     duration: "6 min",
   },
 ];

@@ -57,7 +57,7 @@ export const createCheckout = createServerFn({ method: "POST" })
             "subscription_data[metadata][plan_id]": plan.id,
             "line_items[0][price_data][unit_amount]": plan.usd * 100,
             "line_items[0][price_data][recurring][interval]": "month",
-            "line_items[0][price_data][product_data][name]": `KodaRai ${plan.name} (${plan.credits} leads/mo)`,
+            "line_items[0][price_data][product_data][name]": `Kodarai ${plan.name} (${plan.credits} leads/mo)`,
           });
           return { url: session.url } as const;
         }
@@ -71,7 +71,7 @@ export const createCheckout = createServerFn({ method: "POST" })
           "metadata[plan_id]": pack.id,
           "payment_intent_data[metadata][user_id]": userId,
           "line_items[0][price_data][unit_amount]": pack.usd * 100,
-          "line_items[0][price_data][product_data][name]": `KodaRai ${pack.name} (${pack.credits} leads)`,
+          "line_items[0][price_data][product_data][name]": `Kodarai ${pack.name} (${pack.credits} leads)`,
         });
         return { url: session.url } as const;
       }

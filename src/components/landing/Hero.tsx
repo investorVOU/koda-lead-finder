@@ -72,7 +72,7 @@ export function Hero() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg lg:mx-0">
-              KodaRai surfaces top-rated local businesses with no website, generates a
+              Kodarai surfaces top-rated local businesses with no website, generates a
               ready-to-build AI prompt, and writes your cold-call script — so you land
               clients in minutes, not weeks.
             </p>

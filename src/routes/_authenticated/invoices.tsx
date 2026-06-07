@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { usePaymentHistory } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/invoices")({
-  head: () => ({ meta: [{ title: "Invoices & History — KodaRai" }] }),
+  head: () => ({ meta: [{ title: "Invoices & History — Kodarai" }] }),
   component: InvoicesPage,
 });
 

@@ -110,7 +110,7 @@ export async function getPaystackPlanCode(plan: {
   if (existing) return existing;
 
   const res = await paystackFetch<{ data: { plan_code: string } }>("/plan", "POST", {
-    name: `KodaRai ${plan.name}`,
+    name: `Kodarai ${plan.name}`,
     amount: plan.ngn * 100,
     interval: "monthly",
     currency: "NGN",

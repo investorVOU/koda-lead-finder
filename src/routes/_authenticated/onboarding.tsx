@@ -19,7 +19,7 @@ import { useProfile } from "@/lib/queries";
 import { LEAD_CATEGORIES } from "@/lib/constants";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
-  head: () => ({ meta: [{ title: "Welcome — KodaRai" }] }),
+  head: () => ({ meta: [{ title: "Welcome — Kodarai" }] }),
   component: OnboardingPage,
 });
 
@@ -73,7 +73,7 @@ function OnboardingPage() {
         <span className="flex size-11 items-center justify-center rounded-xl bg-[image:var(--gradient-primary)] text-primary-foreground">
           <Radar className="size-6" />
         </span>
-        <h1 className="mt-5 text-2xl font-bold">Welcome to KodaRai 👋</h1>
+        <h1 className="mt-5 text-2xl font-bold">Welcome to Kodarai 👋</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Tell us a bit about you so we can tailor your lead search.
         </p>

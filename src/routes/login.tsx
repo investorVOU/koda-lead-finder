@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [{ title: "Sign in — KodaRai" }],
+    meta: [{ title: "Sign in — Kodarai" }],
   }),
   component: LoginPage,
 });
@@ -71,7 +71,7 @@ function LoginPage() {
 
   return (
     <AuthShell
-      title="Sign in to KodaRai"
+      title="Sign in to Kodarai"
       subtitle="Find businesses without websites and close them fast."
       footer={
         <>

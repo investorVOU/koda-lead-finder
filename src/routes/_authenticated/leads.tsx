@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { LEAD_STATUSES, STATUS_LABELS } from "@/lib/constants";
 
 export const Route = createFileRoute("/_authenticated/leads")({
-  head: () => ({ meta: [{ title: "Saved Leads — KodaRai" }] }),
+  head: () => ({ meta: [{ title: "Saved Leads — Kodarai" }] }),
   component: LeadsPage,
 });
 

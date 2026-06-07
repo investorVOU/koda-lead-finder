@@ -52,7 +52,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-10 border-t border-border pt-6 flex flex-col items-center justify-between gap-3 sm:flex-row text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} KodaRai · kodarai.xyz — All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Kodarai · kodarai.xyz — All rights reserved.</span>
           <div className="flex gap-4">
             <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>

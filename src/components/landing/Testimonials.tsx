@@ -30,7 +30,7 @@ const testimonials = [
   },
   {
     quote:
-      "Went from 0 to 6 retainer clients in two months. KodaRai basically became my sales team.",
+      "Went from 0 to 6 retainer clients in two months. Kodarai basically became my sales team.",
     name: "Amara N.",
     role: "Studio Founder · Abuja",
   },
@@ -63,7 +63,7 @@ export function Testimonials() {
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-2xl font-bold sm:text-4xl">Loved by freelancers worldwide</h2>
           <p className="mt-3 text-muted-foreground sm:mt-4">
-            Designers and agencies use KodaRai to fill their pipeline every week.
+            Designers and agencies use Kodarai to fill their pipeline every week.
           </p>
         </div>
       </FadeUp>

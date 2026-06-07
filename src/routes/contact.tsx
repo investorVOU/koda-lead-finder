@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact Us — KodaRai" },
-      { name: "description", content: "Get in touch with the KodaRai team. We're here to help." },
+      { title: "Contact Us — Kodarai" },
+      { name: "description", content: "Get in touch with the Kodarai team. We're here to help." },
     ],
   }),
   component: ContactPage,
@@ -57,7 +57,7 @@ function ContactPage() {
         body: JSON.stringify({
           name,
           email,
-          subject: `[KodaRai Contact] ${topic}`,
+          subject: `[Kodarai Contact] ${topic}`,
           message: body,
           _captcha: "false",
           _template: "table",

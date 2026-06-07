@@ -11,7 +11,7 @@ export interface ProposalOptions {
   scope: string;
 }
 
-// KodaRai brand green (approx of the oklch primary token) as RGB.
+// Kodarai brand green (approx of the oklch primary token) as RGB.
 const BRAND: [number, number, number] = [22, 163, 74];
 const DARK: [number, number, number] = [17, 24, 39];
 const MUTED: [number, number, number] = [107, 114, 128];
@@ -118,7 +118,7 @@ export function generateProposalPdf(lead: SavedLead, opts: ProposalOptions) {
   doc.line(margin, footerY, pageW - margin, footerY);
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
-  doc.text("Proposal generated with KodaRai", margin, footerY + 14);
+  doc.text("Proposal generated with Kodarai", margin, footerY + 14);
 
   const safeName = lead.business_name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
   doc.save(`proposal-${safeName}.pdf`);

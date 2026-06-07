@@ -41,7 +41,7 @@ export function Features() {
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-2xl font-bold sm:text-4xl">Everything you need to land clients</h2>
           <p className="mt-3 text-muted-foreground sm:mt-4">
-            From finding the right prospect to closing the deal — KodaRai handles the busywork so you
+            From finding the right prospect to closing the deal — Kodarai handles the busywork so you
             can focus on building websites.
           </p>
         </div>

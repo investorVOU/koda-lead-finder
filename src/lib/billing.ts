@@ -1,4 +1,4 @@
-// Shared (client + server safe) billing definitions for KodaRai.
+// Shared (client + server safe) billing definitions for Kodarai.
 // Hybrid model: monthly subscription plans grant a lead allowance that resets
 // each cycle, and one-time lead packs add top-up leads that never expire.
 // We sell everything as "leads" (1 lead = 1 search credit).

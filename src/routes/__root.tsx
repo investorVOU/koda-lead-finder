@@ -80,16 +80,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Kodarai — Find Businesses Without Websites" },
+      { name: "description", content: "Kodarai helps web designers find high-rated local businesses with no website and close them fast." },
+      { name: "author", content: "Kodarai" },
+      { property: "og:title", content: "Kodarai — Lead Gen for Web Designers" },
+      { property: "og:description", content: "Kodarai helps web designers find high-rated local businesses with no website and close them fast." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@kodarai" },
     ],
     links: [
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       {
         rel: "preconnect",
         href: "https://fonts.googleapis.com",

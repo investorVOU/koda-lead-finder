@@ -14,13 +14,13 @@ import { SiteFooter } from "@/components/landing/SiteFooter";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "KodaRai — Find Businesses Without Websites & Close Them Fast" },
+      { title: "Kodarai — Find Businesses Without Websites & Close Them Fast" },
       {
         name: "description",
         content:
-          "KodaRai helps web designers find high-rated local businesses with no website, generate AI website prompts, and get cold-call scripts to close clients fast.",
+          "Kodarai helps web designers find high-rated local businesses with no website, generate AI website prompts, and get cold-call scripts to close clients fast.",
       },
-      { property: "og:title", content: "KodaRai — Lead Gen for Web Designers" },
+      { property: "og:title", content: "Kodarai — Lead Gen for Web Designers" },
       {
         property: "og:description",
         content:

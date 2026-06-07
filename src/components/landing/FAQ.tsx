@@ -7,12 +7,12 @@ import {
 
 const faqs = [
   {
-    q: "How does KodaRai find businesses without a website?",
+    q: "How does Kodarai find businesses without a website?",
     a: "We search trusted local business data for your chosen category and location, check each business for a linked website, and flag the ones that don't have one — so you only spend time on real opportunities.",
   },
   {
     q: "Which countries does it work in?",
-    a: "KodaRai works worldwide. It's especially popular with freelancers in the USA, UK, Canada, Australia, and across Africa including Nigeria. Just enter any city and country or ZIP code.",
+    a: "Kodarai works worldwide. It's especially popular with freelancers in the USA, UK, Canada, Australia, and across Africa including Nigeria. Just enter any city and country or ZIP code.",
   },
   {
     q: "How do leads work?",

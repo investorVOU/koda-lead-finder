@@ -5,8 +5,8 @@ import { SiteFooter } from "@/components/landing/SiteFooter";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy Policy — KodaRai" },
-      { name: "description", content: "Read the Privacy Policy for KodaRai." },
+      { title: "Privacy Policy — Kodarai" },
+      { name: "description", content: "Read the Privacy Policy for Kodarai." },
     ],
   }),
   component: PrivacyPage,
@@ -28,7 +28,7 @@ function PrivacyPage() {
         <div className="max-w-none space-y-8 text-foreground [&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_p]:text-muted-foreground [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:text-muted-foreground [&_li]:leading-relaxed">
 
           <p>
-            KodaRai ("we", "our", "us") is committed to protecting your personal information. This
+            Kodarai ("we", "our", "us") is committed to protecting your personal information. This
             Privacy Policy explains what data we collect, how we use it, and your rights regarding
             that data when you use our website at{" "}
             <a href="https://kodarai.xyz" className="text-primary underline underline-offset-4">kodarai.xyz</a>.

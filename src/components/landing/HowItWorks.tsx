@@ -9,7 +9,7 @@ const steps = [
   {
     n: "02",
     title: "Get businesses with no website",
-    desc: "KodaRai returns high-rated local businesses missing a website, with phone, address and ratings.",
+    desc: "Kodarai returns high-rated local businesses missing a website, with phone, address and ratings.",
   },
   {
     n: "03",

@@ -13,7 +13,7 @@ import { PLANS, PACKS, PLAN_LABELS, formatNgn, type Provider } from "@/lib/billi
 import { createCheckout, cancelSubscription, createBillingPortal } from "@/lib/billing.functions";
 
 export const Route = createFileRoute("/_authenticated/billing")({
-  head: () => ({ meta: [{ title: "Billing & Plans — KodaRai" }] }),
+  head: () => ({ meta: [{ title: "Billing & Plans — Kodarai" }] }),
   component: BillingPage,
 });
 

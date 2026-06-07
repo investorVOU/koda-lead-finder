@@ -16,7 +16,7 @@ import { useProfile } from "@/lib/queries";
 import type { LeadResult } from "@/lib/constants";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Lead Finder — KodaRai" }] }),
+  head: () => ({ meta: [{ title: "Lead Finder — Kodarai" }] }),
   component: DashboardPage,
 });
 
