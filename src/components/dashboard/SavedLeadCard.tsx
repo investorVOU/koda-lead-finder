@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GenerateDialog } from "@/components/dashboard/GenerateDialog";
 import { OutreachDialog } from "@/components/dashboard/OutreachDialog";
+import { ProposalDialog } from "@/components/dashboard/ProposalDialog";
 import { generateContent } from "@/lib/ai.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
