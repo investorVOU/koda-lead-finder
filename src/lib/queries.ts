@@ -22,6 +22,18 @@ export interface Subscription {
   topup_credits: number;
   credits_reset_at: string;
   current_period_end: string | null;
+  trial_ends_at: string | null;
+}
+
+export function trialDaysLeft(sub: Subscription | null | undefined): number {
+  if (!sub?.trial_ends_at || sub.plan !== "trial") return 0;
+  const ms = new Date(sub.trial_ends_at).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+}
+
+export function isTrialExpired(sub: Subscription | null | undefined): boolean {
+  if (!sub?.trial_ends_at || sub.plan !== "trial") return false;
+  return new Date(sub.trial_ends_at) < new Date();
 }
 
 export interface PaymentRecord {

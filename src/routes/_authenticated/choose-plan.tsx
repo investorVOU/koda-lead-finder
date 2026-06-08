@@ -57,7 +57,10 @@ function ChoosePlanPage() {
                 </li>
               ))}
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Check className="size-3.5 shrink-0 text-primary" /> 3-day trial
+                <Check className="size-3.5 shrink-0 text-primary" /> 250 searches for 3 days
+              </li>
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Check className="size-3.5 shrink-0 text-primary" /> Drops to free (0 searches) after
               </li>
             </ul>
             <Button
