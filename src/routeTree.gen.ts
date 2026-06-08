@@ -21,12 +21,15 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
 import { Route as ApiPingRouteImport } from './routes/api/ping'
+import { Route as AuthenticatedRevenueRouteImport } from './routes/_authenticated/revenue'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedNumbersRouteImport } from './routes/_authenticated/numbers'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticated/invoices'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChoosePlanRouteImport } from './routes/_authenticated/choose-plan'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as ApiPublicWebhooksTwilioSmsRouteImport } from './routes/api/public/webhooks/twilio-sms'
 import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks/stripe'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 
@@ -89,9 +92,19 @@ const ApiPingRoute = ApiPingRouteImport.update({
   path: '/api/ping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRevenueRoute = AuthenticatedRevenueRouteImport.update({
+  id: '/revenue',
+  path: '/revenue',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedNumbersRoute = AuthenticatedNumbersRouteImport.update({
+  id: '/numbers',
+  path: '/numbers',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
@@ -119,6 +132,12 @@ const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicWebhooksTwilioSmsRoute =
+  ApiPublicWebhooksTwilioSmsRouteImport.update({
+    id: '/api/public/webhooks/twilio-sms',
+    path: '/api/public/webhooks/twilio-sms',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksStripeRoute = ApiPublicWebhooksStripeRouteImport.update({
   id: '/api/public/webhooks/stripe',
   path: '/api/public/webhooks/stripe',
@@ -146,11 +165,14 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/invoices': typeof AuthenticatedInvoicesRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/numbers': typeof AuthenticatedNumbersRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/revenue': typeof AuthenticatedRevenueRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
+  '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -167,11 +189,14 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/invoices': typeof AuthenticatedInvoicesRoute
   '/leads': typeof AuthenticatedLeadsRoute
+  '/numbers': typeof AuthenticatedNumbersRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/revenue': typeof AuthenticatedRevenueRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
+  '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -190,11 +215,14 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/invoices': typeof AuthenticatedInvoicesRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
+  '/_authenticated/numbers': typeof AuthenticatedNumbersRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/revenue': typeof AuthenticatedRevenueRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
+  '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -213,11 +241,14 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/invoices'
     | '/leads'
+    | '/numbers'
     | '/onboarding'
+    | '/revenue'
     | '/api/ping'
     | '/preview/$slug'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/stripe'
+    | '/api/public/webhooks/twilio-sms'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -234,11 +265,14 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/invoices'
     | '/leads'
+    | '/numbers'
     | '/onboarding'
+    | '/revenue'
     | '/api/ping'
     | '/preview/$slug'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/stripe'
+    | '/api/public/webhooks/twilio-sms'
   id:
     | '__root__'
     | '/'
@@ -256,11 +290,14 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/invoices'
     | '/_authenticated/leads'
+    | '/_authenticated/numbers'
     | '/_authenticated/onboarding'
+    | '/_authenticated/revenue'
     | '/api/ping'
     | '/preview/$slug'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/stripe'
+    | '/api/public/webhooks/twilio-sms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -278,6 +315,7 @@ export interface RootRouteChildren {
   PreviewSlugRoute: typeof PreviewSlugRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksStripeRoute: typeof ApiPublicWebhooksStripeRoute
+  ApiPublicWebhooksTwilioSmsRoute: typeof ApiPublicWebhooksTwilioSmsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -366,11 +404,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/revenue': {
+      id: '/_authenticated/revenue'
+      path: '/revenue'
+      fullPath: '/revenue'
+      preLoaderRoute: typeof AuthenticatedRevenueRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/onboarding': {
       id: '/_authenticated/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/numbers': {
+      id: '/_authenticated/numbers'
+      path: '/numbers'
+      fullPath: '/numbers'
+      preLoaderRoute: typeof AuthenticatedNumbersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/leads': {
@@ -408,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/webhooks/twilio-sms': {
+      id: '/api/public/webhooks/twilio-sms'
+      path: '/api/public/webhooks/twilio-sms'
+      fullPath: '/api/public/webhooks/twilio-sms'
+      preLoaderRoute: typeof ApiPublicWebhooksTwilioSmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/stripe': {
       id: '/api/public/webhooks/stripe'
       path: '/api/public/webhooks/stripe'
@@ -431,7 +490,9 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedInvoicesRoute: typeof AuthenticatedInvoicesRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
+  AuthenticatedNumbersRoute: typeof AuthenticatedNumbersRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedRevenueRoute: typeof AuthenticatedRevenueRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -440,7 +501,9 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedInvoicesRoute: AuthenticatedInvoicesRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
+  AuthenticatedNumbersRoute: AuthenticatedNumbersRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedRevenueRoute: AuthenticatedRevenueRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -462,6 +525,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewSlugRoute: PreviewSlugRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksStripeRoute: ApiPublicWebhooksStripeRoute,
+  ApiPublicWebhooksTwilioSmsRoute: ApiPublicWebhooksTwilioSmsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

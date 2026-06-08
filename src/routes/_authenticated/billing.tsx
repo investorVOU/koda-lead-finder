@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Check, Loader2, ReceiptText, CreditCard, Settings, Zap } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
+import { ReferralCard } from "@/components/dashboard/ReferralCard";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
@@ -288,6 +289,11 @@ function BillingPage() {
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* Referral */}
+          <section>
+            <ReferralCard />
           </section>
         </div>
       </div>

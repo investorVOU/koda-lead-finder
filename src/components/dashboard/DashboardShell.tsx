@@ -2,7 +2,7 @@ import { type ReactNode, useRef, type KeyboardEvent } from "react";
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { LogOut, Radar } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearch, faBookmark, faCreditCard, faReceipt } from "@fortawesome/free-solid-svg-icons";
+import { faSearch, faBookmark, faCreditCard, faReceipt, faMobileAlt, faChartBar } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,6 +15,8 @@ import { useSubscription, trialDaysLeft, isTrialExpired } from "@/lib/queries";
 const navItems: { to: string; label: string; icon: IconDefinition }[] = [
   { to: "/dashboard", label: "Finder", icon: faSearch },
   { to: "/leads", label: "Saved", icon: faBookmark },
+  { to: "/revenue", label: "Revenue", icon: faChartBar },
+  { to: "/numbers", label: "Numbers", icon: faMobileAlt },
   { to: "/billing", label: "Billing", icon: faCreditCard },
   { to: "/invoices", label: "Invoices", icon: faReceipt },
 ];
@@ -137,7 +139,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         aria-label="Primary"
         className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden"
       >
-        <div className="mx-auto grid h-16 max-w-md grid-cols-4 items-center px-2">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-6 items-center px-2">
           {navItems.map((item, index) => (
             <Link
               key={item.to}

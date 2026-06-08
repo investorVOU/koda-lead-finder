@@ -90,3 +90,61 @@ export const generateContent = createServerFn({ method: "POST" })
       return { error: "ai_error", message: "Could not generate content." } as const;
     }
   });
+
+// ─── Email Sequence Generator ────────────────────────────────────────────────
+
+const seqSchema = z.object({ lead: leadSchema });
+
+export interface EmailDraft { subject: string; body: string }
+export interface EmailSequence { email1: EmailDraft; email2: EmailDraft; email3: EmailDraft }
+
+export const generateEmailSequence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => seqSchema.parse(data))
+  .handler(async ({ data }) => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) return { error: "config", message: "AI is not configured." } as const;
+
+    const ctx = `Business: ${data.lead.name}
+Category: ${data.lead.category || "local business"}
+Location: ${data.lead.location || data.lead.address}
+Rating: ${data.lead.rating ?? "N/A"} (${data.lead.reviewCount} reviews)`;
+
+    try {
+      const res = await fetch(GATEWAY, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: `You are a cold email expert for freelance web designers. Write a 3-email outreach sequence. Return ONLY valid JSON (no markdown, no code blocks) in this exact shape:
+{"email1":{"subject":"...","body":"..."},"email2":{"subject":"...","body":"..."},"email3":{"subject":"...","body":"..."}}
+Email 1 (Day 1): casual intro, mention no website, offer to help, soft CTA. Under 80 words.
+Email 2 (Day 3): follow-up, reference email 1, add one social proof line. Under 70 words.
+Email 3 (Day 7): final short nudge, create mild urgency, easy opt-out. Under 60 words.
+Use [Your Name] and [Your Website] placeholders. No fluff or filler words.`,
+            },
+            { role: "user", content: `Write email sequence for:\n${ctx}` },
+          ],
+        }),
+      });
+
+      if (res.status === 429) return { error: "rate_limited", message: "AI is busy. Try again shortly." } as const;
+      if (!res.ok) return { error: "ai_error", message: "Could not generate emails." } as const;
+
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      let raw = json.choices?.[0]?.message?.content?.trim() ?? "";
+
+      // Strip markdown code fences if present
+      const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (fenceMatch) raw = fenceMatch[1];
+
+      const emails = JSON.parse(raw) as EmailSequence;
+      return { emails } as const;
+    } catch (e) {
+      console.error("Email sequence failed", e);
+      return { error: "ai_error", message: "Could not generate email sequence." } as const;
+    }
+  });

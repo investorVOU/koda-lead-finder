@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Bookmark, Loader2, Download } from "lucide-react";
+import { Bookmark, Loader2, Download, Upload, Bell } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { SavedLeadCard, type SavedLead } from "@/components/dashboard/SavedLeadCard";
 import { LeadStats } from "@/components/dashboard/LeadStats";
 import { ExportDialog } from "@/components/dashboard/ExportDialog";
+import { CsvImportDialog } from "@/components/dashboard/CsvImportDialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_authenticated/leads")({
 function LeadsPage() {
   const { user } = useAuth();
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["saved-leads", user?.id],
@@ -29,7 +31,8 @@ function LeadsPage() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as SavedLead[];
+      // follow_up_at added by migration 20260608000000_follow_up_referral.sql
+      return (data as unknown) as SavedLead[];
     },
   });
 
@@ -44,11 +47,16 @@ function LeadsPage() {
             Manage your pipeline from first contact to paid client.
           </p>
         </div>
-        {hasLeads && (
-          <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-            <Download className="size-4" /> Export
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Upload className="size-4" /> Import CSV
           </Button>
-        )}
+          {hasLeads && (
+            <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+              <Download className="size-4" /> Export
+            </Button>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
@@ -68,6 +76,28 @@ function LeadsPage() {
       ) : (
         <>
           <LeadStats leads={leads!} />
+
+          {/* Due-today / overdue banner */}
+          {(() => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = leads!.filter((l) => {
+              if (!l.follow_up_at) return false;
+              const d = new Date(l.follow_up_at);
+              d.setHours(0, 0, 0, 0);
+              return d <= today;
+            });
+            if (due.length === 0) return null;
+            return (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                <Bell className="size-4 shrink-0 text-amber-500" />
+                <span>
+                  <strong className="text-foreground">{due.length} lead{due.length !== 1 ? "s" : ""}</strong>{" "}
+                  <span className="text-muted-foreground">due for follow-up today or overdue.</span>
+                </span>
+              </div>
+            );
+          })()}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {LEAD_STATUSES.map((status) => {
               const items = leads!.filter((l) => l.status === status);
@@ -99,6 +129,7 @@ function LeadsPage() {
       {hasLeads && (
         <ExportDialog open={exportOpen} onOpenChange={setExportOpen} leads={leads!} />
       )}
+      <CsvImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </DashboardShell>
   );
 }

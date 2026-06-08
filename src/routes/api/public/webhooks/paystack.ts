@@ -9,6 +9,7 @@ import {
   applyCreditPack,
   markSubscriptionCanceled,
 } from "@/lib/billing.server";
+import { activateVirtualNumber } from "@/lib/numbers.server";
 
 export const Route = createFileRoute("/api/public/webhooks/paystack")({
   server: {
@@ -50,8 +51,21 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
               const planId = meta.plan_id;
               const amount = (data.amount ?? 0) / 100;
               const currency = data.currency ?? "NGN";
-              if (!userId || !planId) break;
-              if (kind === "subscription") {
+              if (!userId) break;
+              if (kind === "number_rental") {
+                const numberId = meta.number_id;
+                const phoneNumber = meta.phone_number;
+                if (!numberId || !phoneNumber) break;
+                await activateVirtualNumber({
+                  numberId,
+                  phoneNumber,
+                  userId,
+                  provider: "paystack",
+                  reference: data.reference,
+                  amount,
+                });
+              } else if (kind === "subscription") {
+                if (!planId) break;
                 await applySubscription({
                   userId,
                   planId,
@@ -62,6 +76,7 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
                   amount,
                 });
               } else {
+                if (!planId) break;
                 await applyCreditPack({
                   userId,
                   packId: planId,

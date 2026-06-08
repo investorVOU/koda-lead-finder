@@ -45,3 +45,11 @@ services:
       # ── Paystack ────────────────────────────────────────────────────
       - key: PAYSTACK_SECRET_KEY
         sync: false          # Paystack dashboard → Settings → API keys
+
+      # ── Twilio (Virtual Numbers) ─────────────────────────────────────
+      - key: TWILIO_ACCOUNT_SID
+        sync: false          # console.twilio.com → Account Info
+      - key: TWILIO_AUTH_TOKEN
+        sync: false          # console.twilio.com → Account Info
+      - key: APP_URL
+        value: https://kodarai.xyz

@@ -8,6 +8,7 @@ import {
   applyCreditPack,
   markSubscriptionCanceled,
 } from "@/lib/billing.server";
+import { activateVirtualNumber } from "@/lib/numbers.server";
 
 export const Route = createFileRoute("/api/public/webhooks/stripe")({
   server: {
@@ -46,7 +47,16 @@ export const Route = createFileRoute("/api/public/webhooks/stripe")({
               const kind = obj.metadata?.kind;
               const planId = obj.metadata?.plan_id;
               const amount = (obj.amount_total ?? 0) / 100;
-              if (!userId || !planId) break;
+              if (!userId) break;
+              if (kind === "number_rental") {
+                const numberId = obj.metadata?.number_id;
+                const phoneNumber = obj.metadata?.phone_number;
+                if (numberId && phoneNumber) {
+                  await activateVirtualNumber({ numberId, phoneNumber, userId, provider: "stripe", reference: obj.id, amount });
+                }
+                break;
+              }
+              if (!planId) break;
               if (kind === "subscription") {
                 await applySubscription({
                   userId,

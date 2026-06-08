@@ -29,8 +29,14 @@ function SignupPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
 
+  // Capture referral code from ?ref= param and persist through signup
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/choose-plan" });
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) localStorage.setItem("kodarai_ref", ref);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && user) navigate({ to: "/trial-welcome" });
   }, [user, loading, navigate]);
 
   const resetCaptcha = () => {
