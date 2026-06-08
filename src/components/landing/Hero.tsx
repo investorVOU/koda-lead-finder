@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, MapPin, PlayCircle, Star, Phone, Search } from "lucide-react";
+import { ArrowRight, MapPin, PlayCircle, Star, Phone, Search, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoModal } from "@/components/landing/VideoModal";
 import { DEMO_VIDEO } from "@/lib/videos";
@@ -101,6 +101,9 @@ export function Hero() {
                 <MapPin className="size-3.5 text-primary" /> Works worldwide
               </span>
               <span>Pay by card or Paystack</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Smartphone className="size-3.5 text-primary" /> Virtual numbers available
+              </span>
             </div>
           </div>
 

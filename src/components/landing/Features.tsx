@@ -1,4 +1,4 @@
-import { Code2, FileText, MapPinned, Phone, ShieldCheck, Workflow } from "lucide-react";
+import { Code2, FileText, MapPinned, Phone, ShieldCheck, Workflow, Smartphone } from "lucide-react";
 import { FadeUp } from "./FadeUp";
 
 const features = [
@@ -31,6 +31,11 @@ const features = [
     icon: FileText,
     title: "Save & Export Leads",
     desc: "Bookmark your best prospects, add notes, and keep a clean, organized list of who to reach next.",
+  },
+  {
+    icon: Smartphone,
+    title: "Virtual Phone Numbers",
+    desc: "Get a real US, UK, Canadian, or Australian number from anywhere. Use it for WhatsApp, SMS verifications, and client callbacks — billed monthly.",
   },
 ];
 
