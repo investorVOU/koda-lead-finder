@@ -36,7 +36,7 @@ function SignupPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/trial-welcome" });
+    if (!loading && user) navigate({ to: "/choose-plan" });
   }, [user, loading, navigate]);
 
   const resetCaptcha = () => {

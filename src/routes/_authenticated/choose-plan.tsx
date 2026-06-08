@@ -108,7 +108,7 @@ function ChoosePlanPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Free trial gives you 2 searches · no card required · upgrade anytime
+          Free trial gives you 250 searches for 3 days · no card required · upgrade anytime
         </p>
       </div>
     </div>

@@ -29,9 +29,9 @@ function AuthenticatedLayout() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    const exempt = ["/onboarding", "/trial-welcome"];
+    const exempt = ["/onboarding", "/trial-welcome", "/choose-plan"];
     if (user && profile && !profile.onboarded && !exempt.includes(location.pathname)) {
-      navigate({ to: "/trial-welcome" });
+      navigate({ to: "/choose-plan" });
     }
   }, [user, profile, location.pathname, navigate]);
 
