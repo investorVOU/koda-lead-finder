@@ -140,6 +140,22 @@ export const getUserNumbers = createServerFn({ method: "GET" })
     return { numbers: data ?? [] } as const;
   });
 
+// ── Get all SMS messages across all user numbers ──────────────────────────────
+
+export const getAllMessages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { data: msgs, error } = await supabaseAdmin
+      .from("sms_messages")
+      .select("*, virtual_numbers(phone_number, country_code)")
+      .eq("user_id", userId)
+      .order("received_at", { ascending: false })
+      .limit(100);
+    if (error) return { error: true, message: error.message } as const;
+    return { messages: msgs ?? [] } as const;
+  });
+
 // ── Get SMS messages for a number ─────────────────────────────────────────────
 
 export const getNumberMessages = createServerFn({ method: "POST" })

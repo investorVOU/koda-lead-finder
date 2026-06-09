@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Phone, Search, Wallet, CreditCard, Plus } from "lucide-react";
+import { Loader2, Phone, Search, Wallet, CreditCard, Plus, ArrowLeft, MapPin } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -19,32 +19,40 @@ interface Props {
 }
 
 type AvailableNumber = { phoneNumber: string; friendlyName: string; region?: string; locality?: string };
-type Tab = "wallet" | "card";
+type Step = "search" | "pay";
 
 const TOP_UP_PRESETS = [1000, 2500, 5000, 10000];
 
 export function BuyNumberDialog({ open, onOpenChange }: Props) {
-  const runSearch      = useServerFn(searchAvailableNumbers);
-  const runWalletBuy   = useServerFn(buyNumberFromWallet);
-  const runCardBuy     = useServerFn(initiateNumberPurchase);
-  const runGetWallet   = useServerFn(getWalletData);
-  const runTopUp       = useServerFn(initiateWalletTopUp);
+  const runSearch    = useServerFn(searchAvailableNumbers);
+  const runWalletBuy = useServerFn(buyNumberFromWallet);
+  const runCardBuy   = useServerFn(initiateNumberPurchase);
+  const runGetWallet = useServerFn(getWalletData);
+  const runTopUp     = useServerFn(initiateWalletTopUp);
 
+  const [step,         setStep]         = useState<Step>("search");
   const [country,      setCountry]      = useState("US");
-  const [tab,          setTab]          = useState<Tab>("wallet");
-  const [cardProvider, setCardProvider] = useState<"stripe" | "paystack">("stripe");
   const [searching,    setSearching]    = useState(false);
-  const [buying,       setBuying]       = useState<string | null>(null);
-  const [toppingUp,    setToppingUp]    = useState(false);
   const [results,      setResults]      = useState<AvailableNumber[]>([]);
-  const [balance,      setBalance]      = useState<number | null>(null);
+  const [selected,     setSelected]     = useState<AvailableNumber | null>(null);
+  const [payMethod,    setPayMethod]    = useState<"wallet" | "card">("wallet");
+  const [cardProvider, setCardProvider] = useState<"stripe" | "paystack">("stripe");
+  const [buying,       setBuying]       = useState(false);
+  const [toppingUp,    setToppingUp]    = useState(false);
   const [topUpAmount,  setTopUpAmount]  = useState(5000);
+  const [balance,      setBalance]      = useState<number | null>(null);
   const [fxRate,       setFxRate]       = useState(1600);
 
   const selectedCountry = NUMBER_COUNTRIES.find((c) => c.code === country)!;
 
+  // Reset state when dialog opens/closes
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setStep("search");
+      setResults([]);
+      setSelected(null);
+      return;
+    }
     runGetWallet().then((res) => {
       setBalance(res.balance);
       setFxRate(res.fxRate);
@@ -60,22 +68,29 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     setResults(res.numbers);
   };
 
-  const buyFromWallet = async (phoneNumber: string) => {
-    setBuying(phoneNumber);
-    const res = await runWalletBuy({ data: { phoneNumber, country } });
-    setBuying(null);
+  const selectNumber = (n: AvailableNumber) => {
+    setSelected(n);
+    setStep("pay");
+  };
+
+  const buyFromWallet = async () => {
+    if (!selected) return;
+    setBuying(true);
+    const res = await runWalletBuy({ data: { phoneNumber: selected.phoneNumber, country } });
+    setBuying(false);
     if ("error" in res) { toast.error(res.message); return; }
     toast.success("Number activated!");
     setBalance((b) => b !== null ? b - selectedCountry.ngn : b);
     onOpenChange(false);
   };
 
-  const buyWithCard = async (phoneNumber: string) => {
-    setBuying(phoneNumber);
+  const buyWithCard = async () => {
+    if (!selected) return;
+    setBuying(true);
     const res = await runCardBuy({
-      data: { phoneNumber, country, provider: cardProvider, origin: window.location.origin },
+      data: { phoneNumber: selected.phoneNumber, country, provider: cardProvider, origin: window.location.origin },
     });
-    setBuying(null);
+    setBuying(false);
     if ("error" in res) { toast.error(res.message); return; }
     if ("url" in res) window.location.href = res.url;
   };
@@ -90,156 +105,198 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
   const hasEnough = balance !== null && balance >= selectedCountry.ngn;
   const usdEquiv  = (topUpAmount / fxRate).toFixed(2);
+  const usdPrice  = (selectedCountry.ngn / fxRate).toFixed(2);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Get a virtual number</DialogTitle>
+          {step === "pay" && (
+            <button
+              onClick={() => setStep("search")}
+              className="mb-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="size-3" /> Back to results
+            </button>
+          )}
+          <DialogTitle>
+            {step === "search" ? "Find a virtual number" : "Complete your purchase"}
+          </DialogTitle>
           <DialogDescription>
-            Pick a country and browse available numbers. Billed monthly.
+            {step === "search"
+              ? "Choose a country and search available numbers."
+              : `Activate ${selected?.phoneNumber} — ₦${selectedCountry.ngn.toLocaleString()}/month`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Wallet balance banner */}
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Wallet className="size-4 text-primary" />
-              <span className="font-medium">Wallet balance</span>
+        {/* ── STEP 1: Search ── */}
+        {step === "search" && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Country</label>
+              <Select value={country} onValueChange={(v) => { setCountry(v); setResults([]); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NUMBER_COUNTRIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.flag} {c.name} — ₦{c.ngn.toLocaleString()}/mo · ~${(c.ngn / fxRate).toFixed(2)} USD
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <span className="font-mono font-bold text-foreground">
-              {balance === null ? "…" : `₦${balance.toLocaleString()}`}
-            </span>
-          </div>
 
-          {/* Country */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Country</label>
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {NUMBER_COUNTRIES.map((c) => (
-                  <SelectItem key={c.code} value={c.code}>
-                    {c.flag} {c.name} — ₦{c.ngn.toLocaleString()}/mo
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <Button className="w-full" variant="outline" onClick={search} disabled={searching}>
+              {searching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+              {searching ? "Searching…" : `Search numbers in ${selectedCountry.flag} ${selectedCountry.name}`}
+            </Button>
 
-          {/* Payment method tabs */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setTab("wallet")}
-              className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${tab === "wallet" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
-            >
-              <Wallet className="size-4" /> Pay from wallet
-            </button>
-            <button
-              onClick={() => setTab("card")}
-              className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${tab === "card" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
-            >
-              <CreditCard className="size-4" /> Pay with card
-            </button>
-          </div>
-
-          {/* Wallet tab: top-up if insufficient */}
-          {tab === "wallet" && !hasEnough && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                Need ₦{selectedCountry.ngn.toLocaleString()} — top up your wallet first
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {TOP_UP_PRESETS.map((p) => (
+            {results.length > 0 && (
+              <div className="max-h-72 space-y-2 overflow-y-auto">
+                <p className="text-xs text-muted-foreground">{results.length} numbers found — select one to buy</p>
+                {results.map((n) => (
                   <button
-                    key={p}
-                    onClick={() => setTopUpAmount(p)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${topUpAmount === p ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40"}`}
+                    key={n.phoneNumber}
+                    onClick={() => selectNumber(n)}
+                    className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/60 hover:bg-accent"
                   >
-                    ₦{p.toLocaleString()}
+                    <div>
+                      <p className="font-mono text-sm font-semibold">{n.phoneNumber}</p>
+                      {(n.locality || n.region) && (
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="size-3" />
+                          {[n.locality, n.region].filter(Boolean).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-primary">₦{selectedCountry.ngn.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">~${usdPrice} USD/mo</p>
+                    </div>
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
-                  {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-                  Paystack (₦)
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => topUp("stripe")} disabled={toppingUp}>
-                  {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-                  Card (USD)
-                </Button>
+            )}
+
+            {results.length === 0 && !searching && (
+              <p className="text-center text-xs text-muted-foreground">
+                Search to see numbers available in {selectedCountry.flag} {selectedCountry.name}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ── STEP 2: Pay ── */}
+        {step === "pay" && selected && (
+          <div className="space-y-4">
+            {/* Selected number summary */}
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+              <div>
+                <p className="font-mono text-base font-bold">{selected.phoneNumber}</p>
+                {(selected.locality || selected.region) && (
+                  <p className="text-xs text-muted-foreground">{[selected.locality, selected.region].filter(Boolean).join(", ")}</p>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-primary">₦{selectedCountry.ngn.toLocaleString()}/mo</p>
+                <p className="text-xs text-muted-foreground">~${usdPrice} USD</p>
               </div>
             </div>
-          )}
 
-          {/* Card tab: provider select */}
-          {tab === "card" && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Pay with</label>
+            {/* Wallet balance */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Wallet className="size-4 text-primary" /> Wallet balance
+              </div>
+              <span className="font-mono font-bold">
+                {balance === null ? "…" : `₦${balance.toLocaleString()}`}
+              </span>
+            </div>
+
+            {/* Payment method */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setPayMethod("wallet")}
+                className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${payMethod === "wallet" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+              >
+                <Wallet className="size-4" /> Wallet
+              </button>
+              <button
+                onClick={() => setPayMethod("card")}
+                className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${payMethod === "card" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+              >
+                <CreditCard className="size-4" /> Card / Paystack
+              </button>
+            </div>
+
+            {/* Wallet: top-up if low */}
+            {payMethod === "wallet" && !hasEnough && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                  Wallet needs ₦{selectedCountry.ngn.toLocaleString()} — top up first
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {TOP_UP_PRESETS.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setTopUpAmount(p)}
+                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${topUpAmount === p ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40"}`}
+                    >
+                      ₦{p.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
+                    {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+                    Paystack (₦)
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => topUp("stripe")} disabled={toppingUp}>
+                    {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+                    Card (USD)
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Card: provider select */}
+            {payMethod === "card" && (
               <Select value={cardProvider} onValueChange={(v) => setCardProvider(v as "stripe" | "paystack")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="stripe">Card (USD ~${(selectedCountry.ngn / fxRate).toFixed(2)}/mo)</SelectItem>
-                  <SelectItem value="paystack">Paystack (₦{selectedCountry.ngn.toLocaleString()}/mo)</SelectItem>
+                  <SelectItem value="paystack">Paystack — ₦{selectedCountry.ngn.toLocaleString()}/mo</SelectItem>
+                  <SelectItem value="stripe">Card (USD) — ~${usdPrice}/mo</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          )}
+            )}
 
-          <Button className="w-full" variant="outline" onClick={search} disabled={searching}>
-            {searching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-            {searching ? "Searching..." : "Search available numbers"}
-          </Button>
-
-          {results.length > 0 && (
-            <div className="max-h-64 space-y-2 overflow-y-auto">
-              {results.map((n) => {
-                const isBuying = buying === n.phoneNumber;
-                return (
-                  <div
-                    key={n.phoneNumber}
-                    className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
-                  >
-                    <div>
-                      <p className="font-mono text-sm font-semibold">{n.phoneNumber}</p>
-                      {(n.locality || n.region) && (
-                        <p className="text-xs text-muted-foreground">
-                          {[n.locality, n.region].filter(Boolean).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="hero"
-                      onClick={() => tab === "wallet" ? buyFromWallet(n.phoneNumber) : buyWithCard(n.phoneNumber)}
-                      disabled={!!buying || (tab === "wallet" && !hasEnough)}
-                    >
-                      {isBuying ? <Loader2 className="size-3.5 animate-spin" /> : <Phone className="size-3.5" />}
-                      {tab === "wallet"
-                        ? `₦${selectedCountry.ngn.toLocaleString()}`
-                        : cardProvider === "paystack"
-                          ? `₦${selectedCountry.ngn.toLocaleString()}/mo`
-                          : `$${selectedCountry.usd}/mo`}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {results.length === 0 && !searching && (
-            <p className="text-center text-xs text-muted-foreground">
-              Search to see available numbers in {selectedCountry.flag} {selectedCountry.name}
-            </p>
-          )}
-        </div>
+            {/* Buy button */}
+            <Button
+              variant="hero"
+              className="w-full"
+              disabled={buying || (payMethod === "wallet" && !hasEnough)}
+              onClick={payMethod === "wallet" ? buyFromWallet : buyWithCard}
+            >
+              {buying ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Phone className="size-4" />
+              )}
+              {buying
+                ? "Activating…"
+                : payMethod === "wallet"
+                  ? `Pay ₦${selectedCountry.ngn.toLocaleString()} from wallet`
+                  : cardProvider === "paystack"
+                    ? `Pay ₦${selectedCountry.ngn.toLocaleString()} via Paystack`
+                    : `Pay ~$${usdPrice} via card`}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
