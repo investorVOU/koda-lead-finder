@@ -136,7 +136,7 @@ export function GenerateDialog({
                 {/* Builder handoff */}
                 <div className="rounded-xl border border-border bg-muted/20 p-3">
                   <p className="mb-2 text-xs font-medium text-muted-foreground">
-                    Send to AI website builder
+                    Open in website builder
                   </p>
                   <div className="flex gap-2">
                     {BUILDERS.map((b) => (

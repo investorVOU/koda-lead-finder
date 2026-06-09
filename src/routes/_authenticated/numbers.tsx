@@ -28,7 +28,7 @@ function NumbersPage() {
   const [releasing,  setReleasing]  = useState<string | null>(null);
 
   // Handle redirect back from checkout
-  const { status } = Route.useSearch() as { status?: string };
+  const { status, wallet } = Route.useSearch() as { status?: string; wallet?: string };
   useEffect(() => {
     if (status === "success") {
       toast.success("Payment confirmed! Your number is being activated.");
@@ -36,8 +36,11 @@ function NumbersPage() {
     } else if (status === "cancel") {
       toast.info("Number purchase cancelled.");
       navigate({ to: "/numbers", replace: true });
+    } else if (wallet === "funded") {
+      toast.success("Wallet topped up successfully!");
+      navigate({ to: "/numbers", replace: true });
     }
-  }, [status]);
+  }, [status, wallet]);
 
   const load = async () => {
     setLoading(true);

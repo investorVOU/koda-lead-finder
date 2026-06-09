@@ -6,7 +6,7 @@ import {
   Star,
   Trash2,
   ExternalLink,
-  Sparkles,
+  Code2,
   PhoneCall,
   MessageCircle,
   FileText,
@@ -142,7 +142,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
 
   const generate = async (kind: "website_prompt" | "call_script") => {
     setGenKind(kind);
-    setDialogTitle(kind === "website_prompt" ? "AI Website Prompt" : "Cold Call Script");
+    setDialogTitle(kind === "website_prompt" ? "Website Prompt" : "Cold Call Script");
     setDialogDesc(
       kind === "website_prompt"
         ? `A ready-to-paste prompt to build a site for ${lead.business_name}.`
@@ -301,8 +301,8 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
 
         {/* Action buttons */}
         <div className="mt-3 flex flex-wrap items-center gap-1">
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("website_prompt")} title="AI website prompt">
-            <Sparkles className="size-4" />
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("website_prompt")} title="Website prompt">
+            <Code2 className="size-4" />
           </Button>
           <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("call_script")} title="Cold call script">
             <PhoneCall className="size-4" />

@@ -9,14 +9,16 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/lib/queries";
-import { LEAD_CATEGORIES } from "@/lib/constants";
+import { LEAD_CATEGORY_GROUPS } from "@/lib/constants";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({ meta: [{ title: "Welcome — Kodarai" }] }),
@@ -93,12 +95,25 @@ function OnboardingPage() {
               <SelectTrigger>
                 <SelectValue placeholder="Pick a category" />
               </SelectTrigger>
-              <SelectContent>
-                {LEAD_CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
+              <SelectContent className="max-h-80">
+                {LEAD_CATEGORY_GROUPS.map((group) => (
+                  <SelectGroup key={group.group}>
+                    <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {group.group}
+                    </SelectLabel>
+                    {group.items.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
+                <SelectGroup>
+                  <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Other
+                  </SelectLabel>
+                  <SelectItem value="Other">Other / Custom</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

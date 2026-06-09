@@ -21,7 +21,9 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
 import { Route as ApiPingRouteImport } from './routes/api/ping'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRevenueRouteImport } from './routes/_authenticated/revenue'
+import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedNumbersRouteImport } from './routes/_authenticated/numbers'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
@@ -92,9 +94,19 @@ const ApiPingRoute = ApiPingRouteImport.update({
   path: '/api/ping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedRevenueRoute = AuthenticatedRevenueRouteImport.update({
   id: '/revenue',
   path: '/revenue',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
@@ -167,7 +179,9 @@ export interface FileRoutesByFullPath {
   '/leads': typeof AuthenticatedLeadsRoute
   '/numbers': typeof AuthenticatedNumbersRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/revenue': typeof AuthenticatedRevenueRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -191,7 +205,9 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsRoute
   '/numbers': typeof AuthenticatedNumbersRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/revenue': typeof AuthenticatedRevenueRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -217,7 +233,9 @@ export interface FileRoutesById {
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/numbers': typeof AuthenticatedNumbersRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/revenue': typeof AuthenticatedRevenueRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -243,7 +261,9 @@ export interface FileRouteTypes {
     | '/leads'
     | '/numbers'
     | '/onboarding'
+    | '/referrals'
     | '/revenue'
+    | '/settings'
     | '/api/ping'
     | '/preview/$slug'
     | '/api/public/webhooks/paystack'
@@ -267,7 +287,9 @@ export interface FileRouteTypes {
     | '/leads'
     | '/numbers'
     | '/onboarding'
+    | '/referrals'
     | '/revenue'
+    | '/settings'
     | '/api/ping'
     | '/preview/$slug'
     | '/api/public/webhooks/paystack'
@@ -292,7 +314,9 @@ export interface FileRouteTypes {
     | '/_authenticated/leads'
     | '/_authenticated/numbers'
     | '/_authenticated/onboarding'
+    | '/_authenticated/referrals'
     | '/_authenticated/revenue'
+    | '/_authenticated/settings'
     | '/api/ping'
     | '/preview/$slug'
     | '/api/public/webhooks/paystack'
@@ -404,11 +428,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/revenue': {
       id: '/_authenticated/revenue'
       path: '/revenue'
       fullPath: '/revenue'
       preLoaderRoute: typeof AuthenticatedRevenueRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/referrals': {
+      id: '/_authenticated/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof AuthenticatedReferralsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/onboarding': {
@@ -492,7 +530,9 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedNumbersRoute: typeof AuthenticatedNumbersRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedRevenueRoute: typeof AuthenticatedRevenueRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -503,7 +543,9 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedNumbersRoute: AuthenticatedNumbersRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedRevenueRoute: AuthenticatedRevenueRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

@@ -1,8 +1,17 @@
 import { type ReactNode, useRef, type KeyboardEvent } from "react";
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
-import { LogOut, Radar } from "lucide-react";
+import { LogOut, Radar, Settings } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearch, faBookmark, faCreditCard, faReceipt, faMobileAlt, faChartBar } from "@fortawesome/free-solid-svg-icons";
+import {
+  faSearch,
+  faBookmark,
+  faCreditCard,
+  faReceipt,
+  faMobileAlt,
+  faChartBar,
+  faGift,
+  faGear,
+} from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -12,14 +21,26 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useSubscription, trialDaysLeft, isTrialExpired } from "@/lib/queries";
 
-const navItems: { to: string; label: string; icon: IconDefinition }[] = [
-  { to: "/dashboard", label: "Finder", icon: faSearch },
-  { to: "/leads", label: "Saved", icon: faBookmark },
-  { to: "/revenue", label: "Revenue", icon: faChartBar },
-  { to: "/numbers", label: "Numbers", icon: faMobileAlt },
-  { to: "/billing", label: "Billing", icon: faCreditCard },
-  { to: "/invoices", label: "Invoices", icon: faReceipt },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: IconDefinition;
+  mobileHide?: boolean;
+}
+
+// Desktop shows all; mobile shows only items without mobileHide: true
+const navItems: NavItem[] = [
+  { to: "/dashboard", label: "Finder",   icon: faSearch },
+  { to: "/leads",     label: "Saved",    icon: faBookmark },
+  { to: "/revenue",   label: "Revenue",  icon: faChartBar },
+  { to: "/referrals", label: "Earn",     icon: faGift },
+  { to: "/billing",   label: "Billing",  icon: faCreditCard },
+  { to: "/invoices",  label: "Invoices", icon: faReceipt,   mobileHide: true },
+  { to: "/numbers",   label: "Numbers",  icon: faMobileAlt, mobileHide: true },
+  { to: "/settings",  label: "Settings", icon: faGear,      mobileHide: true },
 ];
+
+const mobileNavItems = navItems.filter((i) => !i.mobileHide);
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -34,23 +55,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     navigate({ to: "/login" });
   };
 
-  const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const mobileNavRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
   const handleNavKeyDown = (e: KeyboardEvent<HTMLAnchorElement>, index: number) => {
     let next: number | null = null;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      next = (index + 1) % navItems.length;
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      next = (index - 1 + navItems.length) % navItems.length;
-    } else if (e.key === "Home") {
-      next = 0;
-    } else if (e.key === "End") {
-      next = navItems.length - 1;
-    }
-    if (next !== null) {
-      e.preventDefault();
-      navRefs.current[next]?.focus();
-    }
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (index + 1) % mobileNavItems.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (index - 1 + mobileNavItems.length) % mobileNavItems.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = mobileNavItems.length - 1;
+    if (next !== null) { e.preventDefault(); mobileNavRefs.current[next]?.focus(); }
   };
 
   const displayName =
@@ -67,7 +80,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <Logo />
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-0.5 md:flex">
             {navItems.map((item) => (
               <Link
                 key={item.to}
@@ -80,13 +94,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="hidden sm:block">
               <CreditMeter compact />
             </div>
 
-            {/* Greeting + avatar */}
-            <div className="flex items-center gap-2">
+            {/* Greeting + avatar — clicking avatar goes to settings */}
+            <Link to="/settings" className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent transition-colors">
               <span className="hidden text-sm font-medium text-muted-foreground sm:block">
                 Hi, <span className="text-foreground">{displayName}</span>
               </span>
@@ -96,7 +110,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 onUpload={refreshProfile}
                 size={34}
               />
-            </div>
+            </Link>
+
+            {/* Settings shortcut (desktop) */}
+            <Link to="/settings" aria-label="Settings" className="hidden md:inline-flex">
+              <Button variant="ghost" size="icon" asChild>
+                <span><Settings className="size-4" /></span>
+              </Button>
+            </Link>
 
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sign out">
@@ -110,19 +131,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       {sub?.plan === "trial" && (
         <div className={`border-b px-4 py-2 text-center text-xs font-medium ${trialExpired ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-primary/20 bg-primary/5 text-primary"}`}>
           {trialExpired ? (
-            <>
-              Your free trial has expired.{" "}
-              <button className="underline underline-offset-2" onClick={() => navigate({ to: "/billing" })}>
-                Upgrade to keep searching
-              </button>
+            <>Your free trial has expired.{" "}
+              <button className="underline underline-offset-2" onClick={() => navigate({ to: "/billing" })}>Upgrade to keep searching</button>
             </>
           ) : (
-            <>
-              Free trial — <strong>{daysLeft} day{daysLeft !== 1 ? "s" : ""} left</strong>{" "}
+            <>Free trial — <strong>{daysLeft} day{daysLeft !== 1 ? "s" : ""} left</strong>{" "}
               <span className="text-primary/60">·</span>{" "}
-              <button className="underline underline-offset-2" onClick={() => navigate({ to: "/billing" })}>
-                Upgrade now
-              </button>
+              <button className="underline underline-offset-2" onClick={() => navigate({ to: "/billing" })}>Upgrade now</button>
             </>
           )}
         </div>
@@ -134,19 +149,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — 5 visible items */}
       <nav
         aria-label="Primary"
         className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden"
       >
-        <div className="mx-auto grid h-16 max-w-md grid-cols-6 items-center px-2">
-          {navItems.map((item, index) => (
+        <div className={`mx-auto grid h-16 max-w-md items-center px-2`}
+          style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, 1fr)` }}
+        >
+          {mobileNavItems.map((item, index) => (
             <Link
               key={item.to}
               to={item.to}
-              ref={(el) => {
-                navRefs.current[index] = el;
-              }}
+              ref={(el) => { mobileNavRefs.current[index] = el; }}
               onKeyDown={(e) => handleNavKeyDown(e, index)}
               aria-label={item.label}
               className="flex flex-col items-center justify-center gap-1 rounded-lg py-2 text-[10px] font-medium text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

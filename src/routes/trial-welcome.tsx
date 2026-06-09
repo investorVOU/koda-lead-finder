@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
+import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, MapPin, Phone, BarChart2, Download, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
+import { processReferral } from "@/lib/account.functions";
 
 export const Route = createFileRoute("/trial-welcome")({
   head: () => ({ meta: [{ title: "Welcome to Kodarai — Free 3-Day Trial" }] }),
@@ -38,6 +40,7 @@ export default function TrialWelcomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [animIn, setAnimIn] = useState(false);
+  const runProcessReferral = useServerFn(processReferral);
 
   const firstName =
     user?.user_metadata?.full_name?.split(" ")[0] ||
@@ -45,6 +48,14 @@ export default function TrialWelcomePage() {
     "there";
 
   useEffect(() => {
+    // Record referral if this user arrived via a referral link
+    const refCode = localStorage.getItem("kodarai_ref");
+    if (refCode) {
+      runProcessReferral({ data: { ref_code: refCode } }).then(() => {
+        localStorage.removeItem("kodarai_ref");
+      });
+    }
+
     const t = setTimeout(() => setAnimIn(true), 80);
 
     const fire = (x: number, angle: number) =>

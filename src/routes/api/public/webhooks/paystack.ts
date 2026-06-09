@@ -8,8 +8,10 @@ import {
   applySubscription,
   applyCreditPack,
   markSubscriptionCanceled,
+  creditReferrer,
 } from "@/lib/billing.server";
 import { activateVirtualNumber } from "@/lib/numbers.server";
+import { creditWallet } from "@/lib/wallet.server";
 
 export const Route = createFileRoute("/api/public/webhooks/paystack")({
   server: {
@@ -52,6 +54,18 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
               const amount = (data.amount ?? 0) / 100;
               const currency = data.currency ?? "NGN";
               if (!userId) break;
+              if (kind === "wallet_topup") {
+                const amountNgn = Number(meta.amount_ngn ?? data.amount / 100);
+                await creditWallet({
+                  userId,
+                  amountNgn,
+                  type: "topup",
+                  provider: "paystack",
+                  reference: data.reference,
+                  description: `Wallet top-up via Paystack (₦${amountNgn.toLocaleString()})`,
+                });
+                break;
+              }
               if (kind === "number_rental") {
                 const numberId = meta.number_id;
                 const phoneNumber = meta.phone_number;
@@ -75,6 +89,7 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
                   currency,
                   amount,
                 });
+                await creditReferrer(userId); // award referrer on first purchase
               } else {
                 if (!planId) break;
                 await applyCreditPack({

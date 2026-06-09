@@ -191,3 +191,76 @@ export const releaseNumber = createServerFn({ method: "POST" })
 
     return { success: true } as const;
   });
+
+// ── Buy number from wallet balance ────────────────────────────────────────────
+
+const walletBuySchema = z.object({
+  phoneNumber: z.string().min(7),
+  country: z.string().length(2),
+});
+
+export const buyNumberFromWallet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => walletBuySchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const countryInfo = NUMBER_COUNTRIES.find((c) => c.code === data.country);
+    if (!countryInfo) return { error: true, message: "Unknown country" } as const;
+
+    // Import here to avoid circular deps at top-level
+    const { debitWallet } = await import("@/lib/wallet.server");
+    const { activateVirtualNumber } = await import("@/lib/numbers.server");
+
+    const pendingSid = `pending_${Date.now()}`;
+    const { data: numRow, error: dbErr } = await supabaseAdmin
+      .from("virtual_numbers")
+      .insert({
+        user_id: userId,
+        twilio_sid: pendingSid,
+        phone_number: data.phoneNumber,
+        country_code: data.country,
+        status: "pending_payment",
+        monthly_usd: countryInfo.usd,
+        monthly_ngn: countryInfo.ngn,
+      })
+      .select("id")
+      .single();
+
+    if (dbErr || !numRow) return { error: true, message: "Failed to create record" } as const;
+
+    // Debit wallet
+    const ok = await debitWallet({
+      userId,
+      amountNgn: countryInfo.ngn,
+      phoneNumber: data.phoneNumber,
+    });
+    if (!ok) {
+      // Cleanup pending record
+      await supabaseAdmin.from("virtual_numbers").delete().eq("id", numRow.id);
+      return { error: true, message: "Insufficient wallet balance" } as const;
+    }
+
+    // Provision on Twilio and activate
+    try {
+      await activateVirtualNumber({
+        numberId: numRow.id,
+        phoneNumber: data.phoneNumber,
+        userId,
+        provider: "wallet",
+        reference: `wallet_${numRow.id}`,
+        amount: countryInfo.ngn,
+      });
+      return { success: true } as const;
+    } catch (e: any) {
+      // Refund wallet on Twilio failure
+      const { creditWallet } = await import("@/lib/wallet.server");
+      await creditWallet({
+        userId,
+        amountNgn: countryInfo.ngn,
+        type: "refund",
+        description: `Refund for failed number provision ${data.phoneNumber}`,
+      });
+      await supabaseAdmin.from("virtual_numbers").delete().eq("id", numRow.id);
+      return { error: true, message: `Twilio error: ${e.message}` } as const;
+    }
+  });

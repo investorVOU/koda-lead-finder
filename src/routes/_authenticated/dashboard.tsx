@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
 import { SearchForm } from "@/components/dashboard/SearchForm";
@@ -175,7 +175,7 @@ function DashboardPage() {
 
           {searched && shown.length === 0 && !loading && (
             <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
-              <Sparkles className="size-6 text-muted-foreground" />
+              <Search className="size-6 text-muted-foreground" />
               <h3 className="mt-3 font-semibold">No matching leads</h3>
               <p className="mt-1 max-w-xs text-sm text-muted-foreground">
                 Try a different category or location, or uncheck "No-website only".

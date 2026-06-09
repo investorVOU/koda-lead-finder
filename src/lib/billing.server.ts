@@ -141,6 +141,47 @@ export async function releaseWebhookEvent(provider: Provider, eventId: string): 
     .eq("event_id", eventId);
 }
 
+// ---- Referral crediting ----
+// Called after a paid subscription activates. Awards 10 top-up leads to whoever
+// referred this user, but only once (referrals.credited guard).
+// Requires migration 20260608000000_follow_up_referral.sql to be applied.
+export async function creditReferrer(refereeId: string): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = supabaseAdmin as any;
+
+    const { data: referral } = await admin
+      .from("referrals")
+      .select("id, referrer_id")
+      .eq("referee_id", refereeId)
+      .eq("credited", false)
+      .maybeSingle();
+
+    if (!referral) return;
+
+    // Fetch current top-up credits for referrer
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("topup_credits")
+      .eq("user_id", referral.referrer_id)
+      .maybeSingle();
+
+    const current = (sub as { topup_credits?: number } | null)?.topup_credits ?? 0;
+
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({ topup_credits: current + 10 })
+      .eq("user_id", referral.referrer_id);
+
+    await admin
+      .from("referrals")
+      .update({ credited: true })
+      .eq("id", referral.id);
+  } catch {
+    // Silently skip — referrals table may not exist yet
+  }
+}
+
 // ---- Fulfillment ----
 export async function applySubscription(args: {
   userId: string;

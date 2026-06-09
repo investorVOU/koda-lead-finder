@@ -8,7 +8,7 @@ import {
   Phone,
   Bookmark,
   BookmarkCheck,
-  Sparkles,
+  Code2,
   PhoneCall,
   ExternalLink,
   Loader2,
@@ -95,11 +95,11 @@ export function LeadResultCard({
 
   const generate = async (kind: "website_prompt" | "call_script") => {
     if (trialUser) {
-      gate(kind === "website_prompt" ? "AI Website Prompts" : "Cold Call Scripts");
+      gate(kind === "website_prompt" ? "Website Prompts" : "Cold Call Scripts");
       return;
     }
     setGenKind(kind);
-    setDialogTitle(kind === "website_prompt" ? "AI Website Prompt" : "Cold Call Script");
+    setDialogTitle(kind === "website_prompt" ? "Website Prompt" : "Cold Call Script");
     setDialogDesc(
       kind === "website_prompt"
         ? `A ready-to-paste prompt to build a site for ${lead.name}.`
@@ -199,7 +199,7 @@ export function LeadResultCard({
             className="w-full"
             onClick={() => generate("website_prompt")}
           >
-            <Sparkles className="size-4" /> Generate AI Website Prompt
+            <Code2 className="size-4" /> Build Website Prompt
           </Button>
           <div className="grid grid-cols-4 gap-2">
             <Button

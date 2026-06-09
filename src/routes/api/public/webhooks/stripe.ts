@@ -7,8 +7,10 @@ import {
   applySubscription,
   applyCreditPack,
   markSubscriptionCanceled,
+  creditReferrer,
 } from "@/lib/billing.server";
 import { activateVirtualNumber } from "@/lib/numbers.server";
+import { creditWallet } from "@/lib/wallet.server";
 
 export const Route = createFileRoute("/api/public/webhooks/stripe")({
   server: {
@@ -47,7 +49,22 @@ export const Route = createFileRoute("/api/public/webhooks/stripe")({
               const kind = obj.metadata?.kind;
               const planId = obj.metadata?.plan_id;
               const amount = (obj.amount_total ?? 0) / 100;
+              const reference = obj.id;
               if (!userId) break;
+              if (kind === "wallet_topup") {
+                const amountNgn = Number(obj.metadata?.amount_ngn ?? 0);
+                if (amountNgn > 0) {
+                  await creditWallet({
+                    userId,
+                    amountNgn,
+                    type: "topup",
+                    provider: "stripe",
+                    reference,
+                    description: `Wallet top-up via Stripe ($${amount.toFixed(2)} USD)`,
+                  });
+                }
+                break;
+              }
               if (kind === "number_rental") {
                 const numberId = obj.metadata?.number_id;
                 const phoneNumber = obj.metadata?.phone_number;
@@ -68,6 +85,7 @@ export const Route = createFileRoute("/api/public/webhooks/stripe")({
                   currency: "USD",
                   amount,
                 });
+                await creditReferrer(userId); // award referrer on first purchase
               } else {
                 await applyCreditPack({
                   userId,
