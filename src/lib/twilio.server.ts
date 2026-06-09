@@ -1,27 +1,23 @@
-import Twilio from "twilio";
-
-let _client: Twilio.Twilio | null = null;
-
-export function getTwilioClient(): Twilio.Twilio {
-  if (!_client) {
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    if (!sid || !token) throw new Error("TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are required");
-    _client = new Twilio.Twilio(sid, token);
-  }
-  return _client;
-}
+/**
+ * @deprecated — Replaced by Telnyx. This file is kept only so existing
+ * payment webhook handlers (Stripe/Paystack) that call `activateVirtualNumber`
+ * can still compile. Those webhooks internally call numbers.server.ts which
+ * now uses Telnyx.
+ *
+ * Do NOT import getTwilioClient() — Twilio credentials are no longer set.
+ */
 
 export function getTwilioWebhookUrl(): string {
-  const base = process.env.APP_URL ?? "https://kodarai.xyz";
-  return `${base}/api/public/webhooks/twilio-sms`;
+  // Redirected to the new Telnyx endpoint for any legacy callers
+  const base = process.env.TELNYX_WEBHOOK_BASE_URL ?? "https://kodarai.xyz";
+  return `${base}/api/webhooks/sms-incoming`;
 }
 
 export function validateTwilioSignature(
-  url: string,
-  params: Record<string, string>,
-  signature: string,
+  _url: string,
+  _params: Record<string, string>,
+  _signature: string,
 ): boolean {
-  const token = process.env.TWILIO_AUTH_TOKEN ?? "";
-  return Twilio.validateRequest(token, signature, url, params);
+  // Twilio is no longer used — always return false so old webhook rejects
+  return false;
 }

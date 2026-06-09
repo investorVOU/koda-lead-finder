@@ -9,7 +9,8 @@ import { BuyNumberDialog } from "@/components/numbers/BuyNumberDialog";
 import { SmsInbox } from "@/components/numbers/SmsInbox";
 import { getUserNumbers, releaseNumber, getAllMessages } from "@/lib/numbers.functions";
 import { NUMBER_COUNTRIES } from "@/lib/numbers";
-import type { VirtualNumber, SmsMessage } from "@/lib/numbers";
+import { extractOTP } from "@/lib/sms-utils";
+import type { VirtualNumber } from "@/lib/numbers";
 
 export const Route = createFileRoute("/_authenticated/numbers")({
   head: () => ({ meta: [{ title: "Virtual Numbers — Kodarai" }] }),
@@ -17,18 +18,6 @@ export const Route = createFileRoute("/_authenticated/numbers")({
 });
 
 type Tab = "numbers" | "messages";
-
-const OTP_PATTERNS = [
-  /\b(\d{4,8})\b/,
-  /code[:\s]+(\d{4,8})/i,
-  /OTP[:\s]+(\d{4,8})/i,
-  /verification code[:\s]+(\d{4,8})/i,
-  /(?:is|:)\s*(\d{4,8})/i,
-];
-function extractOTP(body: string): string | null {
-  for (const p of OTP_PATTERNS) { const m = body.match(p); if (m) return m[1]; }
-  return null;
-}
 
 function CopyOTP({ otp }: { otp: string }) {
   const [copied, setCopied] = useState(false);
@@ -192,6 +181,10 @@ function NumbersPage() {
                             <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
                               <CheckCircle2 className="size-3" /> Active
                             </span>
+                          ) : num.status === "expired" ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400">
+                              <Clock className="size-3" /> Expired
+                            </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-500">
                               <Clock className="size-3" /> Pending
@@ -207,7 +200,7 @@ function NumbersPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {num.status === "active" && (
+                      {(num.status === "active" || num.status === "expired") && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -229,9 +222,13 @@ function NumbersPage() {
                     </div>
                   </div>
 
-                  {expanded === num.id && num.status === "active" && (
+                  {expanded === num.id && (num.status === "active" || num.status === "expired") && (
                     <div className="border-t border-border px-5 py-4">
-                      <SmsInbox numberId={num.id} phoneNumber={num.phone_number} />
+                      <SmsInbox
+                        numberId={num.id}
+                        phoneNumber={num.phone_number}
+                        provider={(num as VirtualNumber).provider ?? "telnyx"}
+                      />
                     </div>
                   )}
                 </div>
