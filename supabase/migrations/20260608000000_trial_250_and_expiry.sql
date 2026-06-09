@@ -12,6 +12,10 @@ BEGIN
     credits_reset_at     = now() + interval '3 days',
     trial_ends_at        = now() + interval '3 days'
   WHERE user_id = v_uid;
+
+  UPDATE public.profiles
+  SET onboarded = true
+  WHERE id = v_uid;
 END; $$;
 
 GRANT EXECUTE ON FUNCTION public.activate_free_trial() TO authenticated;
