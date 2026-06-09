@@ -1,5 +1,5 @@
 import { useState, useRef, type FormEvent } from "react";
-import { Search, Loader2, X } from "lucide-react";
+import { Search, Loader2, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LEAD_CATEGORY_GROUPS } from "@/lib/constants";
+import { UNIQUE_COUNTRIES, getStates, buildLocationString } from "@/lib/locations";
 
 const CUSTOM_SENTINEL = "__custom__";
 
@@ -26,45 +27,64 @@ export function SearchForm({
   defaultCategory?: string;
   defaultLocation?: string;
 }) {
-  // If defaultCategory isn't in any group, start in custom mode
   const allItems = LEAD_CATEGORY_GROUPS.flatMap((g) => g.items);
-  const isKnown = !defaultCategory || allItems.includes(defaultCategory);
+  const isKnown  = !defaultCategory || allItems.includes(defaultCategory);
 
   const [selectValue, setSelectValue] = useState(
-    defaultCategory
-      ? isKnown
-        ? defaultCategory
-        : CUSTOM_SENTINEL
-      : "",
+    defaultCategory ? (isKnown ? defaultCategory : CUSTOM_SENTINEL) : "",
   );
   const [customText, setCustomText] = useState(
     defaultCategory && !isKnown ? defaultCategory : "",
   );
-  const [location, setLocation] = useState(defaultLocation ?? "");
+
+  const [countryCode, setCountryCode] = useState("");
+  const [state,       setState]       = useState("");
+  const [city,        setCity]        = useState("");
+  const [cityInput,   setCityInput]   = useState("");
+
   const customRef = useRef<HTMLInputElement>(null);
 
-  const isCustom = selectValue === CUSTOM_SENTINEL;
-
-  // The real category value to send
+  const isCustom        = selectValue === CUSTOM_SENTINEL;
   const resolvedCategory = isCustom ? customText.trim() : selectValue;
+  const states          = getStates(countryCode);
+  const hasStates       = states.length > 0;
+  const selectedState   = states.find((s) => s.name === state);
+  const cities          = selectedState?.cities ?? [];
+
+  const selectedCountry = UNIQUE_COUNTRIES.find((c) => c.code === countryCode);
+
+  const handleCountryChange = (val: string) => {
+    setCountryCode(val);
+    setState("");
+    setCity("");
+    setCityInput("");
+  };
+
+  const handleStateChange = (val: string) => {
+    setState(val);
+    setCity("");
+    setCityInput("");
+  };
 
   const handleSelectChange = (val: string) => {
     setSelectValue(val);
-    if (val === CUSTOM_SENTINEL) {
-      // Focus the custom input on next tick
-      setTimeout(() => customRef.current?.focus(), 60);
-    }
+    if (val === CUSTOM_SENTINEL) setTimeout(() => customRef.current?.focus(), 60);
   };
 
-  const clearCustom = () => {
-    setSelectValue("");
-    setCustomText("");
-  };
+  const clearCustom = () => { setSelectValue(""); setCustomText(""); };
+
+  const resolvedLocation = buildLocationString(
+    selectedCountry?.name ?? "",
+    state,
+    city || cityInput,
+  );
+
+  const canSearch = !!resolvedCategory && !!selectedCountry;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!resolvedCategory || !location.trim()) return;
-    onSearch(resolvedCategory, location.trim());
+    if (!canSearch) return;
+    onSearch(resolvedCategory, resolvedLocation || selectedCountry!.name);
   };
 
   return (
@@ -72,8 +92,9 @@ export function SearchForm({
       onSubmit={submit}
       className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"
     >
-      <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_auto]">
-        {/* Category picker */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+
+        {/* ── Category ── */}
         {!isCustom ? (
           <Select value={selectValue} onValueChange={handleSelectChange}>
             <SelectTrigger className="h-11">
@@ -86,25 +107,19 @@ export function SearchForm({
                     {group.group}
                   </SelectLabel>
                   {group.items.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectGroup>
               ))}
-              {/* Custom option pinned at the bottom */}
               <SelectGroup>
                 <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Other
                 </SelectLabel>
-                <SelectItem value={CUSTOM_SENTINEL}>
-                  Custom category…
-                </SelectItem>
+                <SelectItem value={CUSTOM_SENTINEL}>Custom category…</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
         ) : (
-          /* Custom text input — shows when "Custom category…" is picked */
           <div className="relative">
             <Input
               ref={customRef}
@@ -117,36 +132,92 @@ export function SearchForm({
               type="button"
               onClick={clearCustom}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Back to category list"
             >
               <X className="size-4" />
             </button>
           </div>
         )}
 
-        <Input
-          className="h-11"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="City, Country or ZIP — e.g. Lagos, Nigeria"
-        />
+        {/* ── Country ── */}
+        <Select value={countryCode} onValueChange={handleCountryChange}>
+          <SelectTrigger className="h-11">
+            <SelectValue placeholder="Country" />
+          </SelectTrigger>
+          <SelectContent className="max-h-72">
+            {UNIQUE_COUNTRIES.map((c) => (
+              <SelectItem key={c.code} value={c.code}>
+                {c.flag} {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
+        {/* ── State / Region ── */}
+        {hasStates ? (
+          <Select value={state} onValueChange={handleStateChange} disabled={!countryCode}>
+            <SelectTrigger className="h-11">
+              <SelectValue placeholder="State / Region" />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {states.map((s) => (
+                <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            className="h-11"
+            value={state}
+            onChange={(e) => setState(e.target.value)}
+            placeholder="State / Region (optional)"
+            disabled={!countryCode}
+          />
+        )}
+
+        {/* ── City ── */}
+        {cities.length > 0 ? (
+          <Select value={city} onValueChange={setCity} disabled={!state}>
+            <SelectTrigger className="h-11">
+              <SelectValue placeholder="City (optional)" />
+            </SelectTrigger>
+            <SelectContent className="max-h-64">
+              {cities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            className="h-11"
+            value={cityInput}
+            onChange={(e) => setCityInput(e.target.value)}
+            placeholder="City (optional)"
+            disabled={!countryCode}
+          />
+        )}
+
+        {/* ── Search button ── */}
         <Button
           type="submit"
           variant="hero"
           size="lg"
-          className="h-11"
-          disabled={loading || !resolvedCategory || !location.trim()}
+          className="h-11 sm:col-span-2 lg:col-span-1"
+          disabled={loading || !canSearch}
         >
           {loading ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            <>
-              <Search className="size-4" /> Find Leads
-            </>
+            <><Search className="size-4" /> Find Leads</>
           )}
         </Button>
       </div>
+
+      {/* Location preview */}
+      {resolvedLocation && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Searching in: <span className="font-medium text-foreground">{resolvedLocation}</span>
+        </p>
+      )}
     </form>
   );
 }

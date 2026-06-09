@@ -141,7 +141,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 <SelectContent>
                   {NUMBER_COUNTRIES.map((c) => (
                     <SelectItem key={c.code} value={c.code}>
-                      {c.flag} {c.name} — ₦{c.ngn.toLocaleString()}/mo · ~${(c.ngn / fxRate).toFixed(2)} USD
+                      {c.flag} {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
