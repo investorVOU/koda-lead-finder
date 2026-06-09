@@ -124,7 +124,6 @@ function NewStudioProjectPage() {
     onSuccess: (res) => {
       if ("error" in res) { toast.error(res.error); return; }
       const projectId = res.project.id;
-      // Store the prompt so the builder can send it as the first message
       if (prompt.trim()) {
         sessionStorage.setItem(`studio_initial_prompt_${projectId}`, prompt.trim());
       }
@@ -137,6 +136,9 @@ function NewStudioProjectPage() {
         }));
       }
       navigate({ to: "/studio/$projectId", params: { projectId } });
+    },
+    onError: (err) => {
+      toast.error("Failed to create project — " + String(err));
     },
   });
 

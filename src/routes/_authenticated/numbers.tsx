@@ -148,13 +148,15 @@ function NumbersPage() {
                 </div>
                 <h2 className="text-lg font-semibold">No numbers yet</h2>
                 <p className="max-w-xs text-sm text-muted-foreground">
-                  Get a US, UK, or Canadian number to receive SMS for verifications, WhatsApp, or client calls.
+                  Rent a number in 50+ countries to receive SMS for verifications, WhatsApp, or client calls.
                 </p>
-                <div className="mt-1 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-                  <span>🇺🇸 ₦6,500/mo</span>
-                  <span>🇬🇧 ₦6,500/mo</span>
-                  <span>🇨🇦 ₦6,500/mo</span>
-                  <span>🇦🇺 ₦8,000/mo</span>
+                <div className="mt-1 flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
+                  <span>🇺🇸 ₦1,600/mo</span>
+                  <span>🇬🇧 ₦1,600/mo</span>
+                  <span>🇨🇦 ₦1,600/mo</span>
+                  <span>🇦🇺 ₦2,400/mo</span>
+                  <span>🇩🇪 ₦2,400/mo</span>
+                  <span>+ more countries</span>
                 </div>
                 <Button variant="hero" className="mt-2" onClick={() => setBuyOpen(true)}>
                   <Plus className="size-4" /> Get your first number

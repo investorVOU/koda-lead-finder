@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Loader2, Phone, Search, Wallet, CreditCard, Plus, ArrowLeft, MapPin,
-  Clock, Zap,
+  Clock, Zap, ChevronDown,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -18,6 +18,8 @@ import {
   buyNumberFromWallet,
   initiateNumberPurchase,
   requestTempNumber,
+  listSMSPoolCountries,
+  listSMSPoolServices,
 } from "@/lib/numbers.functions";
 import { getWalletData, initiateWalletTopUp } from "@/lib/wallet.functions";
 
@@ -28,50 +30,26 @@ interface Props {
 
 type AvailableNumber = { phoneNumber: string; friendlyName: string; region?: string; locality?: string; monthlyCostUsd?: number };
 type Step = "type" | "search" | "pay" | "temp";
-type NumberType = "persistent" | "temp";
+type NumberType = "rental" | "temp";
 
 const TOP_UP_PRESETS = [1000, 2500, 5000, 10000];
 
-const SMSPOOL_COUNTRIES = [
-  { id: "US", name: "🇺🇸 United States" },
-  { id: "GB", name: "🇬🇧 United Kingdom" },
-  { id: "CA", name: "🇨🇦 Canada" },
-  { id: "NG", name: "🇳🇬 Nigeria" },
-  { id: "IN", name: "🇮🇳 India" },
-  { id: "RU", name: "🇷🇺 Russia" },
-  { id: "ID", name: "🇮🇩 Indonesia" },
-  { id: "PH", name: "🇵🇭 Philippines" },
-  { id: "UA", name: "🇺🇦 Ukraine" },
-  { id: "VN", name: "🇻🇳 Vietnam" },
-];
-
-const SMSPOOL_SERVICES = [
-  { id: "any",       name: "Any (cheapest)" },
-  { id: "whatsapp",  name: "WhatsApp" },
-  { id: "telegram",  name: "Telegram" },
-  { id: "instagram", name: "Instagram" },
-  { id: "facebook",  name: "Facebook" },
-  { id: "twitter",   name: "X / Twitter" },
-  { id: "google",    name: "Google" },
-  { id: "microsoft", name: "Microsoft / Outlook" },
-  { id: "tiktok",    name: "TikTok" },
-  { id: "snapchat",  name: "Snapchat" },
-  { id: "uber",      name: "Uber" },
-];
-
 export function BuyNumberDialog({ open, onOpenChange }: Props) {
-  const runSearch    = useServerFn(searchAvailableNumbers);
-  const runWalletBuy = useServerFn(buyNumberFromWallet);
-  const runCardBuy   = useServerFn(initiateNumberPurchase);
-  const runGetWallet = useServerFn(getWalletData);
-  const runTopUp     = useServerFn(initiateWalletTopUp);
-  const runTempBuy   = useServerFn(requestTempNumber);
+  const runSearch          = useServerFn(searchAvailableNumbers);
+  const runWalletBuy       = useServerFn(buyNumberFromWallet);
+  const runCardBuy         = useServerFn(initiateNumberPurchase);
+  const runGetWallet       = useServerFn(getWalletData);
+  const runTopUp           = useServerFn(initiateWalletTopUp);
+  const runTempBuy         = useServerFn(requestTempNumber);
+  const runSMSPoolCountries = useServerFn(listSMSPoolCountries);
+  const runSMSPoolServices  = useServerFn(listSMSPoolServices);
 
   const [step,         setStep]         = useState<Step>("type");
-  const [numType,      setNumType]      = useState<NumberType>("persistent");
+  const [numType,      setNumType]      = useState<NumberType>("rental");
 
-  // Persistent (Telnyx) state
+  // Rental (Telnyx) state
   const [country,      setCountry]      = useState("US");
+  const [countrySearch, setCountrySearch] = useState("");
   const [searching,    setSearching]    = useState(false);
   const [results,      setResults]      = useState<AvailableNumber[]>([]);
   const [selected,     setSelected]     = useState<AvailableNumber | null>(null);
@@ -83,6 +61,9 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const [tempCountry,  setTempCountry]  = useState("US");
   const [tempService,  setTempService]  = useState("any");
   const [tempBuying,   setTempBuying]   = useState(false);
+  const [smsCountries, setSmsCountries] = useState<Array<{ id: string; name: string }>>([]);
+  const [smsServices,  setSmsServices]  = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingSMS,   setLoadingSMS]   = useState(false);
 
   // Wallet
   const [toppingUp,    setToppingUp]    = useState(false);
@@ -90,15 +71,39 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const [balance,      setBalance]      = useState<number | null>(null);
   const [fxRate,       setFxRate]       = useState(1600);
 
-  const selectedCountry = NUMBER_COUNTRIES.find((c) => c.code === country)!;
+  // Derived
+  const filteredCountries = NUMBER_COUNTRIES.filter((c) =>
+    countrySearch === "" ||
+    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+    c.code.toLowerCase().includes(countrySearch.toLowerCase()),
+  );
+  const selectedCountry = NUMBER_COUNTRIES.find((c) => c.code === country) ?? NUMBER_COUNTRIES[0];
+  const ngnPrice   = Math.round(selectedCountry.usd * fxRate);
+  const usdPrice   = selectedCountry.usd.toFixed(2);
+  const usdEquiv   = (topUpAmount / fxRate).toFixed(2);
+  const hasEnough       = balance !== null && balance >= ngnPrice;
+  const hasTempBalance  = balance !== null && balance >= SMSPOOL_APPROX_PRICE_NGN;
+  const tempUsdPrice    = SMSPOOL_APPROX_PRICE_USD.toFixed(2);
 
+  // Reset on open/close; load wallet + SMSPool lists
   useEffect(() => {
     if (!open) {
-      setStep("type"); setResults([]); setSelected(null);
+      setStep("type"); setResults([]); setSelected(null); setCountrySearch("");
       return;
     }
     runGetWallet().then((res) => { setBalance(res.balance); setFxRate(res.fxRate); });
   }, [open]);
+
+  // Load SMSPool dynamic lists when entering temp step
+  useEffect(() => {
+    if (step !== "temp" || smsCountries.length > 0) return;
+    setLoadingSMS(true);
+    Promise.all([runSMSPoolCountries(), runSMSPoolServices()]).then(([c, s]) => {
+      if (c.countries.length > 0) setSmsCountries(c.countries);
+      if (s.services.length > 0)  setSmsServices(s.services);
+      setLoadingSMS(false);
+    }).catch(() => setLoadingSMS(false));
+  }, [step]);
 
   const search = async () => {
     setResults([]); setSearching(true);
@@ -117,7 +122,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     setBuying(false);
     if ("error" in res) { toast.error(res.message); return; }
     toast.success("Number activated! It will appear in your list.");
-    setBalance((b) => b !== null ? b - selectedCountry.ngn : b);
+    setBalance((b) => b !== null ? b - ngnPrice : b);
     onOpenChange(false);
   };
 
@@ -150,12 +155,6 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     if ("url" in res) window.location.href = res.url;
   };
 
-  const hasEnough        = balance !== null && balance >= selectedCountry.ngn;
-  const hasTempBalance   = balance !== null && balance >= SMSPOOL_APPROX_PRICE_NGN;
-  const usdEquiv         = (topUpAmount / fxRate).toFixed(2);
-  const usdPrice         = (selectedCountry.ngn / fxRate).toFixed(2);
-  const tempUsdPrice     = SMSPOOL_APPROX_PRICE_USD.toFixed(2);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -170,14 +169,14 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
           )}
           <DialogTitle>
             {step === "type"   ? "Get a virtual number" :
-             step === "search" ? "Find a persistent number" :
+             step === "search" ? "Find a rental number" :
              step === "pay"    ? "Complete your purchase" :
                                  "Get a temp OTP number"}
           </DialogTitle>
           <DialogDescription>
             {step === "type"   ? "Choose between a monthly rental or a one-time OTP number." :
              step === "search" ? "Monthly rental via Telnyx — receive unlimited SMS." :
-             step === "pay"    ? `Activate ${selected?.phoneNumber} — ₦${selectedCountry.ngn.toLocaleString()}/month` :
+             step === "pay"    ? `Activate ${selected?.phoneNumber} — ₦${ngnPrice.toLocaleString()}/month` :
                                  "One-time use. Expires after 20 min or first SMS received."}
           </DialogDescription>
         </DialogHeader>
@@ -186,20 +185,20 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
         {step === "type" && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
-              onClick={() => { setNumType("persistent"); setStep("search"); }}
+              onClick={() => { setNumType("rental"); setStep("search"); }}
               className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
             >
               <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
                 <Phone className="size-5 text-primary" />
               </div>
               <div>
-                <p className="font-semibold">Persistent Number</p>
+                <p className="font-semibold">Rental Number</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Monthly rental. Keep receiving SMS indefinitely.
                 </p>
               </div>
               <div className="mt-auto flex items-center gap-1.5 text-xs font-bold text-primary">
-                <Clock className="size-3" /> from ₦1,500/month
+                <Clock className="size-3" /> from ₦1,600/month
               </div>
             </button>
 
@@ -223,21 +222,72 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
           </div>
         )}
 
-        {/* ── STEP: Search (Telnyx persistent) ── */}
+        {/* ── STEP: Search (Telnyx rental) ── */}
         {step === "search" && (
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Country</label>
-              <Select value={country} onValueChange={(v) => { setCountry(v); setResults([]); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {NUMBER_COUNTRIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.flag} {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Searchable country picker */}
+              <div className="relative">
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+                  <Search className="size-3.5 shrink-0 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search country…"
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                  {countrySearch === "" && (
+                    <span className="shrink-0 text-sm">
+                      {selectedCountry.flag} {selectedCountry.name}
+                    </span>
+                  )}
+                </div>
+                {countrySearch !== "" && (
+                  <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+                    {filteredCountries.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-muted-foreground">No countries found</p>
+                    ) : (
+                      filteredCountries.map((c) => (
+                        <button
+                          key={c.code}
+                          className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-accent"
+                          onClick={() => { setCountry(c.code); setCountrySearch(""); setResults([]); }}
+                        >
+                          <span>{c.flag} {c.name}</span>
+                          <span className="text-xs text-muted-foreground">from ₦{c.ngn.toLocaleString()}/mo</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Show current selection when not searching */}
+              {countrySearch === "" && (
+                <div className="flex flex-wrap gap-1.5">
+                  {/* Quick-pick popular countries */}
+                  {["US","GB","CA","AU","DE","NG"].map((code) => {
+                    const c = NUMBER_COUNTRIES.find((x) => x.code === code);
+                    if (!c) return null;
+                    return (
+                      <button
+                        key={code}
+                        onClick={() => { setCountry(code); setResults([]); }}
+                        className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${country === code ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40 text-muted-foreground"}`}
+                      >
+                        {c.flag} {c.code}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCountrySearch(" ")}
+                    className="flex items-center gap-1 rounded-lg border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-primary/40"
+                  >
+                    <ChevronDown className="size-3" /> more
+                  </button>
+                </div>
+              )}
             </div>
 
             <Button className="w-full" variant="outline" onClick={search} disabled={searching}>
@@ -264,7 +314,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-primary">₦{selectedCountry.ngn.toLocaleString()}</p>
+                      <p className="text-sm font-bold text-primary">₦{ngnPrice.toLocaleString()}</p>
                       <p className="text-xs text-muted-foreground">~${usdPrice}/mo</p>
                     </div>
                   </button>
@@ -291,7 +341,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 )}
               </div>
               <div className="text-right">
-                <p className="font-bold text-primary">₦{selectedCountry.ngn.toLocaleString()}/mo</p>
+                <p className="font-bold text-primary">₦{ngnPrice.toLocaleString()}/mo</p>
                 <p className="text-xs text-muted-foreground">~${usdPrice}</p>
               </div>
             </div>
@@ -323,7 +373,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
             {payMethod === "wallet" && !hasEnough && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                  Wallet needs ₦{selectedCountry.ngn.toLocaleString()} — top up first
+                  Wallet needs ₦{ngnPrice.toLocaleString()} — top up first
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {TOP_UP_PRESETS.map((p) => (
@@ -352,7 +402,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
               <Select value={cardProvider} onValueChange={(v) => setCardProvider(v as "stripe" | "paystack")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="paystack">Paystack — ₦{selectedCountry.ngn.toLocaleString()}/mo</SelectItem>
+                  <SelectItem value="paystack">Paystack — ₦{ngnPrice.toLocaleString()}/mo</SelectItem>
                   <SelectItem value="stripe">Card (USD) — ~${usdPrice}/mo</SelectItem>
                 </SelectContent>
               </Select>
@@ -366,8 +416,8 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
             >
               {buying ? <Loader2 className="size-4 animate-spin" /> : <Phone className="size-4" />}
               {buying ? "Activating…" :
-               payMethod === "wallet" ? `Pay ₦${selectedCountry.ngn.toLocaleString()} from wallet` :
-               cardProvider === "paystack" ? `Pay ₦${selectedCountry.ngn.toLocaleString()} via Paystack` :
+               payMethod === "wallet" ? `Pay ₦${ngnPrice.toLocaleString()} from wallet` :
+               cardProvider === "paystack" ? `Pay ₦${ngnPrice.toLocaleString()} via Paystack` :
                `Pay ~$${usdPrice} via card`}
             </Button>
           </div>
@@ -385,29 +435,37 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
               </p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Country</label>
-              <Select value={tempCountry} onValueChange={setTempCountry}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SMSPOOL_COUNTRIES.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {loadingSMS ? (
+              <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Loading available countries…
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Country</label>
+                  <Select value={tempCountry} onValueChange={setTempCountry}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      {smsCountries.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Service</label>
-              <Select value={tempService} onValueChange={setTempService}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SMSPOOL_SERVICES.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Service</label>
+                  <Select value={tempService} onValueChange={setTempService}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      {smsServices.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
 
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
               <div className="flex items-center gap-2 text-sm font-medium">
@@ -444,7 +502,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
             <Button
               variant="hero"
               className="w-full"
-              disabled={tempBuying || !hasTempBalance}
+              disabled={tempBuying || !hasTempBalance || loadingSMS}
               onClick={buyTemp}
             >
               {tempBuying ? (

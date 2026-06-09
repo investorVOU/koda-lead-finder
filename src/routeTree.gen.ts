@@ -36,7 +36,6 @@ import { Route as ApiStudioGenerateRouteImport } from './routes/api/studio/gener
 import { Route as AuthenticatedStudioNewRouteImport } from './routes/_authenticated/studio.new'
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool/poll.$numberId'
-import { Route as ApiPublicWebhooksTwilioSmsRouteImport } from './routes/api/public/webhooks/twilio-sms'
 import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks/stripe'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
@@ -176,12 +175,6 @@ const ApiSmspoolPollNumberIdRoute = ApiSmspoolPollNumberIdRouteImport.update({
   path: '/api/smspool/poll/$numberId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWebhooksTwilioSmsRoute =
-  ApiPublicWebhooksTwilioSmsRouteImport.update({
-    id: '/api/public/webhooks/twilio-sms',
-    path: '/api/public/webhooks/twilio-sms',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicWebhooksStripeRoute = ApiPublicWebhooksStripeRouteImport.update({
   id: '/api/public/webhooks/stripe',
   path: '/api/public/webhooks/stripe',
@@ -229,7 +222,6 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
-  '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
 export interface FileRoutesByTo {
@@ -261,7 +253,6 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
-  '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
 export interface FileRoutesById {
@@ -295,7 +286,6 @@ export interface FileRoutesById {
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
-  '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
 export interface FileRouteTypes {
@@ -329,7 +319,6 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
-    | '/api/public/webhooks/twilio-sms'
     | '/api/smspool/poll/$numberId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -361,7 +350,6 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
-    | '/api/public/webhooks/twilio-sms'
     | '/api/smspool/poll/$numberId'
   id:
     | '__root__'
@@ -394,7 +382,6 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
-    | '/api/public/webhooks/twilio-sms'
     | '/api/smspool/poll/$numberId'
   fileRoutesById: FileRoutesById
 }
@@ -415,7 +402,6 @@ export interface RootRouteChildren {
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksSmsIncomingRoute: typeof ApiPublicWebhooksSmsIncomingRoute
   ApiPublicWebhooksStripeRoute: typeof ApiPublicWebhooksStripeRoute
-  ApiPublicWebhooksTwilioSmsRoute: typeof ApiPublicWebhooksTwilioSmsRoute
   ApiSmspoolPollNumberIdRoute: typeof ApiSmspoolPollNumberIdRoute
 }
 
@@ -610,13 +596,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSmspoolPollNumberIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/webhooks/twilio-sms': {
-      id: '/api/public/webhooks/twilio-sms'
-      path: '/api/public/webhooks/twilio-sms'
-      fullPath: '/api/public/webhooks/twilio-sms'
-      preLoaderRoute: typeof ApiPublicWebhooksTwilioSmsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/webhooks/stripe': {
       id: '/api/public/webhooks/stripe'
       path: '/api/public/webhooks/stripe'
@@ -703,7 +682,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksSmsIncomingRoute: ApiPublicWebhooksSmsIncomingRoute,
   ApiPublicWebhooksStripeRoute: ApiPublicWebhooksStripeRoute,
-  ApiPublicWebhooksTwilioSmsRoute: ApiPublicWebhooksTwilioSmsRoute,
   ApiSmspoolPollNumberIdRoute: ApiSmspoolPollNumberIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -8,6 +8,8 @@ import {
   searchTelnyxNumbers,
   requestSMSPoolNumber,
   pollSMSPoolInbox,
+  getSMSPoolCountries,
+  getSMSPoolServices,
 } from "@/lib/services/phone-numbers";
 
 // ── Search available Telnyx numbers ──────────────────────────────────────────
@@ -435,4 +437,20 @@ export const pollTempNumber = createServerFn({ method: "POST" })
     }
 
     return { status: "waiting" } as const;
+  });
+
+// ── SMSPool country + service lists (for the temp number dialog) ──────────────
+
+export const listSMSPoolCountries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const countries = await getSMSPoolCountries();
+    return { countries } as const;
+  });
+
+export const listSMSPoolServices = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const services = await getSMSPoolServices();
+    return { services } as const;
   });

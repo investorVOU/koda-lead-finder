@@ -1,8 +1,8 @@
 /**
- * Phone number service layer — abstracts Telnyx (persistent) and SMSPool (temp).
+ * Phone number service layer — abstracts Telnyx (rental) and SMSPool (temp).
  * Server-only: uses process.env, never import from client code.
  *
- * Telnyx:  persistent rental numbers (SMS + voice), webhook-delivered inbound
+ * Telnyx:  monthly rental numbers (SMS + voice), webhook-delivered inbound
  * SMSPool: cheap one-time temp numbers (OTP/verification), polling-delivered
  */
 
@@ -62,8 +62,10 @@ export async function searchTelnyxNumbers(
 ): Promise<TelnyxAvailableNumber[]> {
   const params = new URLSearchParams({
     "filter[country_code]": countryCode,
-    "filter[limit]": "10",
+    "filter[limit]":        "10",
+    "filter[phone_number_type]": "local",
   });
+  // filter[features] accepts an array of capability strings: sms, mms, voice, fax, etc.
   for (const cap of capabilities) {
     params.append("filter[features][]", cap);
   }
@@ -164,7 +166,8 @@ export async function requestSMSPoolNumber(
     service,
   });
 
-  const res = await fetch(`${SMSPOOL_BASE}/phone/request?${params}`);
+  // Correct endpoint: /purchase/sms (verified against SMSPool API docs)
+  const res = await fetch(`${SMSPOOL_BASE}/purchase/sms?${params}`);
 
   if (!res.ok) {
     throw new Error(`SMSPool request failed (${res.status})`);
@@ -174,21 +177,22 @@ export async function requestSMSPoolNumber(
     success?: number;
     error?: number;
     message?: string;
-    orderId?: string | number;
-    order_id?: string | number;
-    number?: string;
-    phonenumber?: string;
+    order_id?: string | number; // SMSPool uses order_id (not orderId)
+    number?: string;            // phone number field is "number" (not phonenumber)
+    country?: string;
+    service?: string;
+    expires_in?: number;
   };
 
   if (json.error || json.success === 0) {
     throw new Error(json.message ?? "SMSPool number request failed — check balance or country/service availability");
   }
 
-  const orderId = String(json.orderId ?? json.order_id ?? "");
-  const phoneNumber = json.number ?? json.phonenumber ?? "";
+  const orderId     = String(json.order_id ?? "");
+  const phoneNumber = json.number ?? "";
 
   if (!orderId || !phoneNumber) {
-    throw new Error("SMSPool returned invalid response — missing orderId or phone number");
+    throw new Error("SMSPool returned invalid response — missing order_id or number");
   }
 
   return { orderId, phoneNumber };
@@ -211,15 +215,16 @@ export async function pollSMSPoolInbox(orderId: string): Promise<string | null> 
     if (!res.ok) return null;
 
     const json = await res.json() as {
-      sms?: string;
-      status?: string;
-      code?: string;
+      sms?:      string;
+      full_sms?: string;
+      // status is numeric: 1=waiting, 2=received/completed, 3=expired/cancelled
+      status?:   number | string;
+      code?:     string;
     };
 
-    // status: "completed" | "empty" | "waiting" | "expired"
-    if ((json.status === "completed" || json.sms) && json.sms) {
-      return json.sms;
-    }
+    // Most reliable signal: SMS text present in response
+    const text = json.sms ?? json.full_sms;
+    if (text && text.trim()) return text;
 
     return null;
   } catch {
@@ -259,7 +264,8 @@ export async function getSMSPoolPricing(): Promise<Record<string, number>> {
 export async function getSMSPoolCountries(): Promise<Array<{ id: string; name: string }>> {
   try {
     const params = new URLSearchParams({ key: smsPoolKey() });
-    const res = await fetch(`${SMSPOOL_BASE}/country/retrieveall?${params}`);
+    // Correct endpoint: /country/retrieve_all (with underscore)
+    const res = await fetch(`${SMSPOOL_BASE}/country/retrieve_all?${params}`);
     if (!res.ok) return SMSPOOL_COMMON_COUNTRIES;
 
     const json = await res.json() as Array<{ ID?: string; name?: string; short_name?: string }>;
@@ -277,7 +283,8 @@ export async function getSMSPoolCountries(): Promise<Array<{ id: string; name: s
 export async function getSMSPoolServices(): Promise<SMSPoolService[]> {
   try {
     const params = new URLSearchParams({ key: smsPoolKey() });
-    const res = await fetch(`${SMSPOOL_BASE}/service/retrieveall?${params}`);
+    // Correct endpoint: /service/retrieve_all (with underscore)
+    const res = await fetch(`${SMSPOOL_BASE}/service/retrieve_all?${params}`);
     if (!res.ok) return SMSPOOL_COMMON_SERVICES;
 
     const json = await res.json() as Array<{ ID?: string; name?: string }>;

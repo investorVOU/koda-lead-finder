@@ -51,7 +51,7 @@ export function VirtualNumberModal({ storageKey = "virtual_number_modal_shown" }
             </button>
           </div>
           <DialogDescription className="mt-2 text-sm">
-            Receive SMS for verifications, WhatsApp calls, and client inquiries. Available in 150+ countries.
+            Rent a real number in 50+ countries. Receive SMS verifications, WhatsApp OTPs, and client messages.
           </DialogDescription>
         </DialogHeader>
 
