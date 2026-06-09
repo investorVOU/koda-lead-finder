@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, type KeyboardEvent } from "react";
+import { type ReactNode, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { LogOut, Radar, Settings } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -12,6 +12,7 @@ import {
   faGift,
   faGear,
   faCode,
+  faEllipsis,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "@/components/landing/Logo";
@@ -29,7 +30,6 @@ interface NavItem {
   mobileHide?: boolean;
 }
 
-// Desktop shows all; mobile shows only items without mobileHide: true
 const navItems: NavItem[] = [
   { to: "/dashboard", label: "Finder",   icon: faSearch },
   { to: "/leads",     label: "Saved",    icon: faBookmark },
@@ -43,6 +43,7 @@ const navItems: NavItem[] = [
 ];
 
 const mobileNavItems = navItems.filter((i) => !i.mobileHide);
+const moreItems = navItems.filter((i) => i.mobileHide);
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -51,6 +52,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const { data: sub } = useSubscription(user?.id);
   const daysLeft = trialDaysLeft(sub);
   const trialExpired = isTrialExpired(sub);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -151,13 +153,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      {/* Mobile bottom nav — 5 visible items */}
+      {/* Mobile bottom nav */}
       <nav
         aria-label="Primary"
         className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md md:hidden"
       >
-        <div className={`mx-auto grid h-16 max-w-md items-center px-2`}
-          style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, 1fr)` }}
+        <div
+          className="mx-auto grid h-16 max-w-md items-center px-2"
+          style={{ gridTemplateColumns: `repeat(${mobileNavItems.length + 1}, 1fr)` }}
         >
           {mobileNavItems.map((item, index) => (
             <Link
@@ -173,8 +176,64 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <span>{item.label}</span>
             </Link>
           ))}
+          {/* More button */}
+          <button
+            onClick={() => setMoreOpen(true)}
+            aria-label="More"
+            className={`flex flex-col items-center justify-center gap-1 rounded-lg py-2 text-[10px] font-medium transition-colors ${
+              moreItems.some((i) => location.pathname.startsWith(i.to))
+                ? "text-primary"
+                : "text-muted-foreground"
+            }`}
+          >
+            <FontAwesomeIcon icon={faEllipsis} className="size-5" />
+            <span>More</span>
+          </button>
         </div>
       </nav>
+
+      {/* More slide-up sheet */}
+      {moreOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm md:hidden"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-2xl border-t border-border bg-background pb-safe md:hidden animate-in slide-in-from-bottom duration-200">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted" />
+            <div className="px-4 pb-6 pt-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">More</p>
+              <div className="space-y-1">
+                {moreItems.map((item) => {
+                  const isActive = location.pathname.startsWith(item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMoreOpen(false)}
+                      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-accent"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={item.icon} className="size-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+                <button
+                  onClick={() => { setMoreOpen(false); handleSignOut(); }}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+                >
+                  <LogOut className="size-4 shrink-0" />
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

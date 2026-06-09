@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 interface PlaceReview {
   rating?: number;
@@ -29,7 +30,7 @@ export const analyzeReviews = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const googleKey = process.env.GOOGLE_PLACES_API_KEY;
-    const aiKey = process.env.LOVABLE_API_KEY;
+    const aiKey = process.env.GROQ_API_KEY;
 
     if (!aiKey) {
       return { error: "config", message: "AI not configured." } as const;
@@ -77,14 +78,14 @@ export const analyzeReviews = createServerFn({ method: "POST" })
       .join("\n\n");
 
     try {
-      const res = await fetch(GATEWAY, {
+      const res = await fetch(GROQ_URL, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${aiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: GROQ_MODEL,
           messages: [
             {
               role: "system",
