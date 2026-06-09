@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
 import {
   Star,
   Trash2,
@@ -15,6 +16,7 @@ import {
   Mail,
   CalendarClock,
   Bell,
+  Wrench,
 } from "lucide-react";
 import {
   Select,
@@ -363,6 +365,18 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
             <Trash2 className="size-4" />
           </Button>
         </div>
+
+        {/* Build site shortcut — shown for contacted / closed / paid leads */}
+        {(lead.status === "contacted" || lead.status === "closed" || lead.status === "paid") && (
+          <Link
+            to="/studio/new"
+            search={{ leadId: lead.id }}
+            className="mt-2 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Wrench className="size-3.5 shrink-0" />
+            Build their site in Studio →
+          </Link>
+        )}
       </div>
 
       <GenerateDialog

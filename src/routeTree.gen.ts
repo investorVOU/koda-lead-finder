@@ -21,6 +21,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
 import { Route as ApiPingRouteImport } from './routes/api/ping'
+import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRevenueRouteImport } from './routes/_authenticated/revenue'
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
@@ -31,6 +32,9 @@ import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChoosePlanRouteImport } from './routes/_authenticated/choose-plan'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as ApiStudioGenerateRouteImport } from './routes/api/studio/generate'
+import { Route as AuthenticatedStudioNewRouteImport } from './routes/_authenticated/studio.new'
+import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as ApiPublicWebhooksTwilioSmsRouteImport } from './routes/api/public/webhooks/twilio-sms'
 import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks/stripe'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
@@ -94,6 +98,11 @@ const ApiPingRoute = ApiPingRouteImport.update({
   path: '/api/ping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedStudioRoute = AuthenticatedStudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -144,6 +153,22 @@ const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiStudioGenerateRoute = ApiStudioGenerateRouteImport.update({
+  id: '/api/studio/generate',
+  path: '/api/studio/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedStudioNewRoute = AuthenticatedStudioNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AuthenticatedStudioRoute,
+} as any)
+const AuthenticatedStudioProjectIdRoute =
+  AuthenticatedStudioProjectIdRouteImport.update({
+    id: '/$projectId',
+    path: '/$projectId',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
 const ApiPublicWebhooksTwilioSmsRoute =
   ApiPublicWebhooksTwilioSmsRouteImport.update({
     id: '/api/public/webhooks/twilio-sms',
@@ -182,8 +207,12 @@ export interface FileRoutesByFullPath {
   '/referrals': typeof AuthenticatedReferralsRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/studio/new': typeof AuthenticatedStudioNewRoute
+  '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
@@ -208,8 +237,12 @@ export interface FileRoutesByTo {
   '/referrals': typeof AuthenticatedReferralsRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/studio/new': typeof AuthenticatedStudioNewRoute
+  '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
@@ -236,8 +269,12 @@ export interface FileRoutesById {
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/revenue': typeof AuthenticatedRevenueRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/_authenticated/studio/new': typeof AuthenticatedStudioNewRoute
+  '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/webhooks/twilio-sms': typeof ApiPublicWebhooksTwilioSmsRoute
@@ -264,8 +301,12 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/revenue'
     | '/settings'
+    | '/studio'
     | '/api/ping'
     | '/preview/$slug'
+    | '/studio/$projectId'
+    | '/studio/new'
+    | '/api/studio/generate'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/stripe'
     | '/api/public/webhooks/twilio-sms'
@@ -290,8 +331,12 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/revenue'
     | '/settings'
+    | '/studio'
     | '/api/ping'
     | '/preview/$slug'
+    | '/studio/$projectId'
+    | '/studio/new'
+    | '/api/studio/generate'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/stripe'
     | '/api/public/webhooks/twilio-sms'
@@ -317,8 +362,12 @@ export interface FileRouteTypes {
     | '/_authenticated/referrals'
     | '/_authenticated/revenue'
     | '/_authenticated/settings'
+    | '/_authenticated/studio'
     | '/api/ping'
     | '/preview/$slug'
+    | '/_authenticated/studio/$projectId'
+    | '/_authenticated/studio/new'
+    | '/api/studio/generate'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/stripe'
     | '/api/public/webhooks/twilio-sms'
@@ -337,6 +386,7 @@ export interface RootRouteChildren {
   TrialWelcomeRoute: typeof TrialWelcomeRoute
   ApiPingRoute: typeof ApiPingRoute
   PreviewSlugRoute: typeof PreviewSlugRoute
+  ApiStudioGenerateRoute: typeof ApiStudioGenerateRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksStripeRoute: typeof ApiPublicWebhooksStripeRoute
   ApiPublicWebhooksTwilioSmsRoute: typeof ApiPublicWebhooksTwilioSmsRoute
@@ -428,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/studio': {
+      id: '/_authenticated/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof AuthenticatedStudioRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -498,6 +555,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/studio/generate': {
+      id: '/api/studio/generate'
+      path: '/api/studio/generate'
+      fullPath: '/api/studio/generate'
+      preLoaderRoute: typeof ApiStudioGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/studio/new': {
+      id: '/_authenticated/studio/new'
+      path: '/new'
+      fullPath: '/studio/new'
+      preLoaderRoute: typeof AuthenticatedStudioNewRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
+    '/_authenticated/studio/$projectId': {
+      id: '/_authenticated/studio/$projectId'
+      path: '/$projectId'
+      fullPath: '/studio/$projectId'
+      preLoaderRoute: typeof AuthenticatedStudioProjectIdRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
     '/api/public/webhooks/twilio-sms': {
       id: '/api/public/webhooks/twilio-sms'
       path: '/api/public/webhooks/twilio-sms'
@@ -522,6 +600,19 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedStudioRouteChildren {
+  AuthenticatedStudioProjectIdRoute: typeof AuthenticatedStudioProjectIdRoute
+  AuthenticatedStudioNewRoute: typeof AuthenticatedStudioNewRoute
+}
+
+const AuthenticatedStudioRouteChildren: AuthenticatedStudioRouteChildren = {
+  AuthenticatedStudioProjectIdRoute: AuthenticatedStudioProjectIdRoute,
+  AuthenticatedStudioNewRoute: AuthenticatedStudioNewRoute,
+}
+
+const AuthenticatedStudioRouteWithChildren =
+  AuthenticatedStudioRoute._addFileChildren(AuthenticatedStudioRouteChildren)
+
 interface AuthenticatedRouteChildren {
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedChoosePlanRoute: typeof AuthenticatedChoosePlanRoute
@@ -533,6 +624,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedRevenueRoute: typeof AuthenticatedRevenueRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -546,6 +638,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedRevenueRoute: AuthenticatedRevenueRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -565,6 +658,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrialWelcomeRoute: TrialWelcomeRoute,
   ApiPingRoute: ApiPingRoute,
   PreviewSlugRoute: PreviewSlugRoute,
+  ApiStudioGenerateRoute: ApiStudioGenerateRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksStripeRoute: ApiPublicWebhooksStripeRoute,
   ApiPublicWebhooksTwilioSmsRoute: ApiPublicWebhooksTwilioSmsRoute,
