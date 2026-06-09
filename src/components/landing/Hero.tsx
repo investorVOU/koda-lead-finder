@@ -9,6 +9,7 @@ const HERO_PHRASES = [
   { line1: "Find high-rated businesses", highlight: "without websites", line2: "& close them fast" },
   { line1: "Turn no-website leads into", highlight: "paying clients", line2: "in minutes" },
   { line1: "Land web design clients", highlight: "before they search", line2: "for an agency" },
+  { line1: "Buy virtual numbers", highlight: "and foreign numbers", line2: "to reach more leads" },
   { line1: "Stop cold pitching — find", highlight: "businesses that need you", line2: "right now" },
 ];
 

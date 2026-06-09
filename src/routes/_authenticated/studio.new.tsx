@@ -46,12 +46,14 @@ function NewStudioProjectPage() {
   const [template, setTemplate] = useState("blank");
   const [leadContext, setLeadContext] = useState<SavedLead | null>(null);
   const [prefillLoaded, setPrefillLoaded] = useState(false);
+  const [autoCreate, setAutoCreate] = useState(false);
 
   useEffect(() => {
     if (prefillLoaded) return;
     const savedPrompt = sessionStorage.getItem("studio_autofill_prompt");
     if (savedPrompt) {
       setPrompt(savedPrompt);
+      setAutoCreate(true);
       sessionStorage.removeItem("studio_autofill_prompt");
       const savedBusinessName = sessionStorage.getItem("studio_autofill_businessName");
       if (savedBusinessName) {
@@ -102,6 +104,7 @@ function NewStudioProjectPage() {
       } else if (catLower.includes("retail") || catLower.includes("shop") || catLower.includes("store")) {
         setTemplate("retail");
       }
+      setAutoCreate(true);
     }
   }, [leadData]);
 
@@ -136,6 +139,11 @@ function NewStudioProjectPage() {
       navigate({ to: "/studio/$projectId", params: { projectId } });
     },
   });
+
+  useEffect(() => {
+    if (!autoCreate || !prompt.trim() || createMutation.isPending || createMutation.isSuccess) return;
+    createMutation.mutate();
+  }, [autoCreate, prompt, createMutation.isPending, createMutation.isSuccess, createMutation]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
