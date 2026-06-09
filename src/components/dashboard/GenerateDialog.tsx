@@ -108,7 +108,7 @@ export function GenerateDialog({
         onOpenChange(v);
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-hidden">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
