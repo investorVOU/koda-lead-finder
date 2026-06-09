@@ -30,9 +30,13 @@ services:
       - key: VITE_HCAPTCHA_SITE_KEY
         sync: false          # hcaptcha.com → Sites → Site key (public)
 
-      # ── AI & Search ─────────────────────────────────────────────────
-      - key: LOVABLE_API_KEY
-        sync: false          # Lovable AI gateway key
+      # ── AI providers ────────────────────────────────────────────────
+      - key: GEMINI_API_KEY
+        sync: false          # aistudio.google.com → API keys
+      - key: GROQ_API_KEY
+        sync: false          # console.groq.com → API keys
+
+      # ── Google Places ────────────────────────────────────────────────
       - key: GOOGLE_PLACES_API_KEY
         sync: false          # Google Cloud Console → Places API
 
@@ -46,10 +50,19 @@ services:
       - key: PAYSTACK_SECRET_KEY
         sync: false          # Paystack dashboard → Settings → API keys
 
-      # ── Twilio (Virtual Numbers) ─────────────────────────────────────
-      - key: TWILIO_ACCOUNT_SID
-        sync: false          # console.twilio.com → Account Info
-      - key: TWILIO_AUTH_TOKEN
-        sync: false          # console.twilio.com → Account Info
+      # ── Telnyx (persistent virtual numbers) ─────────────────────────
+      - key: TELNYX_API_KEY
+        sync: false          # telnyx.com → API Keys
+      - key: TELNYX_MESSAGING_PROFILE_ID
+        sync: false          # telnyx.com → Messaging → Messaging Profiles
+      - key: TELNYX_WEBHOOK_SECRET
+        sync: false          # telnyx.com → API Keys → Ed25519 public key (base64)
+      - key: TELNYX_WEBHOOK_BASE_URL
+        value: https://kodarai.xyz
+
+      # ── SMSPool (temp / one-time OTP numbers) ───────────────────────
+      - key: SMSPOOL_API_KEY
+        sync: false          # smspool.net → API
+
       - key: APP_URL
         value: https://kodarai.xyz
