@@ -201,7 +201,7 @@ export function LeadResultCard({
           >
             <Code2 className="size-4" /> Build Website Prompt
           </Button>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Button
               variant={saved ? "soft" : "outline"}
               size="sm"

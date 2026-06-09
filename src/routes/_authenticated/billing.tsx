@@ -238,7 +238,7 @@ function BillingPage() {
             <p className="mb-4 text-sm text-muted-foreground">
               No subscription. Top-up leads never expire — perfect to test the waters.
             </p>
-            <div className="grid gap-5 sm:grid-cols-3">
+            <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {PACKS.map((p) => (
                 <div
                   key={p.id}
