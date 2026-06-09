@@ -60,9 +60,20 @@ export function GenerateDialog({
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const copy = () => {
+  const copyPrompt = () => {
     navigator.clipboard.writeText(content);
     toast.success("Copied to clipboard");
+  };
+
+  const openStudio = () => {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    if (businessName) {
+      sessionStorage.setItem("studio_autofill_businessName", businessName);
+    }
+    sessionStorage.setItem("studio_autofill_prompt", content);
+    window.open("/studio/new", "_blank", "noopener,noreferrer");
+    toast.success("Prompt copied and Studio opened!");
   };
 
   const openBuilder = (builder: BuilderConfig) => {
@@ -127,9 +138,19 @@ export function GenerateDialog({
               </pre>
             </div>
 
-            <Button variant="hero" onClick={copy} disabled={!content}>
-              <Copy className="size-4" /> Copy Prompt
+            <Button
+              variant="hero"
+              onClick={isWebsitePrompt ? openStudio : copyPrompt}
+              disabled={!content}
+            >
+              <Copy className="size-4" />
+              {isWebsitePrompt ? "Open in Kodarai Studio" : "Copy Prompt"}
             </Button>
+            {isWebsitePrompt && (
+              <p className="text-sm text-muted-foreground">
+                Prompt copied and Kodarai Studio opened in a new tab. Or use Lovable, Bolt, or v0 below.
+              </p>
+            )}
 
             {isWebsitePrompt && content && (
               <>

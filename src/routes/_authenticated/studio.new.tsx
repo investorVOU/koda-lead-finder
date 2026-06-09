@@ -45,6 +45,24 @@ function NewStudioProjectPage() {
   const [name, setName] = useState("");
   const [template, setTemplate] = useState("blank");
   const [leadContext, setLeadContext] = useState<SavedLead | null>(null);
+  const [prefillLoaded, setPrefillLoaded] = useState(false);
+
+  useEffect(() => {
+    if (prefillLoaded) return;
+    const savedPrompt = sessionStorage.getItem("studio_autofill_prompt");
+    if (savedPrompt) {
+      setPrompt(savedPrompt);
+      sessionStorage.removeItem("studio_autofill_prompt");
+      const savedBusinessName = sessionStorage.getItem("studio_autofill_businessName");
+      if (savedBusinessName) {
+        setName((current) =>
+          current.trim() ? current : `${savedBusinessName} — Website`
+        );
+        sessionStorage.removeItem("studio_autofill_businessName");
+      }
+    }
+    setPrefillLoaded(true);
+  }, [prefillLoaded]);
 
   // Load lead if ?leadId= is present
   const { data: leadData } = useQuery({
