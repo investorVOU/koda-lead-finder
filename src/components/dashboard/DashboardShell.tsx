@@ -19,6 +19,7 @@ import { Logo } from "@/components/landing/Logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
 import { AvatarUpload } from "@/components/dashboard/AvatarUpload";
+import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useSubscription, trialDaysLeft, isTrialExpired } from "@/lib/queries";
@@ -152,6 +153,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+
+      <VirtualNumberModal storageKey="virtual_number_modal_shown_dashboard" />
 
       {/* Mobile bottom nav */}
       <nav

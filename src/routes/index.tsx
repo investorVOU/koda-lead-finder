@@ -10,6 +10,7 @@ import { Pricing } from "@/components/landing/Pricing";
 import { FAQ } from "@/components/landing/FAQ";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { SiteFooter } from "@/components/landing/SiteFooter";
+import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,6 +49,7 @@ function Index() {
         <FinalCta />
       </main>
       <SiteFooter />
+      <VirtualNumberModal storageKey="virtual_number_modal_shown_public" />
     </div>
   );
 }
