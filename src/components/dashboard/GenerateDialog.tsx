@@ -72,7 +72,11 @@ export function GenerateDialog({
       sessionStorage.setItem("studio_autofill_businessName", businessName);
     }
     sessionStorage.setItem("studio_autofill_prompt", content);
-    window.open("/studio/new", "_blank", "noopener,noreferrer");
+    const studioUrl = `${window.location.origin}/studio/new`;
+    const opened = window.open(studioUrl, "_blank", "noopener");
+    if (!opened) {
+      window.location.href = studioUrl;
+    }
     toast.success("Prompt copied and Studio opened!");
   };
 
@@ -160,19 +164,32 @@ export function GenerateDialog({
                     Open in website builder
                   </p>
                   <div className="flex gap-2">
-                    {BUILDERS.map((b) => (
-                      <Button
-                        key={b.name}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs"
-                        onClick={() => openBuilder(b)}
-                      >
-                        <span className="text-base leading-none">{b.icon}</span>
-                        {b.name}
-                        <ExternalLink className="size-3" />
-                      </Button>
-                    ))}
+                    {BUILDERS.map((b) => {
+                      const builderUrl = b.getUrl(content);
+                      return (
+                        <Button
+                          key={b.name}
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                        >
+                          <a
+                            href={builderUrl ?? "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => {
+                              if (content) navigator.clipboard.writeText(content);
+                              toast.success(`Prompt copied — paste it into ${b.name}!`);
+                            }}
+                          >
+                            <span className="text-base leading-none">{b.icon}</span>
+                            {b.name}
+                            <ExternalLink className="size-3" />
+                          </a>
+                        </Button>
+                      );
+                    })}
                   </div>
                   <p className="mt-1.5 text-[10px] text-muted-foreground">
                     Prompt is copied to clipboard and the builder opens in a new tab.

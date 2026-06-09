@@ -76,8 +76,10 @@ function StudioPage() {
               Build client websites with AI — describe it, generate it, deploy it.
             </p>
           </div>
-          <Button variant="hero" onClick={() => navigate({ to: "/studio/new", search: { leadId: undefined } })}>
-            <Plus className="size-4" /> New project
+          <Button asChild variant="hero" className="h-fit">
+            <Link to="/studio/new" search={{ leadId: undefined }}>
+              <Plus className="size-4" /> New project
+            </Link>
           </Button>
         </div>
 
@@ -113,7 +115,7 @@ function StudioPage() {
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : projects.length === 0 ? (
-          <EmptyState onNew={() => navigate({ to: "/studio/new", search: { leadId: undefined } })} />
+          <EmptyState />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
@@ -217,7 +219,7 @@ function ProjectCard({ project, onDelete }: { project: StudioProject; onDelete: 
   );
 }
 
-function EmptyState({ onNew }: { onNew: () => void }) {
+function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
       <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
@@ -227,8 +229,10 @@ function EmptyState({ onNew }: { onNew: () => void }) {
       <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
         Build your first client site — describe what you want and the AI writes all the code.
       </p>
-      <Button variant="hero" className="mt-6" onClick={onNew}>
-        <Plus className="size-4" /> Build first site
+      <Button asChild variant="hero" className="mt-6 w-full sm:w-auto">
+        <Link to="/studio/new"> 
+          <Plus className="size-4" /> Build first site
+        </Link>
       </Button>
     </div>
   );
