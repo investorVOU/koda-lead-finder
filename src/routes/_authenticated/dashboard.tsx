@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -90,11 +90,16 @@ function DashboardPage() {
     <DashboardShell>
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
         <div className="order-2 lg:order-1">
-          <div className="mb-5">
-            <h1 className="text-2xl font-bold">Lead Finder</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Search high-rated local businesses without a website.
-            </p>
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Lead Finder</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Search high-rated local businesses without a website.
+              </p>
+            </div>
+            <Button variant="hero" size="sm" asChild>
+              <Link to="/numbers">Buy virtual / foreign number</Link>
+            </Button>
           </div>
 
           <SearchForm

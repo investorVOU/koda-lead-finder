@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { PLANS, FREE_PLAN } from "@/lib/billing";
 import { Logo } from "@/components/landing/Logo";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
   head: () => ({ meta: [{ title: "Choose your plan — Kodarai" }] }),
@@ -13,17 +14,32 @@ export const Route = createFileRoute("/_authenticated/choose-plan")({
 });
 
 function ChoosePlanPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
   const activateFree = async () => {
     setBusy(true);
     const { error } = await supabase.rpc("activate_free_trial");
-    setBusy(false);
     if (error) {
+      setBusy(false);
       toast.error(error.message);
       return;
     }
+
+    if (user) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ onboarded: true })
+        .eq("id", user.id);
+      if (profileError) {
+        setBusy(false);
+        toast.error(profileError.message);
+        return;
+      }
+    }
+
+    setBusy(false);
     navigate({ to: "/trial-welcome" });
   };
 
