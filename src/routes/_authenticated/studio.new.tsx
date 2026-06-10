@@ -50,16 +50,22 @@ function NewStudioProjectPage() {
 
   useEffect(() => {
     if (prefillLoaded) return;
-    const savedPrompt = sessionStorage.getItem("studio_autofill_prompt");
+    const savedPrompt =
+      localStorage.getItem("studio_autofill_prompt") ||
+      sessionStorage.getItem("studio_autofill_prompt");
     if (savedPrompt) {
       setPrompt(savedPrompt);
       setAutoCreate(true);
+      localStorage.removeItem("studio_autofill_prompt");
       sessionStorage.removeItem("studio_autofill_prompt");
-      const savedBusinessName = sessionStorage.getItem("studio_autofill_businessName");
+      const savedBusinessName =
+        localStorage.getItem("studio_autofill_businessName") ||
+        sessionStorage.getItem("studio_autofill_businessName");
       if (savedBusinessName) {
         setName((current) =>
           current.trim() ? current : `${savedBusinessName} — Website`
         );
+        localStorage.removeItem("studio_autofill_businessName");
         sessionStorage.removeItem("studio_autofill_businessName");
       }
     }

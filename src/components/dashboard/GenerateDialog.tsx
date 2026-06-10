@@ -68,16 +68,17 @@ export function GenerateDialog({
   const openStudio = () => {
     if (!content) return;
     navigator.clipboard.writeText(content);
+    // Use localStorage so the data survives cross-tab (sessionStorage is per-tab)
     if (businessName) {
-      sessionStorage.setItem("studio_autofill_businessName", businessName);
+      localStorage.setItem("studio_autofill_businessName", businessName);
     }
-    sessionStorage.setItem("studio_autofill_prompt", content);
+    localStorage.setItem("studio_autofill_prompt", content);
     const studioUrl = `${window.location.origin}/studio/new`;
     const opened = window.open(studioUrl, "_blank", "noopener");
     if (!opened) {
       window.location.href = studioUrl;
     }
-    toast.success("Prompt copied and Studio opened!");
+    toast.success("Opening Studio…");
   };
 
   const openBuilder = (builder: BuilderConfig) => {

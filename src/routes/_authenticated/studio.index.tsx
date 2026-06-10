@@ -230,7 +230,7 @@ function EmptyState() {
         Build your first client site — describe what you want and the AI writes all the code.
       </p>
       <Button asChild variant="hero" className="mt-6 w-full sm:w-auto">
-        <Link to="/studio/new">
+        <Link to="/studio/new" search={{ leadId: undefined }}>
           <Plus className="size-4" /> Build first site
         </Link>
       </Button>

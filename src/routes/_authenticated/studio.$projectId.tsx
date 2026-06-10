@@ -8,7 +8,7 @@ import {
   ArrowLeft, CheckCircle2, Share, Rocket, Terminal as TerminalIcon,
   MessageSquare, FolderGit2, History, Send, ExternalLink,
   FileCode, FileJson, FileType2, File, Globe, X, Loader2,
-  Code2, Eye,
+  Code2, Eye, RefreshCw,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,117 @@ const CHAT_PLACEHOLDERS = [
   "Make the header sticky on scroll...",
   "Add a Google Maps embed...",
 ];
+
+// ─── Preview helpers ─────────────────────────────────────────────────────────
+
+function buildPreviewDoc(files: Record<string, string>): string | null {
+  const html = files["index.html"] || files["index.htm"];
+  if (!html) return null;
+  let doc = html.replace(
+    /<link\s+[^>]*href="([^"?#]+\.css)"[^>]*\/?>/gi,
+    (_, href: string) => {
+      const key = href.replace(/^\.?\//, "");
+      const css = files[key] || files[href];
+      return css ? `<style>${css}</style>` : "";
+    },
+  );
+  doc = doc.replace(
+    /<script\s+[^>]*src="([^"?#]+\.js)"[^>]*><\/script>/gi,
+    (_, src: string) => {
+      const key = src.replace(/^\.?\//, "");
+      const js = files[key] || files[src];
+      return js ? `<script>${js}</script>` : "";
+    },
+  );
+  return doc;
+}
+
+function LivePreview({
+  files, deploymentUrl, onDeploy, fileCount,
+}: {
+  files: Record<string, string>;
+  deploymentUrl: string | null;
+  onDeploy: () => void;
+  fileCount: number;
+}) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const previewDoc = buildPreviewDoc(files);
+
+  // Auto-refresh when files change
+  const filesJson = JSON.stringify(files);
+  const prevFilesJson = useRef(filesJson);
+  useEffect(() => {
+    if (prevFilesJson.current !== filesJson) {
+      prevFilesJson.current = filesJson;
+      setRefreshKey((k) => k + 1);
+    }
+  }, [filesJson]);
+
+  if (previewDoc) {
+    return (
+      <div className="relative flex-1 overflow-hidden bg-white">
+        <iframe
+          key={refreshKey}
+          srcDoc={previewDoc}
+          className="w-full h-full border-0"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          title="Site preview"
+        />
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className="flex items-center gap-1 rounded border border-zinc-300/60 bg-white/80 px-2 py-1 text-[10px] text-zinc-500 backdrop-blur-sm transition-colors hover:text-zinc-900"
+          >
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+          {deploymentUrl && (
+            <a
+              href={deploymentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 rounded border border-green-300/60 bg-white/80 px-2 py-1 text-[10px] text-green-600 backdrop-blur-sm transition-colors hover:text-green-800"
+            >
+              <ExternalLink className="w-3 h-3" /> Live
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-950 text-center">
+      <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+      <div className="relative z-10 max-w-[240px]">
+        {deploymentUrl ? (
+          <>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10">
+              <Globe className="w-6 h-6 text-green-400" />
+            </div>
+            <h3 className="mb-2 text-sm font-medium text-zinc-50">Deployed</h3>
+            <p className="mb-5 break-all font-mono text-xs text-zinc-500">{deploymentUrl.replace("https://", "")}</p>
+            <a href={deploymentUrl} target="_blank" rel="noopener noreferrer">
+              <Button className="h-8 w-full bg-zinc-50 text-xs text-zinc-950 hover:bg-zinc-200">
+                <ExternalLink className="w-3 h-3 mr-1.5" /> Open live site
+              </Button>
+            </a>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 shadow-xl">
+              <Globe className="w-6 h-6 text-zinc-400" />
+            </div>
+            <h3 className="mb-2 text-sm font-medium text-zinc-50">No preview yet</h3>
+            <p className="mb-5 text-xs text-zinc-500">{fileCount > 0 ? `${fileCount} files ready — ask Studio to build index.html` : "Chat with Studio to generate files."}</p>
+            <Button onClick={onDeploy} className="h-8 w-full bg-zinc-50 text-xs text-zinc-950 hover:bg-zinc-200">
+              <Rocket className="w-3 h-3 mr-1.5" /> Deploy to Vercel
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -557,37 +668,13 @@ function MobileLayout({
       )}
 
       {tab === "preview" && (
-        <div className="h-full flex flex-col bg-zinc-950">
-          <div className="flex-1 m-3 rounded-xl border border-zinc-800 bg-zinc-900 flex flex-col items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
-            <div className="z-10 text-center max-w-[240px]">
-              {deploymentUrl ? (
-                <>
-                  <div className="w-12 h-12 bg-green-500/10 border border-green-500/30 rounded-xl flex items-center justify-center mx-auto mb-4">
-                    <Globe className="w-6 h-6 text-green-400" />
-                  </div>
-                  <h3 className="text-zinc-50 font-medium text-sm mb-2">Deployed</h3>
-                  <p className="text-xs text-zinc-500 mb-5 font-mono break-all">{deploymentUrl.replace("https://", "")}</p>
-                  <a href={deploymentUrl} target="_blank" rel="noopener noreferrer">
-                    <Button className="bg-zinc-50 text-zinc-950 hover:bg-zinc-200 w-full h-9 text-xs">
-                      <ExternalLink className="w-3.5 h-3.5 mr-2" /> Open live site
-                    </Button>
-                  </a>
-                </>
-              ) : (
-                <>
-                  <div className="w-12 h-12 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-center mx-auto mb-4">
-                    <Globe className="w-6 h-6 text-zinc-500" />
-                  </div>
-                  <h3 className="text-zinc-50 font-medium text-sm mb-2">No deployment yet</h3>
-                  <p className="text-xs text-zinc-600 mb-5">{Object.keys(files).length} files ready.</p>
-                  <Button onClick={onDeploy} className="bg-zinc-50 text-zinc-950 hover:bg-zinc-200 w-full h-9 text-xs">
-                    <Rocket className="w-3.5 h-3.5 mr-2" /> Deploy to Vercel
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+        <div className="h-full flex flex-col">
+          <LivePreview
+            files={files}
+            deploymentUrl={deploymentUrl}
+            onDeploy={onDeploy}
+            fileCount={Object.keys(files).length}
+          />
         </div>
       )}
     </div>
@@ -702,56 +789,19 @@ function DesktopLayout({
           <div className="h-10 border-b border-zinc-800 flex items-center justify-between px-3 shrink-0">
             <div className="text-xs font-medium text-zinc-400">Preview</div>
             {deploymentUrl && (
-              <a href={deploymentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-100 transition-colors">
-                <ExternalLink className="w-3 h-3" /> Open
+              <a href={deploymentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors">
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-0.5 animate-pulse" />
+                Live <ExternalLink className="w-3 h-3" />
               </a>
             )}
           </div>
 
-          <div className="flex-1 m-2 rounded-lg border border-zinc-800 bg-zinc-900 flex flex-col items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
-            <div className="z-10 text-center max-w-[240px]">
-              {deploymentUrl ? (
-                <>
-                  <div className="w-12 h-12 bg-green-500/10 border border-green-500/30 rounded-xl flex items-center justify-center mx-auto mb-4">
-                    <Globe className="w-6 h-6 text-green-400" />
-                  </div>
-                  <h3 className="text-zinc-50 font-medium text-sm mb-2">Deployed</h3>
-                  <p className="text-xs text-zinc-500 mb-5 font-mono break-all">{deploymentUrl.replace("https://", "")}</p>
-                  <a href={deploymentUrl} target="_blank" rel="noopener noreferrer">
-                    <Button className="bg-zinc-50 text-zinc-950 hover:bg-zinc-200 w-full h-8 text-xs">
-                      <ExternalLink className="w-3 h-3 mr-1.5" /> Open live site
-                    </Button>
-                  </a>
-                </>
-              ) : (
-                <>
-                  <div className="w-12 h-12 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-xl">
-                    <Globe className="w-6 h-6 text-zinc-400" />
-                  </div>
-                  <h3 className="text-zinc-50 font-medium text-sm mb-2">No deployment yet</h3>
-                  <p className="text-xs text-zinc-500 mb-5">{fileCount} files ready.</p>
-                  <Button onClick={onDeploy} className="bg-zinc-50 text-zinc-950 hover:bg-zinc-200 w-full h-8 text-xs">
-                    <Rocket className="w-3 h-3 mr-1.5" /> Deploy to Vercel
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="h-[140px] border-t border-zinc-800 bg-[#0a0a0c] flex flex-col shrink-0">
-            <div className="h-7 border-b border-zinc-800/50 flex items-center px-3 bg-zinc-950/50">
-              <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">Terminal</span>
-            </div>
-            <div className="flex-1 p-3 font-mono text-xs text-zinc-500 overflow-y-auto">
-              <div className="text-zinc-700">Kodarai Studio v1.0</div>
-              <div className="mt-1">Ready.</div>
-              <div className="flex items-center mt-2">
-                <span className="text-primary mr-2">~</span>
-                <span className="animate-pulse text-zinc-600">_</span>
-              </div>
-            </div>
-          </div>
+          <LivePreview
+            files={files}
+            deploymentUrl={deploymentUrl}
+            onDeploy={onDeploy}
+            fileCount={fileCount}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
