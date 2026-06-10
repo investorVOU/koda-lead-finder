@@ -58,6 +58,11 @@ export function verifyStripeSignature(payload: string, header: string | null, se
   const t = parts["t"];
   const v1 = parts["v1"];
   if (!t || !v1) return false;
+
+  // Reject requests whose timestamp is more than 5 minutes old (replay protection)
+  const ts = parseInt(t, 10);
+  if (isNaN(ts) || Math.abs(Math.floor(Date.now() / 1000) - ts) > 300) return false;
+
   const expected = createHmac("sha256", secret).update(`${t}.${payload}`).digest("hex");
   const a = Buffer.from(expected);
   const b = Buffer.from(v1);

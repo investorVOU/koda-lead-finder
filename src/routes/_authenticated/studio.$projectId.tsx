@@ -5,12 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
-  ArrowLeft, CheckCircle2, Share, Rocket, Terminal as TerminalIcon,
-  MessageSquare, FolderGit2, History, Send, ExternalLink,
+  ArrowLeft, Rocket, MessageSquare, FolderGit2, History, Send, ExternalLink,
   FileCode, FileJson, FileType2, File, Globe, X, Loader2,
-  Code2, Eye, RefreshCw,
+  Code2, Eye, RefreshCw, Sparkles, ChevronRight,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -29,7 +27,6 @@ import {
   type StudioSnapshot,
 } from "@/lib/studio.functions";
 
-// Monaco editor — lazy loaded (SSR would crash)
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 export const Route = createFileRoute("/_authenticated/studio/$projectId")({
@@ -75,7 +72,14 @@ const CHAT_PLACEHOLDERS = [
   "Add a Google Maps embed...",
 ];
 
-// ─── Preview helpers ─────────────────────────────────────────────────────────
+const QUICK_STARTS = [
+  { icon: "🏠", label: "Add hero section", prompt: "Add a stunning hero section with a headline, subheading, and call-to-action button." },
+  { icon: "📞", label: "Contact section", prompt: "Add a contact section with phone, email, WhatsApp button, and a simple enquiry form." },
+  { icon: "📱", label: "Make mobile-friendly", prompt: "Make the site fully responsive and mobile-friendly with a hamburger menu." },
+  { icon: "⚡", label: "Improve speed", prompt: "Optimize the HTML and CSS for performance: lazy load images, clean up unused styles, and compress scripts." },
+];
+
+// ─── Preview helpers ──────────────────────────────────────────────────────────
 
 function buildPreviewDoc(files: Record<string, string>): string | null {
   const html = files["index.html"] || files["index.htm"];
@@ -110,7 +114,6 @@ function LivePreview({
   const [refreshKey, setRefreshKey] = useState(0);
   const previewDoc = buildPreviewDoc(files);
 
-  // Auto-refresh when files change
   const filesJson = JSON.stringify(files);
   const prevFilesJson = useRef(filesJson);
   useEffect(() => {
@@ -122,62 +125,85 @@ function LivePreview({
 
   if (previewDoc) {
     return (
-      <div className="relative flex-1 overflow-hidden bg-white">
-        <iframe
-          key={refreshKey}
-          srcDoc={previewDoc}
-          className="w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin allow-forms"
-          title="Site preview"
-        />
-        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
-          <button
-            onClick={() => setRefreshKey((k) => k + 1)}
-            className="flex items-center gap-1 rounded border border-zinc-300/60 bg-white/80 px-2 py-1 text-[10px] text-zinc-500 backdrop-blur-sm transition-colors hover:text-zinc-900"
-          >
-            <RefreshCw className="w-3 h-3" /> Refresh
-          </button>
-          {deploymentUrl && (
-            <a
-              href={deploymentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded border border-green-300/60 bg-white/80 px-2 py-1 text-[10px] text-green-600 backdrop-blur-sm transition-colors hover:text-green-800"
+      <div className="flex flex-col h-full">
+        {/* Browser chrome bar */}
+        <div className="flex items-center gap-2 h-9 px-3 bg-zinc-900 border-b border-zinc-800 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+            <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+            <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+          </div>
+          <div className="flex-1 bg-zinc-800 rounded-md h-5 flex items-center px-3">
+            <span className="text-[11px] text-zinc-500 font-mono truncate">
+              {deploymentUrl ? deploymentUrl.replace(/^https?:\/\//, "") : "preview"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setRefreshKey((k) => k + 1)}
+              className="w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
             >
-              <ExternalLink className="w-3 h-3" /> Live
-            </a>
-          )}
+              <RefreshCw className="w-3 h-3" />
+            </button>
+            {deploymentUrl && (
+              <a
+                href={deploymentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-6 h-6 rounded flex items-center justify-center text-emerald-500 hover:bg-zinc-800 transition-colors"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        </div>
+        <div className="flex-1 overflow-hidden bg-white">
+          <iframe
+            key={refreshKey}
+            srcDoc={previewDoc}
+            className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms"
+            title="Site preview"
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-950 text-center">
-      <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
-      <div className="relative z-10 max-w-[240px]">
+    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-950 text-center p-8">
+      <div className="absolute inset-0 opacity-[0.025] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
+      <div className="relative z-10 max-w-[260px]">
         {deploymentUrl ? (
           <>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10">
-              <Globe className="w-6 h-6 text-green-400" />
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5">
+              <Globe className="w-7 h-7 text-emerald-400" />
             </div>
-            <h3 className="mb-2 text-sm font-medium text-zinc-50">Deployed</h3>
+            <h3 className="mb-2 text-sm font-semibold text-zinc-100">Live on the web</h3>
             <p className="mb-5 break-all font-mono text-xs text-zinc-500">{deploymentUrl.replace("https://", "")}</p>
             <a href={deploymentUrl} target="_blank" rel="noopener noreferrer">
-              <Button className="h-8 w-full bg-zinc-50 text-xs text-zinc-950 hover:bg-zinc-200">
-                <ExternalLink className="w-3 h-3 mr-1.5" /> Open live site
+              <Button className="h-9 w-full gap-2 bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-medium">
+                <ExternalLink className="w-3.5 h-3.5" /> Open live site
               </Button>
             </a>
           </>
         ) : (
           <>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 shadow-xl">
-              <Globe className="w-6 h-6 text-zinc-400" />
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900">
+              <Globe className="w-7 h-7 text-zinc-600" />
             </div>
-            <h3 className="mb-2 text-sm font-medium text-zinc-50">No preview yet</h3>
-            <p className="mb-5 text-xs text-zinc-500">{fileCount > 0 ? `${fileCount} files ready — ask Studio to build index.html` : "Chat with Studio to generate files."}</p>
-            <Button onClick={onDeploy} className="h-8 w-full bg-zinc-50 text-xs text-zinc-950 hover:bg-zinc-200">
-              <Rocket className="w-3 h-3 mr-1.5" /> Deploy to Vercel
+            <h3 className="mb-2 text-sm font-semibold text-zinc-200">No preview yet</h3>
+            <p className="mb-6 text-xs text-zinc-500 leading-relaxed">
+              {fileCount > 0
+                ? `${fileCount} file${fileCount !== 1 ? "s" : ""} ready — ask Studio to create index.html to see a preview.`
+                : "Chat with Studio and describe what you want to build."}
+            </p>
+            <Button
+              onClick={onDeploy}
+              variant="outline"
+              className="h-9 w-full gap-2 border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-xs"
+            >
+              <Rocket className="w-3.5 h-3.5" /> Deploy to Vercel
             </Button>
           </>
         )}
@@ -195,14 +221,14 @@ function Builder() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
-  const runGetProject    = useServerFn(getStudioProject);
-  const runListMessages  = useServerFn(listStudioMessages);
-  const runCreateMessage = useServerFn(createStudioMessage);
-  const runListSnapshots = useServerFn(listStudioSnapshots);
-  const runUpdateProject = useServerFn(updateStudioProject);
+  const runGetProject     = useServerFn(getStudioProject);
+  const runListMessages   = useServerFn(listStudioMessages);
+  const runCreateMessage  = useServerFn(createStudioMessage);
+  const runListSnapshots  = useServerFn(listStudioSnapshots);
+  const runUpdateProject  = useServerFn(updateStudioProject);
   const runCreateSnapshot = useServerFn(createStudioSnapshot);
 
-  // ── Data ────────────────────────────────────────────────────────────────────
+  // ── Data ─────────────────────────────────────────────────────────────────────
   const { data: projectRes } = useQuery({
     queryKey: ["studio-project", projectId],
     queryFn: () => runGetProject({ data: { id: projectId } }),
@@ -224,7 +250,7 @@ function Builder() {
   });
   const snapshots: StudioSnapshot[] = snapshotsRes?.snapshots ?? [];
 
-  // ── Local state ─────────────────────────────────────────────────────────────
+  // ── Local state ───────────────────────────────────────────────────────────────
   const [projectName, setProjectName]     = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [files, setFiles]                 = useState<Record<string, string>>({});
@@ -234,13 +260,11 @@ function Builder() {
   const [showDeploy, setShowDeploy]       = useState(false);
   const [mobileTab, setMobileTab]         = useState<"chat" | "code" | "preview">("chat");
   const [mounted, setMounted]             = useState(false);
-
-  // Streaming state
-  const [isStreaming, setIsStreaming]             = useState(false);
+  const [isStreaming, setIsStreaming]     = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<StudioMessage[]>([]);
   const allMessages = [...messages, ...optimisticMessages];
 
-  // ── Effects ─────────────────────────────────────────────────────────────────
+  // ── Effects ───────────────────────────────────────────────────────────────────
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -259,7 +283,6 @@ function Builder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id, project?.files_json, project?.name, project?.deployment_url]);
 
-  // Pick up initial prompt from new-project page
   useEffect(() => {
     if (!projectId || !user || messages.length > 0 || isStreaming) return;
     const stored = sessionStorage.getItem(`studio_initial_prompt_${projectId}`);
@@ -271,7 +294,7 @@ function Builder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, user, messages.length]);
 
-  // ── Name editing ────────────────────────────────────────────────────────────
+  // ── Name editing ──────────────────────────────────────────────────────────────
   const handleNameBlur = async () => {
     setIsEditingName(false);
     if (!projectName.trim() || projectName === project?.name) return;
@@ -280,7 +303,7 @@ function Builder() {
     queryClient.invalidateQueries({ queryKey: ["studio-projects"] });
   };
 
-  // ── File management ─────────────────────────────────────────────────────────
+  // ── File management ───────────────────────────────────────────────────────────
   const handleFileSelect = (path: string) => {
     if (!openFiles.includes(path)) setOpenFiles((p) => [...p, path]);
     setCurrentFile(path);
@@ -294,7 +317,7 @@ function Builder() {
     if (currentFile === path) setCurrentFile(next.length > 0 ? next[next.length - 1] : null);
   };
 
-  // ── AI generation / streaming ───────────────────────────────────────────────
+  // ── AI generation ─────────────────────────────────────────────────────────────
   const handleSend = async (promptText: string) => {
     if (!promptText.trim() || isStreaming || !user) return;
 
@@ -411,16 +434,30 @@ function Builder() {
   const fileCount = Object.keys(files).length;
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="h-[100dvh] w-full flex flex-col bg-zinc-950 text-foreground overflow-hidden">
       {/* Top Bar */}
-      <header className="h-11 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-3 shrink-0 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      <header className="h-12 border-b border-zinc-800/80 bg-zinc-950 flex items-center justify-between px-4 shrink-0 gap-3">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <button
             onClick={() => navigate({ to: "/studio" })}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors shrink-0"
+            className="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
+
+          <div className="w-px h-4 bg-zinc-800 shrink-0" />
+
+          {/* Kodarai Studio pill */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center">
+              <Sparkles className="w-3 h-3 text-primary" />
+            </div>
+            <span className="text-xs font-semibold text-zinc-400 hidden sm:block">Studio</span>
+          </div>
+
+          <div className="w-px h-4 bg-zinc-800 shrink-0 hidden sm:block" />
+
+          {/* Project name */}
           {isEditingName ? (
             <input
               type="text"
@@ -429,32 +466,29 @@ function Builder() {
               onBlur={handleNameBlur}
               onKeyDown={(e) => e.key === "Enter" && handleNameBlur()}
               autoFocus
-              className="bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-sm font-medium text-zinc-50 outline-none w-[120px] sm:w-[180px]"
+              className="bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1 text-sm font-medium text-zinc-100 outline-none w-[160px] sm:w-[220px]"
             />
           ) : (
             <button
               onClick={() => setIsEditingName(true)}
-              className="text-sm font-medium hover:bg-zinc-900 px-2 py-0.5 rounded transition-colors truncate max-w-[100px] sm:max-w-[200px] text-left"
+              className="text-sm font-medium text-zinc-200 hover:text-white hover:bg-zinc-900 px-2 py-1 rounded-md transition-colors truncate max-w-[120px] sm:max-w-[240px] text-left"
               title={project?.name}
             >
-              {project?.name || "Loading..."}
+              {project?.name || "Loading…"}
             </button>
           )}
+
           {isStreaming && (
-            <span className="hidden sm:flex items-center gap-1.5 text-xs text-amber-400">
-              <Loader2 className="w-3 h-3 animate-spin" /> Generating…
-            </span>
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-amber-400 ml-2">
+              <span className="flex gap-0.5">
+                <span className="w-1 h-1 rounded-full bg-amber-400 animate-bounce [animation-delay:0ms]" />
+                <span className="w-1 h-1 rounded-full bg-amber-400 animate-bounce [animation-delay:150ms]" />
+                <span className="w-1 h-1 rounded-full bg-amber-400 animate-bounce [animation-delay:300ms]" />
+              </span>
+              <span>Generating</span>
+            </div>
           )}
         </div>
-
-        {/* Center — current file path (desktop only) */}
-        {!isMobile && (
-          <div className="flex items-center justify-center flex-1 px-4">
-            {currentFile && (
-              <div className="text-xs font-mono text-zinc-500 truncate max-w-[280px]">{currentFile}</div>
-            )}
-          </div>
-        )}
 
         <div className="flex items-center gap-2 shrink-0">
           {deploymentUrl ? (
@@ -462,44 +496,27 @@ function Builder() {
               href={deploymentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 transition-colors font-mono"
+              className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
             >
-              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
               Live
               <ExternalLink className="w-3 h-3" />
             </a>
           ) : (
-            <div className="hidden sm:flex items-center text-xs text-zinc-600">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Saved
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-600">
+              <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full" />
+              Draft
             </div>
-          )}
-
-          {!isMobile && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 bg-transparent border-zinc-800 text-zinc-300 hover:bg-zinc-900 px-2.5"
-              onClick={() => toast.info("Share link copied! (coming soon)")}
-            >
-              <Share className="w-3 h-3 mr-1.5" /> Share
-            </Button>
           )}
 
           <Button
             size="sm"
             onClick={() => setShowDeploy(true)}
-            className="h-7 bg-primary hover:bg-primary/90 text-white px-2.5"
+            className="h-7 bg-primary hover:bg-primary/90 text-white text-xs px-3 gap-1.5"
           >
-            <Rocket className="w-3 h-3 sm:mr-1.5" />
+            <Rocket className="w-3 h-3" />
             <span className="hidden sm:inline">Deploy</span>
           </Button>
-
-          <Avatar className="w-7 h-7 rounded-md border border-zinc-800">
-            <AvatarImage src={undefined} />
-            <AvatarFallback className="bg-zinc-800 text-[10px] rounded-md">
-              {user?.email?.[0]?.toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
         </div>
       </header>
 
@@ -523,7 +540,6 @@ function Builder() {
         />
       ) : (
         <DesktopLayout
-          projectId={projectId}
           files={files}
           currentFile={currentFile}
           openFiles={openFiles}
@@ -544,10 +560,10 @@ function Builder() {
       {isMobile && (
         <nav className="h-14 border-t border-zinc-800 bg-zinc-950 flex items-center shrink-0">
           {([
-            { id: "chat", icon: MessageSquare, label: "Chat" },
-            { id: "code", icon: Code2, label: "Code" },
-            { id: "preview", icon: Eye, label: "Preview" },
-          ] as const).map((tab) => (
+            { id: "chat" as const,    icon: MessageSquare, label: "Chat" },
+            { id: "code" as const,    icon: Code2,         label: "Code" },
+            { id: "preview" as const, icon: Eye,           label: "Preview" },
+          ]).map((tab) => (
             <button
               key={tab.id}
               onClick={() => setMobileTab(tab.id)}
@@ -575,10 +591,61 @@ function Builder() {
   );
 }
 
+// ─── Desktop Layout ───────────────────────────────────────────────────────────
+
+function DesktopLayout({
+  files, currentFile, openFiles, deploymentUrl,
+  allMessages, snapshots, isStreaming, fileCount, mounted,
+  onFileSelect, onCloseFile, onSend, onDeploy,
+}: {
+  files: Record<string, string>;
+  currentFile: string | null;
+  openFiles: string[];
+  deploymentUrl: string | null;
+  allMessages: StudioMessage[];
+  snapshots: StudioSnapshot[];
+  isStreaming: boolean;
+  fileCount: number;
+  mounted: boolean;
+  onFileSelect: (p: string) => void;
+  onCloseFile: (e: React.MouseEvent, p: string) => void;
+  onSend: (prompt: string) => void;
+  onDeploy: () => void;
+}) {
+  return (
+    <div className="flex-1 overflow-hidden">
+      <ResizablePanelGroup orientation="horizontal" className="h-full">
+        {/* Left — Chat */}
+        <ResizablePanel defaultSize={34} minSize={26} maxSize={48} className="flex flex-col min-h-0">
+          <ChatPanel allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />
+        </ResizablePanel>
+
+        <ResizableHandle className="w-[2px] bg-zinc-800 hover:bg-primary/50 transition-colors cursor-col-resize" />
+
+        {/* Right — tabbed workspace */}
+        <ResizablePanel defaultSize={66} minSize={40} className="flex flex-col min-h-0">
+          <WorkspacePanel
+            files={files}
+            currentFile={currentFile}
+            openFiles={openFiles}
+            deploymentUrl={deploymentUrl}
+            snapshots={snapshots}
+            fileCount={fileCount}
+            mounted={mounted}
+            onFileSelect={onFileSelect}
+            onCloseFile={onCloseFile}
+            onDeploy={onDeploy}
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
+  );
+}
+
 // ─── Mobile Layout ────────────────────────────────────────────────────────────
 
 function MobileLayout({
-  projectId, files, currentFile, openFiles, tab, deploymentUrl,
+  files, currentFile, openFiles, tab, deploymentUrl,
   allMessages, snapshots, isStreaming, mounted,
   onFileSelect, onCloseFile, onSend, onDeploy,
 }: {
@@ -600,16 +667,13 @@ function MobileLayout({
   return (
     <div className="flex-1 overflow-hidden">
       {tab === "chat" && (
-        <div className="h-full flex flex-col">
-          <ChatTab allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />
-        </div>
+        <ChatPanel allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />
       )}
 
       {tab === "code" && (
         <div className="h-full flex flex-col bg-[#09090b]">
-          {/* File tabs */}
           {openFiles.length > 0 && (
-            <div className="flex bg-zinc-950 border-b border-zinc-800 overflow-x-auto">
+            <div className="flex bg-zinc-950 border-b border-zinc-800 overflow-x-auto shrink-0">
               {openFiles.map((path) => (
                 <div
                   key={path}
@@ -644,24 +708,8 @@ function MobileLayout({
               </Suspense>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 gap-3">
-              <div className="border border-zinc-800 rounded-xl p-4 max-w-[260px] w-full">
-                <div className="text-xs font-medium text-zinc-500 mb-3">Project Files</div>
-                {Object.keys(files).length === 0 ? (
-                  <p className="text-xs text-zinc-700 text-center">No files yet. Chat with Studio.</p>
-                ) : (
-                  Object.keys(files).slice(0, 8).map((path) => (
-                    <div
-                      key={path}
-                      onClick={() => onFileSelect(path)}
-                      className="flex items-center py-1.5 hover:bg-zinc-900 rounded cursor-pointer px-2"
-                    >
-                      <FileIcon path={path} className="w-3.5 h-3.5 mr-2 shrink-0" />
-                      <span className="text-xs font-mono text-zinc-400 truncate">{path.split("/").pop()}</span>
-                    </div>
-                  ))
-                )}
-              </div>
+            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 gap-3 p-6">
+              <FilesTab files={files} onFileSelect={onFileSelect} />
             </div>
           )}
         </div>
@@ -669,73 +717,168 @@ function MobileLayout({
 
       {tab === "preview" && (
         <div className="h-full flex flex-col">
-          <LivePreview
-            files={files}
-            deploymentUrl={deploymentUrl}
-            onDeploy={onDeploy}
-            fileCount={Object.keys(files).length}
-          />
+          <LivePreview files={files} deploymentUrl={deploymentUrl} onDeploy={onDeploy} fileCount={Object.keys(files).length} />
         </div>
       )}
     </div>
   );
 }
 
-// ─── Desktop Layout ───────────────────────────────────────────────────────────
+// ─── Chat Panel ───────────────────────────────────────────────────────────────
 
-function DesktopLayout({
-  projectId, files, currentFile, openFiles, deploymentUrl,
-  allMessages, snapshots, isStreaming, fileCount, mounted,
-  onFileSelect, onCloseFile, onSend, onDeploy,
+function ChatPanel({
+  allMessages, isStreaming, onSend,
 }: {
-  projectId: string;
-  files: Record<string, string>;
-  currentFile: string | null;
-  openFiles: string[];
-  deploymentUrl: string | null;
   allMessages: StudioMessage[];
-  snapshots: StudioSnapshot[];
   isStreaming: boolean;
-  fileCount: number;
-  mounted: boolean;
-  onFileSelect: (p: string) => void;
-  onCloseFile: (e: React.MouseEvent, p: string) => void;
   onSend: (prompt: string) => void;
-  onDeploy: () => void;
 }) {
+  const [prompt, setPrompt] = useState("");
+  const placeholder = useAnimatedPlaceholder(CHAT_PLACEHOLDERS, 2800);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [allMessages]);
+
+  const handleSend = () => {
+    if (!prompt.trim() || isStreaming) return;
+    onSend(prompt.trim());
+    setPrompt("");
+  };
+
+  const handleQuickStart = (p: string) => {
+    onSend(p);
+  };
+
   return (
-    <div className="flex-1 overflow-hidden">
-      <ResizablePanelGroup orientation="horizontal" className="h-full">
-        {/* Left — Chat (always visible, generous width) */}
-        <ResizablePanel defaultSize={36} minSize={28} maxSize={50} className="bg-zinc-950 flex flex-col border-r border-zinc-800">
-          <ChatTab allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />
-        </ResizablePanel>
+    <div className="flex flex-col h-full bg-zinc-950">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#3f3f46 transparent" }}>
+        {allMessages.length === 0 ? (
+          <ChatEmptyState onQuickStart={handleQuickStart} isStreaming={isStreaming} />
+        ) : (
+          <div className="p-4 space-y-5">
+            {allMessages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} isStreaming={isStreaming} />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
 
-        <ResizableHandle className="w-[3px] bg-zinc-800 hover:bg-primary/40 transition-colors cursor-col-resize" />
-
-        {/* Right — tabbed: Preview | Code | Files | History */}
-        <ResizablePanel defaultSize={64} minSize={40} className="bg-zinc-950 flex flex-col">
-          <RightPanel
-            files={files}
-            currentFile={currentFile}
-            openFiles={openFiles}
-            deploymentUrl={deploymentUrl}
-            snapshots={snapshots}
-            fileCount={fileCount}
-            mounted={mounted}
-            onFileSelect={onFileSelect}
-            onCloseFile={onCloseFile}
-            onDeploy={onDeploy}
+      {/* Input */}
+      <div className="shrink-0 border-t border-zinc-800/80 bg-zinc-950 p-3">
+        <div className={`flex flex-col gap-2 rounded-xl border transition-colors ${
+          isStreaming ? "border-amber-500/30 bg-zinc-900/60" : "border-zinc-700/60 bg-zinc-900 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/10"
+        }`}>
+          <Textarea
+            ref={textareaRef}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim() && !isStreaming) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder={isStreaming ? "Studio is writing…" : placeholder}
+            className="min-h-[72px] max-h-[160px] bg-transparent border-0 focus-visible:ring-0 text-sm text-zinc-100 resize-none py-3 px-3 placeholder:text-zinc-600 leading-relaxed"
+            disabled={isStreaming}
           />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          <div className="flex items-center justify-between px-3 pb-2.5 pt-0">
+            <span className="text-[11px] text-zinc-600">⌘↵ to send</span>
+            <Button
+              size="sm"
+              onClick={handleSend}
+              disabled={!prompt.trim() || isStreaming}
+              className="h-8 px-4 bg-primary hover:bg-primary/90 text-white text-xs font-medium gap-1.5 disabled:opacity-40"
+            >
+              {isStreaming
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating</>
+                : <><Send className="w-3.5 h-3.5" /> Send</>}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ─── Right Panel (desktop) — tabs: Preview | Code | Files | History ──────────
+function ChatEmptyState({ onQuickStart, isStreaming }: { onQuickStart: (p: string) => void; isStreaming: boolean }) {
+  return (
+    <div className="flex flex-col h-full items-center justify-center p-6 text-center">
+      <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+        <Sparkles className="w-6 h-6 text-primary" />
+      </div>
+      <h3 className="text-sm font-semibold text-zinc-200 mb-1">What are we building?</h3>
+      <p className="text-xs text-zinc-500 mb-6 max-w-[240px] leading-relaxed">
+        Describe a website, ask for changes, or pick a quick action below.
+      </p>
+      <div className="w-full space-y-2 max-w-[280px]">
+        {QUICK_STARTS.map((qs) => (
+          <button
+            key={qs.label}
+            onClick={() => !isStreaming && onQuickStart(qs.prompt)}
+            disabled={isStreaming}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:border-zinc-700 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="text-base leading-none shrink-0">{qs.icon}</span>
+            <span className="text-xs font-medium text-zinc-300 group-hover:text-zinc-100 flex-1">{qs.label}</span>
+            <ChevronRight className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400 shrink-0" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-function RightPanel({
+function MessageBubble({ message, isStreaming }: { message: StudioMessage; isStreaming: boolean }) {
+  const isUser = message.role === "user";
+  const isEmpty = !message.content;
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-tr-sm bg-zinc-800 border border-zinc-700/60 text-sm text-zinc-100 leading-relaxed">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+        <Sparkles className="w-3.5 h-3.5 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        {isEmpty && isStreaming ? (
+          <div className="flex items-center gap-1 py-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:150ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:300ms]" />
+          </div>
+        ) : (
+          <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+            {message.content}
+          </div>
+        )}
+        {message.file_changes && (
+          <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium">
+            <FileCode className="w-3 h-3" />
+            Files updated
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Workspace Panel (right, desktop) ────────────────────────────────────────
+
+function WorkspacePanel({
   files, currentFile, openFiles, deploymentUrl, snapshots,
   fileCount, mounted, onFileSelect, onCloseFile, onDeploy,
 }: {
@@ -753,38 +896,43 @@ function RightPanel({
   const [activeTab, setActiveTab] = useState<"preview" | "code" | "files" | "history">("preview");
 
   const tabs = [
-    { id: "preview" as const, icon: Eye,        label: "Preview" },
-    { id: "code"    as const, icon: Code2,       label: "Code"    },
-    { id: "files"   as const, icon: FolderGit2,  label: "Files"   },
-    { id: "history" as const, icon: History,     label: "History" },
+    { id: "preview" as const, icon: Eye,       label: "Preview" },
+    { id: "code"    as const, icon: Code2,      label: "Code"    },
+    { id: "files"   as const, icon: FolderGit2, label: "Files"   },
+    { id: "history" as const, icon: History,    label: "History" },
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-zinc-950">
       {/* Tab bar */}
-      <div className="flex items-center border-b border-zinc-800 bg-zinc-950 shrink-0 px-2 gap-0.5 h-10">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === t.id
-                ? "bg-zinc-800 text-zinc-50"
-                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
-            }`}
-          >
-            <t.icon className="w-3.5 h-3.5" />
-            {t.label}
-          </button>
-        ))}
+      <div className="flex items-center border-b border-zinc-800/80 bg-zinc-950 shrink-0 px-1 h-10">
+        <div className="flex items-center flex-1">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`relative flex items-center gap-1.5 px-3.5 h-10 text-xs font-medium transition-colors ${
+                activeTab === t.id
+                  ? "text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <t.icon className="w-3.5 h-3.5" />
+              {t.label}
+              {activeTab === t.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
         {deploymentUrl && (
           <a
             href={deploymentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors pr-2"
+            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors pr-3 font-medium"
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Live
             <ExternalLink className="w-3 h-3" />
           </a>
@@ -796,32 +944,33 @@ function RightPanel({
         {activeTab === "preview" && (
           <LivePreview files={files} deploymentUrl={deploymentUrl} onDeploy={onDeploy} fileCount={fileCount} />
         )}
+
         {activeTab === "code" && (
           <div className="flex flex-col h-full bg-[#09090b]">
-            {openFiles.length > 0 && (
+            {openFiles.length > 0 ? (
               <div className="flex bg-zinc-950 border-b border-zinc-800 overflow-x-auto shrink-0" style={{ scrollbarWidth: "none" }}>
                 {openFiles.map((path) => (
                   <div
                     key={path}
                     onClick={() => onFileSelect(path)}
-                    className={`flex items-center px-3 py-2 text-xs font-mono border-r border-zinc-800 cursor-pointer group shrink-0 ${
+                    className={`flex items-center px-3.5 py-0 h-9 text-xs font-mono border-r border-zinc-800/60 cursor-pointer group shrink-0 transition-colors ${
                       currentFile === path
-                        ? "bg-[#09090b] text-zinc-50 border-t-2 border-t-primary"
-                        : "bg-zinc-950 text-zinc-500 hover:bg-zinc-900 border-t-2 border-t-transparent"
+                        ? "bg-[#09090b] text-zinc-100 border-b-2 border-b-primary"
+                        : "bg-zinc-950 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
                     }`}
                   >
                     <FileIcon path={path} className="w-3.5 h-3.5 mr-1.5 opacity-80" />
                     {path.split("/").pop()}
                     <button
                       onClick={(e) => onCloseFile(e, path)}
-                      className="ml-2 opacity-0 group-hover:opacity-60 hover:opacity-100 p-0.5 text-zinc-500"
+                      className="ml-2.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 p-0.5 text-zinc-400 transition-opacity"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
             <div className="flex-1 relative">
               {mounted && currentFile && files[currentFile] !== undefined ? (
                 <Suspense fallback={<EditorSkeleton />}>
@@ -834,107 +983,30 @@ function RightPanel({
                     options={{
                       minimap: { enabled: false },
                       fontSize: 13,
-                      fontFamily: "Geist Mono, monospace",
+                      fontFamily: "Geist Mono, JetBrains Mono, monospace",
                       padding: { top: 16 },
                       scrollBeyondLastLine: false,
                       lineHeight: 24,
+                      smoothScrolling: true,
+                      cursorBlinking: "smooth",
                     }}
                   />
                 </Suspense>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-2">
-                  <TerminalIcon className="w-10 h-10 opacity-20" />
-                  <p className="text-sm">No file open — select one from Files tab</p>
+                <div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-3 p-8">
+                  <Code2 className="w-10 h-10 opacity-10" />
+                  <p className="text-sm text-zinc-600">Open a file from the Files tab</p>
                 </div>
               )}
             </div>
           </div>
         )}
-        {activeTab === "files" && <FilesTab files={files} onFileSelect={(p) => { onFileSelect(p); setActiveTab("code"); }} />}
-        {activeTab === "history" && <HistoryTab snapshots={snapshots} />}
-      </div>
-    </div>
-  );
-}
 
-// ─── Chat Tab ─────────────────────────────────────────────────────────────────
-
-function ChatTab({
-  allMessages, isStreaming, onSend,
-}: {
-  allMessages: StudioMessage[];
-  isStreaming: boolean;
-  onSend: (prompt: string) => void;
-}) {
-  const [prompt, setPrompt] = useState("");
-  const placeholder = useAnimatedPlaceholder(CHAT_PLACEHOLDERS, 2800);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [allMessages]);
-
-  const handleSend = () => {
-    if (!prompt.trim() || isStreaming) return;
-    onSend(prompt.trim());
-    setPrompt("");
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {allMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center px-4 py-12">
-            <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center mb-3">
-              <MessageSquare className="w-5 h-5 text-zinc-600" />
-            </div>
-            <p className="text-sm text-zinc-300 font-medium mb-1">What should we build?</p>
-            <p className="text-xs text-zinc-600">Describe a feature, component, or ask for changes.</p>
-          </div>
-        ) : (
-          allMessages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[90%] px-3 py-2 rounded-lg text-sm leading-relaxed ${
-                msg.role === "user" ? "bg-zinc-800 text-zinc-50" : "text-zinc-300"
-              } ${!msg.content && isStreaming ? "italic text-zinc-500" : ""}`}>
-                {msg.content || (isStreaming && msg.role === "assistant" ? "Thinking…" : "")}
-                {msg.file_changes && (
-                  <div className="mt-2 border border-zinc-800 rounded bg-zinc-900/60 p-2 text-xs font-mono text-zinc-500 break-all">
-                    Files updated
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
+        {activeTab === "files" && (
+          <FilesTab files={files} onFileSelect={(p) => { onFileSelect(p); setActiveTab("code"); }} />
         )}
-        <div ref={messagesEndRef} />
-      </div>
 
-      <div className="p-2.5 border-t border-zinc-800 bg-zinc-950 shrink-0">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg flex items-end gap-1 p-1">
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim() && !isStreaming) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={placeholder}
-            className="min-h-[38px] max-h-[140px] bg-transparent border-0 focus-visible:ring-0 text-sm resize-none py-2 px-2 placeholder:text-zinc-600"
-            disabled={isStreaming}
-          />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={!prompt.trim() || isStreaming}
-            className="h-8 w-8 shrink-0 bg-primary hover:bg-primary/90 text-white rounded-md mb-0.5 mr-0.5 disabled:opacity-30"
-          >
-            {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-          </Button>
-        </div>
-        <p className="text-[10px] text-zinc-700 mt-1 text-center">⌘ Enter to send</p>
+        {activeTab === "history" && <HistoryTab snapshots={snapshots} />}
       </div>
     </div>
   );
@@ -945,26 +1017,33 @@ function ChatTab({
 function FilesTab({ files, onFileSelect }: { files: Record<string, string>; onFileSelect: (p: string) => void }) {
   const paths = Object.keys(files).sort();
   return (
-    <div className="p-2 overflow-y-auto h-full">
-      <div className="text-[10px] font-medium text-zinc-600 px-2 py-1.5 uppercase tracking-widest">Project Files</div>
+    <div className="p-3 overflow-y-auto h-full">
+      <div className="text-[10px] font-semibold text-zinc-600 px-2 py-1.5 uppercase tracking-widest mb-1">
+        Project files
+      </div>
       {paths.length === 0 ? (
-        <p className="text-xs text-zinc-700 px-2 py-4 text-center">No files yet.</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <FolderGit2 className="w-8 h-8 text-zinc-700 mb-3" />
+          <p className="text-xs text-zinc-600">No files yet — ask Studio to build something.</p>
+        </div>
       ) : (
-        paths.map((path) => {
-          const parts = path.split("/");
-          const name = parts.pop() || path;
-          return (
-            <div
-              key={path}
-              onClick={() => onFileSelect(path)}
-              className="flex items-center py-1.5 hover:bg-zinc-900 rounded cursor-pointer group"
-              style={{ paddingLeft: `${parts.length * 12 + 8}px` }}
-            >
-              <FileIcon path={path} className="w-3.5 h-3.5 mr-2 opacity-60 group-hover:opacity-100 shrink-0" />
-              <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-100 truncate">{name}</span>
-            </div>
-          );
-        })
+        <div className="space-y-0.5">
+          {paths.map((path) => {
+            const parts = path.split("/");
+            const name = parts.pop() || path;
+            return (
+              <div
+                key={path}
+                onClick={() => onFileSelect(path)}
+                className="flex items-center py-1.5 hover:bg-zinc-800/60 rounded-md cursor-pointer group transition-colors"
+                style={{ paddingLeft: `${parts.length * 14 + 8}px`, paddingRight: "8px" }}
+              >
+                <FileIcon path={path} className="w-3.5 h-3.5 mr-2 opacity-60 group-hover:opacity-100 shrink-0 transition-opacity" />
+                <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-100 truncate transition-colors">{name}</span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -974,17 +1053,25 @@ function FilesTab({ files, onFileSelect }: { files: Record<string, string>; onFi
 
 function HistoryTab({ snapshots }: { snapshots: StudioSnapshot[] }) {
   return (
-    <div className="p-3 overflow-y-auto h-full">
+    <div className="p-4 overflow-y-auto h-full">
+      <div className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-3">
+        Snapshots
+      </div>
       {snapshots.length === 0 ? (
-        <div className="text-xs text-zinc-600 text-center mt-10">No history yet.</div>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <History className="w-8 h-8 text-zinc-700 mb-3" />
+          <p className="text-xs text-zinc-600">No snapshots yet. Each AI change creates one.</p>
+        </div>
       ) : (
-        <div className="relative border-l border-zinc-800 ml-3 space-y-5 pb-4">
+        <div className="relative border-l border-zinc-800 ml-3 space-y-4 pb-4">
           {snapshots.map((snap) => (
-            <div key={snap.id} className="relative pl-5">
-              <div className="absolute w-2 h-2 bg-zinc-950 border-2 border-primary rounded-full -left-[5px] top-1" />
-              <div className="text-sm font-medium text-zinc-300 line-clamp-1">{snap.label}</div>
-              <div className="text-xs text-zinc-600 mt-0.5">
-                {formatDistanceToNow(new Date(snap.created_at), { addSuffix: true })} · {snap.files_count} files
+            <div key={snap.id} className="relative pl-5 group">
+              <div className="absolute w-2 h-2 bg-zinc-900 border-2 border-zinc-600 group-hover:border-primary rounded-full -left-[5px] top-1.5 transition-colors" />
+              <div className="text-sm font-medium text-zinc-300 line-clamp-2 leading-snug">{snap.label}</div>
+              <div className="text-[11px] text-zinc-600 mt-1">
+                {formatDistanceToNow(new Date(snap.created_at), { addSuffix: true })}
+                <span className="mx-1.5">·</span>
+                {snap.files_count} file{snap.files_count !== 1 ? "s" : ""}
               </div>
             </div>
           ))}
@@ -1007,7 +1094,7 @@ function DeploySheet({
 }) {
   const [deploying, setDeploying] = useState(false);
   const [error, setError]         = useState<string | null>(null);
-  const vercelConnected = false; // TODO: connect via settings
+  const vercelConnected = false;
 
   const handleDeploy = async () => {
     setDeploying(true); setError(null);
@@ -1028,55 +1115,59 @@ function DeploySheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-zinc-950 border border-zinc-800 rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-zinc-900 border border-zinc-800 rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-zinc-800 border border-zinc-700 rounded-xl flex items-center justify-center">
               <svg viewBox="0 0 76 65" className="w-4 h-4 fill-zinc-50"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z" /></svg>
             </div>
             <div>
-              <h2 className="text-zinc-50 font-medium text-sm">Deploy to Vercel</h2>
-              <p className="text-zinc-500 text-xs">{projectName}</p>
+              <h2 className="text-zinc-100 font-semibold text-sm">Deploy to Vercel</h2>
+              <p className="text-zinc-500 text-xs mt-0.5">{projectName}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="space-y-3 mb-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-center justify-between">
-            <span className="text-sm text-zinc-300">Files</span>
-            <span className="text-sm font-mono text-zinc-50">{fileCount}</span>
+        <div className="space-y-2.5 mb-6">
+          <div className="bg-zinc-800 border border-zinc-700/60 rounded-xl p-4 flex items-center justify-between">
+            <span className="text-sm text-zinc-300">Files ready</span>
+            <span className="text-sm font-mono font-medium text-zinc-100">{fileCount}</span>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-center justify-between">
+          <div className="bg-zinc-800 border border-zinc-700/60 rounded-xl p-4 flex items-center justify-between">
             <span className="text-sm text-zinc-300">Vercel account</span>
             {vercelConnected ? (
-              <span className="flex items-center gap-1.5 text-xs text-green-400">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full" /> Connected
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /> Connected
               </span>
             ) : (
-              <span className="text-xs text-zinc-500">Connect in Settings (coming soon)</span>
+              <span className="text-xs text-zinc-500">Coming soon</span>
             )}
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 text-sm text-destructive">{error}</div>
+          <div className="mb-4 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
         )}
 
         <Button
           onClick={handleDeploy}
           disabled={deploying || !vercelConnected || fileCount === 0}
-          className="w-full bg-zinc-50 text-zinc-950 hover:bg-zinc-200 font-medium h-10"
+          className="w-full bg-zinc-50 text-zinc-950 hover:bg-zinc-200 font-semibold h-10 gap-2"
         >
           {deploying
-            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deploying...</>
-            : <><Rocket className="w-4 h-4 mr-2" /> Deploy now</>}
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Deploying…</>
+            : <><Rocket className="w-4 h-4" /> Deploy now</>}
         </Button>
 
         {!vercelConnected && (
           <p className="text-center text-xs text-zinc-600 mt-3">
-            Vercel integration is coming soon.
+            Vercel integration coming soon — stay tuned.
           </p>
         )}
       </div>
@@ -1084,12 +1175,12 @@ function DeploySheet({
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function FileIcon({ path, className }: { path: string; className?: string }) {
   if (/\.(tsx?|jsx?)$/.test(path)) return <FileCode className={`${className} text-blue-400`} />;
   if (path.endsWith(".json"))       return <FileJson className={`${className} text-yellow-400`} />;
-  if (path.endsWith(".css"))        return <FileType2 className={`${className} text-green-400`} />;
+  if (path.endsWith(".css"))        return <FileType2 className={`${className} text-emerald-400`} />;
   return <File className={`${className} text-zinc-400`} />;
 }
 

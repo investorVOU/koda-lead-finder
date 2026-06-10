@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { stripeFetch, paystackFetch } from "@/lib/billing.server";
 import { NUMBER_COUNTRIES } from "@/lib/numbers";
+import { verifyHCaptcha } from "@/lib/hcaptcha.server";
 import {
   searchTelnyxNumbers,
   requestSMSPoolNumber,
@@ -11,6 +12,11 @@ import {
   getSMSPoolCountries,
   getSMSPoolServices,
 } from "@/lib/services/phone-numbers";
+
+// Derive redirect base URL server-side — never trust the client origin
+function appUrl(): string {
+  return process.env.APP_URL ?? "https://kodarai.xyz";
+}
 
 // ── Search available Telnyx numbers ──────────────────────────────────────────
 
@@ -40,10 +46,11 @@ export const searchAvailableNumbers = createServerFn({ method: "POST" })
 // ── Initiate Telnyx number purchase (checkout session) ────────────────────────
 
 const purchaseSchema = z.object({
-  phoneNumber: z.string().min(7),
-  country: z.string().length(2),
-  provider: z.enum(["stripe", "paystack"]),
-  origin: z.string().url(),
+  phoneNumber:  z.string().min(7),
+  country:      z.string().length(2),
+  provider:     z.enum(["stripe", "paystack"]),
+  captchaToken: z.string().min(1).optional(),
+  // Origin / price intentionally NOT accepted from client — derived server-side
 });
 
 export const initiateNumberPurchase = createServerFn({ method: "POST" })
@@ -52,8 +59,20 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId, supabase } = context;
 
+    // hCaptcha verification
+    if (data.captchaToken) {
+      const ok = await verifyHCaptcha(data.captchaToken);
+      if (!ok) return { error: true, message: "Captcha verification failed." } as const;
+    }
+
+    // Price looked up server-side only — never trust client-supplied values
     const countryInfo = NUMBER_COUNTRIES.find((c) => c.code === data.country);
     if (!countryInfo) return { error: true, message: "Unknown country" } as const;
+
+    const { getCachedFxRate } = await import("@/lib/wallet.server");
+    const fxRate   = await getCachedFxRate();
+    const actualUsd = countryInfo.usd;
+    const actualNgn = Math.round(countryInfo.usd * fxRate);
 
     const { data: userData } = await supabase.auth.getUser();
     const email = userData.user?.email ?? "";
@@ -69,8 +88,8 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
         country_code: data.country,
         provider:     "telnyx",
         status:       "pending_payment",
-        monthly_usd:  countryInfo.usd,
-        monthly_ngn:  countryInfo.ngn,
+        monthly_usd:  actualUsd,
+        monthly_ngn:  actualNgn,
         expires_at:   new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString(),
       })
       .select("id")
@@ -78,8 +97,9 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
 
     if (dbErr || !numRow) return { error: true, message: "Failed to create number record" } as const;
 
-    const successUrl = `${data.origin}/numbers?status=success`;
-    const cancelUrl  = `${data.origin}/numbers?status=cancel`;
+    const base       = appUrl();
+    const successUrl = `${base}/numbers?status=success`;
+    const cancelUrl  = `${base}/numbers?status=cancel`;
 
     if (data.provider === "stripe") {
       try {
@@ -97,9 +117,10 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
           "payment_intent_data[metadata][user_id]": userId,
           "payment_intent_data[metadata][kind]":    "number_rental",
           "line_items[0][quantity]": 1,
-          "line_items[0][price_data][currency]": "usd",
-          "line_items[0][price_data][unit_amount]": Math.round(countryInfo.usd * 100),
-          "line_items[0][price_data][product_data][name]": `Kodarai Virtual Number (${data.country}) — 1 month`,
+          "line_items[0][price_data][currency]":    "usd",
+          "line_items[0][price_data][unit_amount]": Math.round(actualUsd * 100),
+          "line_items[0][price_data][product_data][name]":
+            `Kodarai Virtual Number (${data.country}) — 1 month`,
         });
         return { url: session.url } as const;
       } catch (e: unknown) {
@@ -108,25 +129,29 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
       }
     }
 
-    // Paystack (NGN)
+    // ── Paystack (NGN) ────────────────────────────────────────────────────────
     if (!email) return { error: true, message: "Email required for Paystack" } as const;
     try {
-      const ref  = `num_${numRow.id}_${Date.now()}`;
-      const init = await paystackFetch<{ authorization_url: string }>("/transaction/initialize", {
-        email,
-        amount:       String(Math.round(countryInfo.ngn * 100)),
-        currency:     "NGN",
-        reference:    ref,
-        callback_url: successUrl,
-        metadata:     JSON.stringify({
-          user_id:      userId,
-          kind:         "number_rental",
-          number_id:    numRow.id,
-          phone_number: data.phoneNumber,
-          country:      data.country,
-        }),
-      });
-      return { url: init.authorization_url } as const;
+      const ref = `num_${numRow.id}_${Date.now()}`;
+      const res = await paystackFetch<{ data: { authorization_url: string } }>(
+        "/transaction/initialize",
+        "POST",
+        {
+          email,
+          amount:       Math.round(actualNgn * 100), // kobo
+          currency:     "NGN",
+          reference:    ref,
+          callback_url: successUrl,
+          metadata: {
+            user_id:      userId,
+            kind:         "number_rental",
+            number_id:    numRow.id,
+            phone_number: data.phoneNumber,
+            country:      data.country,
+          },
+        },
+      );
+      return { url: res.data.authorization_url } as const;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Paystack error";
       return { error: true, message: msg } as const;
@@ -224,8 +249,10 @@ export const releaseNumber = createServerFn({ method: "POST" })
 // ── Buy Telnyx number from wallet balance ─────────────────────────────────────
 
 const walletBuySchema = z.object({
-  phoneNumber: z.string().min(7),
-  country:     z.string().length(2),
+  phoneNumber:  z.string().min(7),
+  country:      z.string().length(2),
+  captchaToken: z.string().min(1).optional(),
+  // Price intentionally NOT accepted from client — looked up server-side
 });
 
 export const buyNumberFromWallet = createServerFn({ method: "POST" })
@@ -233,8 +260,21 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
   .inputValidator((d) => walletBuySchema.parse(d))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+
+    // hCaptcha verification
+    if (data.captchaToken) {
+      const ok = await verifyHCaptcha(data.captchaToken);
+      if (!ok) return { error: true, message: "Captcha verification failed." } as const;
+    }
+
+    // Price looked up server-side only — never trust client-supplied values
     const countryInfo = NUMBER_COUNTRIES.find((c) => c.code === data.country);
     if (!countryInfo) return { error: true, message: "Unknown country" } as const;
+
+    const { getCachedFxRate } = await import("@/lib/wallet.server");
+    const fxRate   = await getCachedFxRate();
+    const actualUsd = countryInfo.usd;
+    const actualNgn = Math.round(countryInfo.usd * fxRate);
 
     const { debitWallet }           = await import("@/lib/wallet.server");
     const { activateVirtualNumber } = await import("@/lib/numbers.server");
@@ -249,8 +289,8 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
         country_code: data.country,
         provider:     "telnyx",
         status:       "pending_payment",
-        monthly_usd:  countryInfo.usd,
-        monthly_ngn:  countryInfo.ngn,
+        monthly_usd:  actualUsd,
+        monthly_ngn:  actualNgn,
       })
       .select("id")
       .single();
@@ -259,7 +299,7 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
 
     const ok = await debitWallet({
       userId,
-      amountNgn:   countryInfo.ngn,
+      amountNgn:   actualNgn,
       phoneNumber: data.phoneNumber,
     });
     if (!ok) {
@@ -274,7 +314,7 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
         userId,
         provider:    "wallet",
         reference:   `wallet_${numRow.id}`,
-        amount:      countryInfo.ngn,
+        amount:      actualNgn,
       });
       return { success: true } as const;
     } catch (e: unknown) {
@@ -282,7 +322,7 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
       const { creditWallet } = await import("@/lib/wallet.server");
       await creditWallet({
         userId,
-        amountNgn:   countryInfo.ngn,
+        amountNgn:   actualNgn,
         type:        "refund",
         description: `Refund: failed number provision ${data.phoneNumber}`,
       });

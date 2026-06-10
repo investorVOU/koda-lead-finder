@@ -63,7 +63,9 @@ export async function searchTelnyxNumbers(
   const params = new URLSearchParams({
     "filter[country_code]": countryCode,
     "filter[limit]":        "10",
-    "filter[phone_number_type]": "local",
+    // Do NOT filter by phone_number_type — "local" only exists in US/CA.
+    // European numbers are "national", APAC are "mobile", etc.
+    // Telnyx will return whatever is available for the country.
   });
   // filter[features] accepts an array of capability strings: sms, mms, voice, fax, etc.
   for (const cap of capabilities) {
@@ -160,11 +162,13 @@ export async function requestSMSPoolNumber(
   country: string,
   service: string = "any",
 ): Promise<SMSPoolNumber> {
-  const params = new URLSearchParams({
-    key:     smsPoolKey(),
-    country,
-    service,
-  });
+  // Build params — omit "service" when the user chose "any" (cheapest available).
+  // SMSPool does NOT accept "any" as a valid service ID; omitting the param means
+  // "give me the cheapest number available in this country."
+  const params = new URLSearchParams({ key: smsPoolKey(), country });
+  if (service && service !== "any") {
+    params.set("service", service);
+  }
 
   // Correct endpoint: /purchase/sms (verified against SMSPool API docs)
   const res = await fetch(`${SMSPOOL_BASE}/purchase/sms?${params}`);
@@ -303,9 +307,153 @@ export async function getSMSPoolServices(): Promise<SMSPoolService[]> {
 
 export { extractOTP, detectService } from "@/lib/sms-utils";
 
-export async function forwardSMS(_numberId: string, _message: string): Promise<void> {
-  // TODO: implement via Telnyx outbound messaging API
-  // POST /v2/messages { from, to, text }
+// ── TELNYX: Send outbound SMS ─────────────────────────────────────────────────
+
+export async function sendTelnyxSMS(
+  from: string,
+  to: string,
+  text: string,
+): Promise<string> {
+  const profileId = process.env.TELNYX_MESSAGING_PROFILE_ID;
+  const res = await fetch(`${TELNYX_BASE}/messages`, {
+    method: "POST",
+    headers: telnyxHeaders(),
+    body: JSON.stringify({
+      from,
+      to,
+      text,
+      ...(profileId && { messaging_profile_id: profileId }),
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { errors?: Array<{ detail?: string }> };
+    throw new Error(err?.errors?.[0]?.detail ?? `Telnyx send SMS failed (${res.status})`);
+  }
+  const json = await res.json() as { data: { id: string } };
+  return json.data.id;
+}
+
+// ── TELNYX: Configure call forwarding on a number ─────────────────────────────
+
+export async function configureTelnyxCallForward(
+  telnyxNumberId: string,
+  forwardTo: string | null,
+): Promise<void> {
+  // Call forwarding via Telnyx Call Control requires the number to be attached
+  // to a Call Control Application whose webhook URL is /api/public/webhooks/telnyx-voice.
+  // We store the forward destination in our DB; the webhook handler does the actual transfer.
+  // This call just updates the Telnyx voice settings to enable/disable call-and-transfer.
+  const res = await fetch(`${TELNYX_BASE}/phone_numbers/${telnyxNumberId}`, {
+    method: "PATCH",
+    headers: telnyxHeaders(),
+    body: JSON.stringify({
+      call_forward_enable: !!forwardTo,
+    }),
+  });
+  // Ignore 404 / 422 — number may not be a Call Control number
+  if (!res.ok && res.status !== 404 && res.status !== 422) {
+    const err = await res.json().catch(() => ({})) as { errors?: Array<{ detail?: string }> };
+    throw new Error(err?.errors?.[0]?.detail ?? `Telnyx call forward config failed (${res.status})`);
+  }
+}
+
+// ── SMSPOOL: Account balance ──────────────────────────────────────────────────
+
+export async function getSMSPoolBalance(): Promise<number> {
+  try {
+    const params = new URLSearchParams({ key: smsPoolKey() });
+    const res = await fetch(`${SMSPOOL_BASE}/account/balance?${params}`);
+    if (!res.ok) return 0;
+    const json = await res.json() as { balance?: string | number };
+    return parseFloat(String(json.balance ?? "0"));
+  } catch {
+    return 0;
+  }
+}
+
+// ── SMSPOOL: Cancel active order ──────────────────────────────────────────────
+
+export async function cancelSMSPoolOrder(orderId: string): Promise<void> {
+  const params = new URLSearchParams({ key: smsPoolKey(), orderid: orderId });
+  const res = await fetch(`${SMSPOOL_BASE}/sms/cancel?${params}`);
+  if (!res.ok) throw new Error(`SMSPool cancel failed (${res.status})`);
+  const json = await res.json() as { success?: number; message?: string };
+  if (json.success !== 1) throw new Error(json.message ?? "SMSPool cancel failed");
+}
+
+// ── SMSPOOL: Resend SMS request ───────────────────────────────────────────────
+
+export async function resendSMSPoolSMS(orderId: string): Promise<void> {
+  const params = new URLSearchParams({ key: smsPoolKey(), orderid: orderId });
+  const res = await fetch(`${SMSPOOL_BASE}/sms/resend?${params}`);
+  if (!res.ok) throw new Error(`SMSPool resend failed (${res.status})`);
+  const json = await res.json() as { success?: number; message?: string };
+  if (json.success !== 1) throw new Error(json.message ?? "SMSPool resend failed");
+}
+
+// ── SMSPOOL: Order history ────────────────────────────────────────────────────
+
+export interface SMSPoolOrder {
+  order_id: string;
+  number: string;
+  country?: string;
+  service?: string;
+  /** numeric: 1=waiting, 2=received, 3=expired/cancelled */
+  status: number;
+  sms?: string;
+}
+
+export async function getSMSPoolOrderHistory(): Promise<SMSPoolOrder[]> {
+  try {
+    const params = new URLSearchParams({ key: smsPoolKey() });
+    const res = await fetch(`${SMSPOOL_BASE}/sms/history?${params}`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json) ? (json as SMSPoolOrder[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// ── SMSPOOL: Purchase rental number (1-30 day) ────────────────────────────────
+
+export interface SMSPoolRentalNumber {
+  orderId: string;
+  phoneNumber: string;
+  expiresIn: number; // seconds
+}
+
+export async function purchaseSMSPoolRentalNumber(
+  country: string,
+  service: string = "any",
+  days: number = 7,
+): Promise<SMSPoolRentalNumber> {
+  const params = new URLSearchParams({ key: smsPoolKey(), country, days: String(days) });
+  if (service && service !== "any") params.set("service", service);
+
+  const res = await fetch(`${SMSPOOL_BASE}/purchase/number?${params}`);
+  if (!res.ok) throw new Error(`SMSPool rental failed (${res.status})`);
+
+  const json = await res.json() as {
+    success?: number;
+    error?: number;
+    message?: string;
+    order_id?: string | number;
+    number?: string;
+    phonenumber?: string;
+    expires_in?: number;
+  };
+
+  if (json.error || json.success === 0) {
+    throw new Error(json.message ?? "SMSPool rental failed — check country/service availability");
+  }
+
+  const orderId     = String(json.order_id ?? "");
+  const phoneNumber = json.number ?? json.phonenumber ?? "";
+  const expiresIn   = json.expires_in ?? days * 24 * 3600;
+
+  if (!orderId || !phoneNumber) throw new Error("SMSPool returned invalid rental response");
+  return { orderId, phoneNumber, expiresIn };
 }
 
 // ── Fallback lists ────────────────────────────────────────────────────────────

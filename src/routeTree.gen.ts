@@ -37,6 +37,7 @@ import { Route as ApiStudioGenerateRouteImport } from './routes/api/studio/gener
 import { Route as AuthenticatedStudioNewRouteImport } from './routes/_authenticated/studio.new'
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool/poll.$numberId'
+import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
 import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks/stripe'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
@@ -182,6 +183,12 @@ const ApiSmspoolPollNumberIdRoute = ApiSmspoolPollNumberIdRouteImport.update({
   path: '/api/smspool/poll/$numberId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksTelnyxVoiceRoute =
+  ApiPublicWebhooksTelnyxVoiceRouteImport.update({
+    id: '/api/public/webhooks/telnyx-voice',
+    path: '/api/public/webhooks/telnyx-voice',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksStripeRoute = ApiPublicWebhooksStripeRouteImport.update({
   id: '/api/public/webhooks/stripe',
   path: '/api/public/webhooks/stripe',
@@ -230,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
+  '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
 export interface FileRoutesByTo {
@@ -261,6 +269,7 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
+  '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
 export interface FileRoutesById {
@@ -295,6 +304,7 @@ export interface FileRoutesById {
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
+  '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
 export interface FileRouteTypes {
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
+    | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
+    | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   id:
     | '__root__'
@@ -393,6 +405,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
+    | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   fileRoutesById: FileRoutesById
 }
@@ -413,6 +426,7 @@ export interface RootRouteChildren {
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksSmsIncomingRoute: typeof ApiPublicWebhooksSmsIncomingRoute
   ApiPublicWebhooksStripeRoute: typeof ApiPublicWebhooksStripeRoute
+  ApiPublicWebhooksTelnyxVoiceRoute: typeof ApiPublicWebhooksTelnyxVoiceRoute
   ApiSmspoolPollNumberIdRoute: typeof ApiSmspoolPollNumberIdRoute
 }
 
@@ -614,6 +628,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSmspoolPollNumberIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/telnyx-voice': {
+      id: '/api/public/webhooks/telnyx-voice'
+      path: '/api/public/webhooks/telnyx-voice'
+      fullPath: '/api/public/webhooks/telnyx-voice'
+      preLoaderRoute: typeof ApiPublicWebhooksTelnyxVoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/stripe': {
       id: '/api/public/webhooks/stripe'
       path: '/api/public/webhooks/stripe'
@@ -702,6 +723,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksSmsIncomingRoute: ApiPublicWebhooksSmsIncomingRoute,
   ApiPublicWebhooksStripeRoute: ApiPublicWebhooksStripeRoute,
+  ApiPublicWebhooksTelnyxVoiceRoute: ApiPublicWebhooksTelnyxVoiceRoute,
   ApiSmspoolPollNumberIdRoute: ApiSmspoolPollNumberIdRoute,
 }
 export const routeTree = rootRouteImport

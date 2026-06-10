@@ -97,6 +97,11 @@ export interface VirtualNumber {
   expires_at: string | null;
   created_at: string;
   updated_at: string;
+  // Feature additions (migration 20260610200000)
+  auto_renew: boolean;
+  label: string | null;
+  call_forward_to: string | null;
+  call_forward_enabled: boolean;
 }
 
 export interface SmsMessage {
@@ -113,6 +118,15 @@ export interface SmsMessage {
   body: string;
   status: string;
   received_at: string;
+  is_read: boolean;
+}
+
+export interface SmsTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  body: string;
+  created_at: string;
 }
 
 // SMSPool temp number pricing (approx USD, varies by country/service)
