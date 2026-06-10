@@ -32,6 +32,7 @@ import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChoosePlanRouteImport } from './routes/_authenticated/choose-plan'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as AuthenticatedStudioIndexRouteImport } from './routes/_authenticated/studio.index'
 import { Route as ApiStudioGenerateRouteImport } from './routes/api/studio/generate'
 import { Route as AuthenticatedStudioNewRouteImport } from './routes/_authenticated/studio.new'
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
@@ -154,6 +155,12 @@ const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedStudioIndexRoute =
+  AuthenticatedStudioIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
 const ApiStudioGenerateRoute = ApiStudioGenerateRouteImport.update({
   id: '/api/studio/generate',
   path: '/api/studio/generate',
@@ -219,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/studio/new': typeof AuthenticatedStudioNewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
+  '/studio/': typeof AuthenticatedStudioIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
@@ -244,12 +252,12 @@ export interface FileRoutesByTo {
   '/referrals': typeof AuthenticatedReferralsRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/studio/new': typeof AuthenticatedStudioNewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
+  '/studio': typeof AuthenticatedStudioIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/_authenticated/studio/new': typeof AuthenticatedStudioNewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
+  '/_authenticated/studio/': typeof AuthenticatedStudioIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/studio/$projectId'
     | '/studio/new'
     | '/api/studio/generate'
+    | '/studio/'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
@@ -341,12 +351,12 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/revenue'
     | '/settings'
-    | '/studio'
     | '/api/ping'
     | '/preview/$slug'
     | '/studio/$projectId'
     | '/studio/new'
     | '/api/studio/generate'
+    | '/studio'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
@@ -379,6 +389,7 @@ export interface FileRouteTypes {
     | '/_authenticated/studio/$projectId'
     | '/_authenticated/studio/new'
     | '/api/studio/generate'
+    | '/_authenticated/studio/'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/stripe'
@@ -568,6 +579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/studio/': {
+      id: '/_authenticated/studio/'
+      path: '/'
+      fullPath: '/studio/'
+      preLoaderRoute: typeof AuthenticatedStudioIndexRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
     '/api/studio/generate': {
       id: '/api/studio/generate'
       path: '/api/studio/generate'
@@ -623,11 +641,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedStudioRouteChildren {
   AuthenticatedStudioProjectIdRoute: typeof AuthenticatedStudioProjectIdRoute
   AuthenticatedStudioNewRoute: typeof AuthenticatedStudioNewRoute
+  AuthenticatedStudioIndexRoute: typeof AuthenticatedStudioIndexRoute
 }
 
 const AuthenticatedStudioRouteChildren: AuthenticatedStudioRouteChildren = {
   AuthenticatedStudioProjectIdRoute: AuthenticatedStudioProjectIdRoute,
   AuthenticatedStudioNewRoute: AuthenticatedStudioNewRoute,
+  AuthenticatedStudioIndexRoute: AuthenticatedStudioIndexRoute,
 }
 
 const AuthenticatedStudioRouteWithChildren =
