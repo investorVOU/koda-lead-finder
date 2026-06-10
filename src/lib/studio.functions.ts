@@ -57,7 +57,7 @@ const createProjectSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
   template: z.string().max(50).default("blank"),
-  initial_prompt: z.string().max(2000).optional(),
+  initial_prompt: z.string().max(8000).optional(),
 });
 
 export const createStudioProject = createServerFn({ method: "POST" })
