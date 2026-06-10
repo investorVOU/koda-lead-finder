@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-// Groq — llama-3.3-70b for fast code generation (OpenAI-compatible)
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+// Gemini 2.5 Flash — native API with x-goog-api-key (supports AQ. keys)
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse";
 
 const SYSTEM_PROMPT = `You are Kodarai Studio — an expert web designer who builds professional websites for local businesses.
 
@@ -48,7 +48,6 @@ function buildSystemContext(
     ctx += `\n\nProject files (${filePaths.length} total):\n${filePaths.map((f) => `- ${f}`).join("\n")}`;
     if (currentFile && files[currentFile]) {
       const content = files[currentFile];
-      // Limit to 6000 chars to stay within context
       const preview = content.length > 6000 ? content.slice(0, 6000) + "\n... [truncated]" : content;
       ctx += `\n\nCurrently open — ${currentFile}:\n\`\`\`\n${preview}\n\`\`\``;
     }
@@ -83,7 +82,6 @@ async function checkLimit(userId: string): Promise<{ allowed: boolean; used: num
   const plan = (sub as { plan?: string } | null)?.plan ?? "free";
   const limit = PLAN_LIMITS[plan] ?? 5;
 
-  // Count user messages this month across all studio projects
   const { data: projects } = await db
     .from("studio_projects")
     .select("id")
@@ -186,9 +184,9 @@ export const Route = createFileRoute("/api/studio/generate")({
         }
 
         // ── AI config ─────────────────────────────────────────────────────────
-        const apiKey = process.env.GROQ_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-          return new Response(JSON.stringify({ error: "AI not configured — GROQ_API_KEY missing" }), {
+          return new Response(JSON.stringify({ error: "AI not configured — GEMINI_API_KEY missing" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });
@@ -196,40 +194,58 @@ export const Route = createFileRoute("/api/studio/generate")({
 
         const systemPrompt = buildSystemContext(files, currentFile, leadContext);
 
-        // ── Call Groq llama-3.3-70b with streaming ────────────────────────────
-        const gatewayRes = await fetch(GROQ_URL, {
+        // ── Convert messages to Gemini native format ──────────────────────────
+        // Gemini uses "model" instead of "assistant" and requires alternating turns.
+        // Merge consecutive same-role messages to satisfy the alternation requirement.
+        const rawContents = messages.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        }));
+
+        const contents: { role: string; parts: { text: string }[] }[] = [];
+        for (const msg of rawContents) {
+          const last = contents[contents.length - 1];
+          if (last && last.role === msg.role) {
+            last.parts[0].text += "\n" + msg.parts[0].text;
+          } else {
+            contents.push({ ...msg, parts: [{ text: msg.parts[0].text }] });
+          }
+        }
+
+        // ── Call Gemini 2.5 Flash with native streaming ───────────────────────
+        const geminiRes = await fetch(GEMINI_URL, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${apiKey}`,
+            "x-goog-api-key": apiKey,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: GROQ_MODEL,
-            stream: true,
-            max_tokens: 8192,
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...messages,
-            ],
+            systemInstruction: {
+              parts: [{ text: systemPrompt }],
+            },
+            contents,
+            generationConfig: {
+              maxOutputTokens: 8192,
+            },
           }),
         });
 
-        if (!gatewayRes.ok) {
-          const errText = await gatewayRes.text().catch(() => "");
-          console.error("Studio generate gateway error", gatewayRes.status, errText);
-          return new Response(JSON.stringify({ error: "AI unavailable" }), {
-            status: 502,
-            headers: { "Content-Type": "application/json" },
-          });
+        if (!geminiRes.ok) {
+          const errText = await geminiRes.text().catch(() => "");
+          console.error("Studio generate Gemini error", geminiRes.status, errText);
+          return new Response(
+            JSON.stringify({ error: `Gemini error ${geminiRes.status}: ${errText.slice(0, 200)}` }),
+            { status: 502, headers: { "Content-Type": "application/json" } }
+          );
         }
 
-        // ── Transform + proxy the SSE stream ─────────────────────────────────
+        // ── Proxy the SSE stream, normalising to our internal format ──────────
         const encoder = new TextEncoder();
         let fullContent = "";
 
         const outStream = new ReadableStream({
           async start(controller) {
-            const reader = gatewayRes.body!.getReader();
+            const reader = geminiRes.body!.getReader();
             const decoder = new TextDecoder();
 
             try {
@@ -238,24 +254,20 @@ export const Route = createFileRoute("/api/studio/generate")({
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split("\n");
-
-                for (const line of lines) {
+                for (const line of chunk.split("\n")) {
                   if (!line.startsWith("data: ")) continue;
                   const raw = line.slice(6).trim();
-                  if (raw === "[DONE]") continue;
+                  if (!raw || raw === "[DONE]") continue;
 
                   try {
                     const parsed = JSON.parse(raw) as {
-                      choices?: { delta?: { content?: string } }[];
+                      candidates?: { content?: { parts?: { text?: string }[] } }[];
                     };
-                    const text = parsed.choices?.[0]?.delta?.content;
+                    const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
                     if (text) {
                       fullContent += text;
                       controller.enqueue(
-                        encoder.encode(
-                          `data: ${JSON.stringify({ type: "text", text })}\n\n`
-                        )
+                        encoder.encode(`data: ${JSON.stringify({ type: "text", text })}\n\n`)
                       );
                     }
                   } catch {
@@ -264,15 +276,12 @@ export const Route = createFileRoute("/api/studio/generate")({
                 }
               }
 
-              // ── Post-stream: send final event ──────────────────────────────
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ type: "done", fullContent })}\n\n`)
               );
             } catch (err) {
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`
-                )
+                encoder.encode(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`)
               );
             } finally {
               controller.close();
