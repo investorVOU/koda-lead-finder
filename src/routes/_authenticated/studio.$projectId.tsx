@@ -346,7 +346,7 @@ function Builder() {
         if (err.error === "limit_reached") {
           toast.error(err.message ?? "Monthly AI message limit reached. Upgrade to continue.");
         } else {
-          toast.error("Generation failed. Please try again.");
+          toast.error(err.error || err.message || "Generation failed. Please try again.");
         }
         setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempAsstId && m.id !== tempUserMsg.id));
         return;
@@ -706,26 +706,100 @@ function DesktopLayout({
   return (
     <div className="flex-1 overflow-hidden">
       <ResizablePanelGroup orientation="horizontal" className="h-full">
-        {/* Left — Chat/Files/History */}
-        <ResizablePanel defaultSize={22} minSize={16} maxSize={32} className="bg-zinc-950 flex flex-col border-r border-zinc-800">
-          <LeftPanel
-            projectId={projectId}
-            files={files}
-            allMessages={allMessages}
-            snapshots={snapshots}
-            isStreaming={isStreaming}
-            onFileSelect={onFileSelect}
-            onSend={onSend}
-          />
+        {/* Left — Chat (always visible, generous width) */}
+        <ResizablePanel defaultSize={36} minSize={28} maxSize={50} className="bg-zinc-950 flex flex-col border-r border-zinc-800">
+          <ChatTab allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />
         </ResizablePanel>
 
-        <ResizableHandle className="w-[1px] bg-zinc-800 hover:bg-primary/50 transition-colors" />
+        <ResizableHandle className="w-[3px] bg-zinc-800 hover:bg-primary/40 transition-colors cursor-col-resize" />
 
-        {/* Center — Editor */}
-        <ResizablePanel defaultSize={48} minSize={30} className="bg-[#09090b] flex flex-col">
-          {openFiles.length > 0 ? (
-            <>
-              <div className="flex bg-zinc-950 border-b border-zinc-800 overflow-x-auto hide-scrollbar">
+        {/* Right — tabbed: Preview | Code | Files | History */}
+        <ResizablePanel defaultSize={64} minSize={40} className="bg-zinc-950 flex flex-col">
+          <RightPanel
+            files={files}
+            currentFile={currentFile}
+            openFiles={openFiles}
+            deploymentUrl={deploymentUrl}
+            snapshots={snapshots}
+            fileCount={fileCount}
+            mounted={mounted}
+            onFileSelect={onFileSelect}
+            onCloseFile={onCloseFile}
+            onDeploy={onDeploy}
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
+  );
+}
+
+// ─── Right Panel (desktop) — tabs: Preview | Code | Files | History ──────────
+
+function RightPanel({
+  files, currentFile, openFiles, deploymentUrl, snapshots,
+  fileCount, mounted, onFileSelect, onCloseFile, onDeploy,
+}: {
+  files: Record<string, string>;
+  currentFile: string | null;
+  openFiles: string[];
+  deploymentUrl: string | null;
+  snapshots: StudioSnapshot[];
+  fileCount: number;
+  mounted: boolean;
+  onFileSelect: (p: string) => void;
+  onCloseFile: (e: React.MouseEvent, p: string) => void;
+  onDeploy: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"preview" | "code" | "files" | "history">("preview");
+
+  const tabs = [
+    { id: "preview" as const, icon: Eye,        label: "Preview" },
+    { id: "code"    as const, icon: Code2,       label: "Code"    },
+    { id: "files"   as const, icon: FolderGit2,  label: "Files"   },
+    { id: "history" as const, icon: History,     label: "History" },
+  ];
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Tab bar */}
+      <div className="flex items-center border-b border-zinc-800 bg-zinc-950 shrink-0 px-2 gap-0.5 h-10">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === t.id
+                ? "bg-zinc-800 text-zinc-50"
+                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
+            }`}
+          >
+            <t.icon className="w-3.5 h-3.5" />
+            {t.label}
+          </button>
+        ))}
+        {deploymentUrl && (
+          <a
+            href={deploymentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors pr-2"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            Live
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        )}
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === "preview" && (
+          <LivePreview files={files} deploymentUrl={deploymentUrl} onDeploy={onDeploy} fileCount={fileCount} />
+        )}
+        {activeTab === "code" && (
+          <div className="flex flex-col h-full bg-[#09090b]">
+            {openFiles.length > 0 && (
+              <div className="flex bg-zinc-950 border-b border-zinc-800 overflow-x-auto shrink-0" style={{ scrollbarWidth: "none" }}>
                 {openFiles.map((path) => (
                   <div
                     key={path}
@@ -736,116 +810,47 @@ function DesktopLayout({
                         : "bg-zinc-950 text-zinc-500 hover:bg-zinc-900 border-t-2 border-t-transparent"
                     }`}
                   >
-                    <FileIcon path={path} className="w-3.5 h-3.5 mr-2 opacity-80" />
+                    <FileIcon path={path} className="w-3.5 h-3.5 mr-1.5 opacity-80" />
                     {path.split("/").pop()}
                     <button
                       onClick={(e) => onCloseFile(e, path)}
-                      className="ml-2 opacity-0 group-hover:opacity-100 hover:text-zinc-200 p-0.5 text-zinc-500"
+                      className="ml-2 opacity-0 group-hover:opacity-60 hover:opacity-100 p-0.5 text-zinc-500"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
               </div>
-              <div className="flex-1 relative">
-                {mounted && currentFile && files[currentFile] !== undefined ? (
-                  <Suspense fallback={<EditorSkeleton />}>
-                    <MonacoEditor
-                      key={currentFile}
-                      height="100%"
-                      path={currentFile}
-                      defaultValue={files[currentFile] || ""}
-                      theme="vs-dark"
-                      options={{
-                        minimap: { enabled: false },
-                        fontSize: 13,
-                        fontFamily: "Geist Mono, monospace",
-                        padding: { top: 16 },
-                        scrollBeyondLastLine: false,
-                        lineHeight: 24,
-                      }}
-                    />
-                  </Suspense>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-zinc-600 text-sm">
-                    Select a file to edit
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-zinc-600">
-              <TerminalIcon className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-sm">Studio Editor</p>
-              <p className="text-xs mt-2 opacity-60">Select a file from the sidebar</p>
-            </div>
-          )}
-        </ResizablePanel>
-
-        <ResizableHandle className="w-[1px] bg-zinc-800 hover:bg-primary/50 transition-colors" />
-
-        {/* Right — Preview */}
-        <ResizablePanel defaultSize={30} minSize={20} className="bg-zinc-950 flex flex-col">
-          <div className="h-10 border-b border-zinc-800 flex items-center justify-between px-3 shrink-0">
-            <div className="text-xs font-medium text-zinc-400">Preview</div>
-            {deploymentUrl && (
-              <a href={deploymentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-0.5 animate-pulse" />
-                Live <ExternalLink className="w-3 h-3" />
-              </a>
             )}
+            <div className="flex-1 relative">
+              {mounted && currentFile && files[currentFile] !== undefined ? (
+                <Suspense fallback={<EditorSkeleton />}>
+                  <MonacoEditor
+                    key={currentFile}
+                    height="100%"
+                    path={currentFile}
+                    defaultValue={files[currentFile] || ""}
+                    theme="vs-dark"
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 13,
+                      fontFamily: "Geist Mono, monospace",
+                      padding: { top: 16 },
+                      scrollBeyondLastLine: false,
+                      lineHeight: 24,
+                    }}
+                  />
+                </Suspense>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-2">
+                  <TerminalIcon className="w-10 h-10 opacity-20" />
+                  <p className="text-sm">No file open — select one from Files tab</p>
+                </div>
+              )}
+            </div>
           </div>
-
-          <LivePreview
-            files={files}
-            deploymentUrl={deploymentUrl}
-            onDeploy={onDeploy}
-            fileCount={fileCount}
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
-  );
-}
-
-// ─── Left Panel (desktop) ─────────────────────────────────────────────────────
-
-function LeftPanel({
-  files, allMessages, snapshots, isStreaming, onFileSelect, onSend,
-}: {
-  projectId: string;
-  files: Record<string, string>;
-  allMessages: StudioMessage[];
-  snapshots: StudioSnapshot[];
-  isStreaming: boolean;
-  onFileSelect: (p: string) => void;
-  onSend: (prompt: string) => void;
-}) {
-  const [activeTab, setActiveTab] = useState("chat");
-  const tabs = [
-    { id: "chat",    icon: MessageSquare, label: "Chat" },
-    { id: "files",   icon: FolderGit2,    label: "Files" },
-    { id: "history", icon: History,       label: "History" },
-  ];
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex p-2 gap-1 border-b border-zinc-800 shrink-0">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium transition-colors ${
-              activeTab === t.id ? "bg-zinc-800 text-zinc-50" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
-            }`}
-          >
-            <t.icon className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">{t.label}</span>
-          </button>
-        ))}
-      </div>
-      <div className="flex-1 overflow-hidden">
-        {activeTab === "chat"    && <ChatTab allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />}
-        {activeTab === "files"   && <FilesTab files={files} onFileSelect={onFileSelect} />}
+        )}
+        {activeTab === "files" && <FilesTab files={files} onFileSelect={(p) => { onFileSelect(p); setActiveTab("code"); }} />}
         {activeTab === "history" && <HistoryTab snapshots={snapshots} />}
       </div>
     </div>

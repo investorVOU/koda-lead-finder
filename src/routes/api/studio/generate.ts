@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-// Gemini 2.0 Flash via Google AI Studio (OpenAI-compatible endpoint) — best for code gen
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const GEMINI_MODEL = "gemini-2.0-flash";
+// Groq — llama-3.3-70b for fast code generation (OpenAI-compatible)
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 const SYSTEM_PROMPT = `You are Kodarai Studio — an expert web designer who builds professional websites for local businesses.
 
@@ -186,9 +186,9 @@ export const Route = createFileRoute("/api/studio/generate")({
         }
 
         // ── AI config ─────────────────────────────────────────────────────────
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) {
-          return new Response(JSON.stringify({ error: "AI not configured" }), {
+          return new Response(JSON.stringify({ error: "AI not configured — GROQ_API_KEY missing" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });
@@ -196,15 +196,15 @@ export const Route = createFileRoute("/api/studio/generate")({
 
         const systemPrompt = buildSystemContext(files, currentFile, leadContext);
 
-        // ── Call Gemini 2.0 Flash with streaming ──────────────────────────────
-        const gatewayRes = await fetch(GEMINI_URL, {
+        // ── Call Groq llama-3.3-70b with streaming ────────────────────────────
+        const gatewayRes = await fetch(GROQ_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: GEMINI_MODEL,
+            model: GROQ_MODEL,
             stream: true,
             max_tokens: 8192,
             messages: [
