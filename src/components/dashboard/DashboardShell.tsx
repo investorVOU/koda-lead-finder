@@ -93,6 +93,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 to={item.to}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 activeProps={{ className: "bg-accent text-foreground" }}
+                activeOptions={{ exact: false }}
               >
                 {item.label}
               </Link>

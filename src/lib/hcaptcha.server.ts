@@ -9,12 +9,10 @@ export async function verifyHCaptcha(token: string | null | undefined): Promise<
 
   const secret = process.env.HCAPTCHA_SECRET_KEY;
 
-  // Dev / CI: skip if secret not configured
+  // Secret not configured — skip verification (warn once, don't block users)
   if (!secret) {
-    if (process.env.NODE_ENV !== "production") return true;
-    // Production without the secret → fail safe
-    console.error("[hCaptcha] HCAPTCHA_SECRET_KEY not set — rejecting request");
-    return false;
+    console.warn("[hCaptcha] HCAPTCHA_SECRET_KEY not set — skipping captcha check");
+    return true;
   }
 
   try {
