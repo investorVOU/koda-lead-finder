@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-// Gemini 2.5 Flash — native API with x-goog-api-key (supports AQ. keys)
+// Primary: Gemini 2.5 Flash — native API, x-goog-api-key (supports AQ. keys)
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse";
+
+// Fallback: Groq llama-3.3-70b — OpenAI-compatible, fast
+const GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 const SYSTEM_PROMPT = `You are Kodarai Studio — an expert web designer who builds professional websites for local businesses.
 
@@ -184,9 +188,10 @@ export const Route = createFileRoute("/api/studio/generate")({
         }
 
         // ── AI config ─────────────────────────────────────────────────────────
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-          return new Response(JSON.stringify({ error: "AI not configured — GEMINI_API_KEY missing" }), {
+        const geminiKey = process.env.GEMINI_API_KEY;
+        const groqKey   = process.env.GROQ_API_KEY;
+        if (!geminiKey && !groqKey) {
+          return new Response(JSON.stringify({ error: "AI not configured — set GEMINI_API_KEY or GROQ_API_KEY" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });
@@ -194,58 +199,90 @@ export const Route = createFileRoute("/api/studio/generate")({
 
         const systemPrompt = buildSystemContext(files, currentFile, leadContext);
 
-        // ── Convert messages to Gemini native format ──────────────────────────
-        // Gemini uses "model" instead of "assistant" and requires alternating turns.
-        // Merge consecutive same-role messages to satisfy the alternation requirement.
-        const rawContents = messages.map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.content }],
-        }));
+        // ── Try Gemini, fall back to Groq on any error ────────────────────────
+        let aiRes: Response | null = null;
+        let usingGroq = false;
 
-        const contents: { role: string; parts: { text: string }[] }[] = [];
-        for (const msg of rawContents) {
-          const last = contents[contents.length - 1];
-          if (last && last.role === msg.role) {
-            last.parts[0].text += "\n" + msg.parts[0].text;
-          } else {
-            contents.push({ ...msg, parts: [{ text: msg.parts[0].text }] });
+        if (geminiKey) {
+          // Gemini native format — merge consecutive same-role messages (Gemini
+          // requires strict user/model alternation)
+          const rawContents = messages.map((m) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: [{ text: m.content }],
+          }));
+          const contents: { role: string; parts: { text: string }[] }[] = [];
+          for (const msg of rawContents) {
+            const last = contents[contents.length - 1];
+            if (last && last.role === msg.role) {
+              last.parts[0].text += "\n" + msg.parts[0].text;
+            } else {
+              contents.push({ role: msg.role, parts: [{ text: msg.parts[0].text }] });
+            }
+          }
+
+          try {
+            const res = await fetch(GEMINI_URL, {
+              method: "POST",
+              headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents,
+                generationConfig: { maxOutputTokens: 8192 },
+              }),
+              signal: AbortSignal.timeout(25_000),
+            });
+            if (res.ok) {
+              aiRes = res;
+            } else {
+              const errText = await res.text().catch(() => "");
+              console.warn(`Gemini ${res.status} — falling back to Groq. ${errText.slice(0, 120)}`);
+            }
+          } catch (err) {
+            console.warn("Gemini unreachable — falling back to Groq:", err);
           }
         }
 
-        // ── Call Gemini 2.5 Flash with native streaming ───────────────────────
-        const geminiRes = await fetch(GEMINI_URL, {
-          method: "POST",
-          headers: {
-            "x-goog-api-key": apiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: systemPrompt }],
-            },
-            contents,
-            generationConfig: {
-              maxOutputTokens: 8192,
-            },
-          }),
-        });
-
-        if (!geminiRes.ok) {
-          const errText = await geminiRes.text().catch(() => "");
-          console.error("Studio generate Gemini error", geminiRes.status, errText);
-          return new Response(
-            JSON.stringify({ error: `Gemini error ${geminiRes.status}: ${errText.slice(0, 200)}` }),
-            { status: 502, headers: { "Content-Type": "application/json" } }
-          );
+        if (!aiRes && groqKey) {
+          usingGroq = true;
+          const res = await fetch(GROQ_URL, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: GROQ_MODEL,
+              stream: true,
+              max_tokens: 8192,
+              messages: [
+                { role: "system", content: systemPrompt },
+                ...messages,
+              ],
+            }),
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => "");
+            console.error("Groq fallback error", res.status, errText);
+            return new Response(
+              JSON.stringify({ error: `AI unavailable (Groq ${res.status})` }),
+              { status: 502, headers: { "Content-Type": "application/json" } }
+            );
+          }
+          aiRes = res;
         }
 
-        // ── Proxy the SSE stream, normalising to our internal format ──────────
+        if (!aiRes) {
+          return new Response(JSON.stringify({ error: "AI unavailable" }), {
+            status: 502,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // ── Proxy the SSE stream, normalising to our internal event format ────
         const encoder = new TextEncoder();
         let fullContent = "";
+        const capturedRes = aiRes;
 
         const outStream = new ReadableStream({
           async start(controller) {
-            const reader = geminiRes.body!.getReader();
+            const reader = capturedRes.body!.getReader();
             const decoder = new TextDecoder();
 
             try {
@@ -260,10 +297,20 @@ export const Route = createFileRoute("/api/studio/generate")({
                   if (!raw || raw === "[DONE]") continue;
 
                   try {
-                    const parsed = JSON.parse(raw) as {
-                      candidates?: { content?: { parts?: { text?: string }[] } }[];
-                    };
-                    const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                    const parsed = JSON.parse(raw) as Record<string, unknown>;
+                    let text: string | undefined;
+
+                    if (usingGroq) {
+                      // OpenAI-compat: choices[0].delta.content
+                      const choices = parsed.choices as { delta?: { content?: string } }[] | undefined;
+                      text = choices?.[0]?.delta?.content;
+                    } else {
+                      // Gemini native: candidates[0].content.parts[0].text
+                      const candidates = parsed.candidates as
+                        { content?: { parts?: { text?: string }[] } }[] | undefined;
+                      text = candidates?.[0]?.content?.parts?.[0]?.text;
+                    }
+
                     if (text) {
                       fullContent += text;
                       controller.enqueue(
