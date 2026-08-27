@@ -5,9 +5,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse";
 
-// Fallback: Groq llama-3.3-70b — OpenAI-compatible, fast
-const GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+// Fallback: Groq — OpenAI-compatible, fast. Ordered list: tried top to
+// bottom, first one that responds ok wins. If generation starts failing
+// again, check https://console.groq.com/docs/deprecations and add the
+// recommended replacement to the top of this list.
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b"];
 
 const SYSTEM_PROMPT = `You are Kodarai Studio — an expert web designer who builds professional websites for local businesses.
 
@@ -106,6 +109,45 @@ async function checkLimit(userId: string): Promise<{ allowed: boolean; used: num
   return { allowed: used < limit, used, limit };
 }
 
+// Try each Groq model in order until one returns a streamable response.
+// Returns the successful Response, or null if every model failed (with the
+// last error message attached for logging/user feedback).
+async function tryGroqModels(
+  groqKey: string,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[]
+): Promise<{ res: Response | null; lastStatus?: number; lastError?: string }> {
+  let lastStatus: number | undefined;
+  let lastError: string | undefined;
+
+  for (const model of GROQ_MODELS) {
+    try {
+      const res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          stream: true,
+          max_tokens: 8192,
+          messages: [{ role: "system", content: systemPrompt }, ...messages],
+        }),
+      });
+
+      if (res.ok) return { res };
+
+      const errText = await res.text().catch(() => "");
+      lastStatus = res.status;
+      lastError = errText;
+      console.warn(`Groq model ${model} failed (${res.status}) — trying next. ${errText.slice(0, 120)}`);
+    } catch (err) {
+      lastError = String(err);
+      console.warn(`Groq model ${model} unreachable — trying next.`, err);
+    }
+  }
+
+  return { res: null, lastStatus, lastError };
+}
+
 // ── Route ──────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/api/studio/generate")({
@@ -199,7 +241,7 @@ export const Route = createFileRoute("/api/studio/generate")({
 
         const systemPrompt = buildSystemContext(files, currentFile, leadContext);
 
-        // ── Try Gemini, fall back to Groq on any error ────────────────────────
+        // ── Try Gemini, fall back to Groq (across its model list) on any error ─
         let aiRes: Response | null = null;
         let usingGroq = false;
 
@@ -244,24 +286,11 @@ export const Route = createFileRoute("/api/studio/generate")({
 
         if (!aiRes && groqKey) {
           usingGroq = true;
-          const res = await fetch(GROQ_URL, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: GROQ_MODEL,
-              stream: true,
-              max_tokens: 8192,
-              messages: [
-                { role: "system", content: systemPrompt },
-                ...messages,
-              ],
-            }),
-          });
-          if (!res.ok) {
-            const errText = await res.text().catch(() => "");
-            console.error("Groq fallback error", res.status, errText);
+          const { res, lastStatus, lastError } = await tryGroqModels(groqKey, systemPrompt, messages);
+          if (!res) {
+            console.error("All Groq models failed", lastStatus, lastError);
             return new Response(
-              JSON.stringify({ error: `AI unavailable (Groq ${res.status})` }),
+              JSON.stringify({ error: `AI unavailable (Groq ${lastStatus ?? "error"})` }),
               { status: 502, headers: { "Content-Type": "application/json" } }
             );
           }
