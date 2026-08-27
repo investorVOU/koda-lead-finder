@@ -38,29 +38,86 @@ Rules:
 - Always include: proper <title>, meta description, Open Graph tags, favicon link
 - Make sites look credible and conversion-focused — hero, features/services, CTA, contact section`;
 
+// ── Context builders ──────────────────────────────────────────────────────────
+
 function buildSystemContext(
   files: Record<string, string>,
   currentFile?: string,
-  leadContext?: { businessName: string; category: string; city: string; phone?: string }
+  leadContext?: { businessName: string; category: string; city: string; phone?: string },
+  mode: "full" | "compact" = "full"
 ): string {
-  let ctx = "";
+  let ctx = SYSTEM_PROMPT;
 
   if (leadContext) {
     ctx += `\n\nClient context:\n- Business: ${leadContext.businessName}\n- Type: ${leadContext.category}\n- Location: ${leadContext.city}`;
     if (leadContext.phone) ctx += `\n- Phone: ${leadContext.phone}`;
   }
 
-  const filePaths = Object.keys(files);
-  if (filePaths.length > 0) {
-    ctx += `\n\nProject files (${filePaths.length} total):\n${filePaths.map((f) => `- ${f}`).join("\n")}`;
-    if (currentFile && files[currentFile]) {
-      const content = files[currentFile];
-      const preview = content.length > 6000 ? content.slice(0, 6000) + "\n... [truncated]" : content;
-      ctx += `\n\nCurrently open — ${currentFile}:\n\`\`\`\n${preview}\n\`\`\``;
+  const paths = Object.keys(files);
+  if (paths.length === 0) {
+    ctx += `\n\nProject is empty — create the full site from scratch.`;
+    return ctx;
+  }
+
+  ctx += `\n\nProject files (${paths.length} total):\n${paths.map((f) => `- ${f}`).join("\n")}`;
+
+  if (mode === "full") {
+    // Gemini path — send every file complete so cross-file edits stay coherent
+    for (const path of paths) {
+      ctx += `\n\n--- ${path} ---\n\`\`\`\n${files[path]}\n\`\`\``;
+    }
+    if (currentFile) {
+      ctx += `\n\n(Currently focused file: ${currentFile})`;
+    }
+  } else {
+    // Groq path — budgeted to avoid 413 / TPM errors
+    const MAX_PER_FILE = 3500;
+    const MAX_TOTAL = 10_000;
+    let used = 0;
+
+    // Prefer currently open file first
+    const ordered =
+      currentFile && files[currentFile]
+        ? [currentFile, ...paths.filter((p) => p !== currentFile)]
+        : paths;
+
+    for (const path of ordered) {
+      if (used >= MAX_TOTAL) break;
+      const content = files[path];
+      const slice =
+        content.length > MAX_PER_FILE
+          ? content.slice(0, MAX_PER_FILE) + "\n... [truncated]"
+          : content;
+      ctx += `\n\n--- ${path} ---\n\`\`\`\n${slice}\n\`\`\``;
+      used += slice.length;
     }
   }
 
-  return SYSTEM_PROMPT + ctx;
+  return ctx;
+}
+
+/** Keep the latest user message intact; trim older history only. */
+function compactMessages(
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxOlderChars = 6000
+) {
+  if (messages.length <= 1) return messages;
+
+  const latest = messages[messages.length - 1];
+  const older = messages.slice(0, -1);
+
+  let budget = maxOlderChars;
+  const kept: typeof messages = [];
+
+  for (let i = older.length - 1; i >= 0 && budget > 0; i--) {
+    const m = older[i];
+    const take =
+      m.content.length > budget ? m.content.slice(0, budget) + "…" : m.content;
+    kept.unshift({ role: m.role, content: take });
+    budget -= take.length;
+  }
+
+  return [...kept, latest];
 }
 
 // ── Rate-limit helpers ──────────────────────────────────────────────────────────
@@ -110,8 +167,8 @@ async function checkLimit(userId: string): Promise<{ allowed: boolean; used: num
 }
 
 // Try each Groq model in order until one returns a streamable response.
-// Returns the successful Response, or null if every model failed (with the
-// last error message attached for logging/user feedback).
+// Uses a compact system prompt + compacted history. On 413, retries once
+// with a tighter budget before moving to the next model.
 async function tryGroqModels(
   groqKey: string,
   systemPrompt: string,
@@ -120,28 +177,55 @@ async function tryGroqModels(
   let lastStatus: number | undefined;
   let lastError: string | undefined;
 
+  const attempts = [
+    { maxTokens: 6144, historyBudget: 7000 },
+    { maxTokens: 4096, historyBudget: 2500 }, // tighter retry on 413
+  ];
+
   for (const model of GROQ_MODELS) {
-    try {
-      const res = await fetch(GROQ_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          stream: true,
-          max_tokens: 8192,
-          messages: [{ role: "system", content: systemPrompt }, ...messages],
-        }),
-      });
+    for (const attempt of attempts) {
+      const safeMessages = compactMessages(messages, attempt.historyBudget);
 
-      if (res.ok) return { res };
+      try {
+        const res = await fetch(GROQ_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${groqKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            stream: true,
+            max_tokens: attempt.maxTokens,
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...safeMessages,
+            ],
+          }),
+        });
 
-      const errText = await res.text().catch(() => "");
-      lastStatus = res.status;
-      lastError = errText;
-      console.warn(`Groq model ${model} failed (${res.status}) — trying next. ${errText.slice(0, 120)}`);
-    } catch (err) {
-      lastError = String(err);
-      console.warn(`Groq model ${model} unreachable — trying next.`, err);
+        if (res.ok) return { res };
+
+        const errText = await res.text().catch(() => "");
+        lastStatus = res.status;
+        lastError = errText;
+
+        if (res.status === 413) {
+          console.warn(
+            `Groq ${model} 413 — tightening budget. ${errText.slice(0, 140)}`
+          );
+          continue; // try tighter budget on same model
+        }
+
+        console.warn(
+          `Groq model ${model} failed (${res.status}) — trying next. ${errText.slice(0, 140)}`
+        );
+        break; // non-413 → next model
+      } catch (err) {
+        lastError = String(err);
+        console.warn(`Groq model ${model} unreachable — trying next.`, err);
+        break;
+      }
     }
   }
 
@@ -181,7 +265,12 @@ export const Route = createFileRoute("/api/studio/generate")({
           messages: { role: "user" | "assistant"; content: string }[];
           files?: Record<string, string>;
           currentFile?: string;
-          leadContext?: { businessName: string; category: string; city: string; phone?: string };
+          leadContext?: {
+            businessName: string;
+            category: string;
+            city: string;
+            phone?: string;
+          };
         };
         try {
           body = await request.json();
@@ -194,10 +283,13 @@ export const Route = createFileRoute("/api/studio/generate")({
 
         const { projectId, messages, files = {}, currentFile, leadContext } = body;
         if (!projectId || !messages?.length) {
-          return new Response(JSON.stringify({ error: "projectId and messages are required" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          });
+          return new Response(
+            JSON.stringify({ error: "projectId and messages are required" }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
         }
 
         // ── Verify project ownership ──────────────────────────────────────────
@@ -231,23 +323,40 @@ export const Route = createFileRoute("/api/studio/generate")({
 
         // ── AI config ─────────────────────────────────────────────────────────
         const geminiKey = process.env.GEMINI_API_KEY;
-        const groqKey   = process.env.GROQ_API_KEY;
+        const groqKey = process.env.GROQ_API_KEY;
         if (!geminiKey && !groqKey) {
-          return new Response(JSON.stringify({ error: "AI not configured — set GEMINI_API_KEY or GROQ_API_KEY" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          });
+          return new Response(
+            JSON.stringify({
+              error: "AI not configured — set GEMINI_API_KEY or GROQ_API_KEY",
+            }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
         }
 
-        const systemPrompt = buildSystemContext(files, currentFile, leadContext);
+        // Full context for Gemini, compact for Groq
+        const fullSystemPrompt = buildSystemContext(
+          files,
+          currentFile,
+          leadContext,
+          "full"
+        );
+        const compactSystemPrompt = buildSystemContext(
+          files,
+          currentFile,
+          leadContext,
+          "compact"
+        );
 
-        // ── Try Gemini, fall back to Groq (across its model list) on any error ─
+        // ── Try Gemini first (rich context) ───────────────────────────────────
         let aiRes: Response | null = null;
         let usingGroq = false;
 
         if (geminiKey) {
-          // Gemini native format — merge consecutive same-role messages (Gemini
-          // requires strict user/model alternation)
+          // Gemini native format — merge consecutive same-role messages
+          // (Gemini requires strict user/model alternation)
           const rawContents = messages.map((m) => ({
             role: m.role === "assistant" ? "model" : "user",
             parts: [{ text: m.content }],
@@ -258,40 +367,63 @@ export const Route = createFileRoute("/api/studio/generate")({
             if (last && last.role === msg.role) {
               last.parts[0].text += "\n" + msg.parts[0].text;
             } else {
-              contents.push({ role: msg.role, parts: [{ text: msg.parts[0].text }] });
+              contents.push({
+                role: msg.role,
+                parts: [{ text: msg.parts[0].text }],
+              });
             }
           }
 
           try {
             const res = await fetch(GEMINI_URL, {
               method: "POST",
-              headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
+              headers: {
+                "x-goog-api-key": geminiKey,
+                "Content-Type": "application/json",
+              },
               body: JSON.stringify({
-                systemInstruction: { parts: [{ text: systemPrompt }] },
+                systemInstruction: { parts: [{ text: fullSystemPrompt }] },
                 contents,
                 generationConfig: { maxOutputTokens: 8192 },
               }),
-              signal: AbortSignal.timeout(25_000),
+              signal: AbortSignal.timeout(45_000), // longer for big site generations
             });
+
             if (res.ok) {
               aiRes = res;
             } else {
               const errText = await res.text().catch(() => "");
-              console.warn(`Gemini ${res.status} — falling back to Groq. ${errText.slice(0, 120)}`);
+              console.warn(
+                `Gemini ${res.status} — falling back to Groq. ${errText.slice(0, 140)}`
+              );
             }
           } catch (err) {
             console.warn("Gemini unreachable — falling back to Groq:", err);
           }
         }
 
+        // ── Groq fallback (compact only) ──────────────────────────────────────
         if (!aiRes && groqKey) {
           usingGroq = true;
-          const { res, lastStatus, lastError } = await tryGroqModels(groqKey, systemPrompt, messages);
+          const { res, lastStatus, lastError } = await tryGroqModels(
+            groqKey,
+            compactSystemPrompt,
+            messages
+          );
+
           if (!res) {
             console.error("All Groq models failed", lastStatus, lastError);
+            const is413 = lastStatus === 413;
             return new Response(
-              JSON.stringify({ error: `AI unavailable (Groq ${lastStatus ?? "error"})` }),
-              { status: 502, headers: { "Content-Type": "application/json" } }
+              JSON.stringify({
+                error: is413
+                  ? "Request too large for the fallback AI. Try a shorter follow-up or fewer open files."
+                  : `AI unavailable (Groq ${lastStatus ?? "error"})`,
+              }),
+              {
+                status: 502,
+                headers: { "Content-Type": "application/json" },
+              }
             );
           }
           aiRes = res;
@@ -331,19 +463,24 @@ export const Route = createFileRoute("/api/studio/generate")({
 
                     if (usingGroq) {
                       // OpenAI-compat: choices[0].delta.content
-                      const choices = parsed.choices as { delta?: { content?: string } }[] | undefined;
+                      const choices = parsed.choices as
+                        | { delta?: { content?: string } }[]
+                        | undefined;
                       text = choices?.[0]?.delta?.content;
                     } else {
                       // Gemini native: candidates[0].content.parts[0].text
                       const candidates = parsed.candidates as
-                        { content?: { parts?: { text?: string }[] } }[] | undefined;
+                        | { content?: { parts?: { text?: string }[] } }[]
+                        | undefined;
                       text = candidates?.[0]?.content?.parts?.[0]?.text;
                     }
 
                     if (text) {
                       fullContent += text;
                       controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: "text", text })}\n\n`)
+                        encoder.encode(
+                          `data: ${JSON.stringify({ type: "text", text })}\n\n`
+                        )
                       );
                     }
                   } catch {
@@ -353,11 +490,15 @@ export const Route = createFileRoute("/api/studio/generate")({
               }
 
               controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: "done", fullContent })}\n\n`)
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "done", fullContent })}\n\n`
+                )
               );
             } catch (err) {
               controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`)
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`
+                )
               );
             } finally {
               controller.close();
@@ -369,7 +510,7 @@ export const Route = createFileRoute("/api/studio/generate")({
           headers: {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
+            Connection: "keep-alive",
             "X-Accel-Buffering": "no",
           },
         });
