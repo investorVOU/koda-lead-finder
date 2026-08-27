@@ -32,20 +32,16 @@ const GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b"];
 const NO_MARKDOWN =
   " Output plain text only — no markdown. Do not use asterisks, underscores, hash symbols, or any other markdown syntax for bold, italics, or headers. For section labels, write the label in Title Case followed by a colon on its own line (e.g. \"Opener:\"), with a blank line before and after. For emphasis, use plain wording instead of symbols.";
 
-// Safety net: strips common markdown emphasis/heading characters in
-// case a model ignores the system instruction above. Intentionally
-// conservative — only targets *, _, and leading # so it won't mangle
-// things like "5-star" or bracketed placeholders.
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/^#{1,6}\s+/gm, "") // leading heading hashes
-    .replace(/\*\*(.*?)\*\*/g, "$1") // **bold**
-    .replace(/(?<!\w)\*(?!\s)(.*?)(?<!\s)\*(?!\w)/g, "$1") // *italic*
-    .replace(/(?<!\w)_(?!\s)(.*?)(?<!\s)_(?!\w)/g, "$1") // _italic_
-    .trim();
-}
+// Phrases that make AI-generated sales/marketing copy instantly
+// recognizable as AI-generated. Banning them forces the model to
+// write something more specific to the actual business.
+const CLICHE_BAN =
+  " Never use these overused AI-copywriting phrases or close variants of them: \"in today's digital age\", \"take your business to the next level\", \"stand out from the competition\", \"unlock your potential\", \"look no further\", \"in today's fast-paced world\", \"elevate your brand\", \"seamless experience\", \"game-changer\", \"cutting-edge\", \"state-of-the-art\", \"whether you're... or...\". Write like a specific, observant human who actually looked at this business, not like generic marketing filler.";
 
-async function groqChat(messages: { role: string; content: string }[]): Promise<string> {
+async function groqChat(
+  messages: { role: string; content: string }[],
+  opts?: { temperature?: number },
+): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY not set");
 
@@ -56,7 +52,15 @@ async function groqChat(messages: { role: string; content: string }[]): Promise<
       const res = await fetch(GROQ_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages }),
+        body: JSON.stringify({
+          model,
+          messages,
+          // Higher temperature + penalties so repeated calls (even for
+          // the same lead) don't converge on near-identical wording.
+          temperature: opts?.temperature ?? 0.95,
+          presence_penalty: 0.4,
+          frequency_penalty: 0.3,
+        }),
       });
 
       if (res.status === 429) throw new Error("rate_limited");
@@ -87,27 +91,110 @@ async function groqChat(messages: { role: string; content: string }[]): Promise<
   throw lastErr ?? new Error("All Groq models failed");
 }
 
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// ─── Randomized creative direction ──────────────────────────────────────────
+// Picking one of these per call is what makes two generations for the
+// same lead (or two different leads) actually feel different, instead
+// of the model reusing its favorite template every time.
+
+const WEBSITE_ANGLES = [
+  "lead with how much business they're likely losing to competitors who already rank on Google",
+  "lead with the gap between their strong reputation and their invisible online presence",
+  "lead with what a first-time visitor to their storefront/location would want to know before showing up",
+  "lead with the single biggest trust signal this business already has (reviews, years open, rating) and how the site should showcase it",
+];
+
+const WEBSITE_TONES = [
+  "confident and direct, like a designer who's done this a hundred times",
+  "warm and consultative, like you're walking a business owner through their new site in person",
+  "sharp and slightly informal, like a peer-to-peer pitch, not a corporate deck",
+];
+
+const CALL_OPENERS = [
+  "a direct, no-fluff opener that states the reason for the call in the first sentence",
+  "a curiosity-based opener that references something specific and true about their business before pitching anything",
+  "a compliment-first opener that references their rating/reviews specifically, not generically",
+];
+
+const CALL_STRUCTURES = [
+  "Problem, Agitate, Solve (name the gap, make it concrete, offer the fix)",
+  "a straightforward: reason for call, quick value point, one specific question, next step",
+];
+
 function buildPrompt(kind: string, lead: z.infer<typeof leadSchema>) {
+  const location = lead.location || lead.address || "their area";
+  const hasStrongReviews = (lead.rating ?? 0) >= 4.3 && lead.reviewCount >= 10;
+
   const ctx = `Business name: ${lead.name}
 Category: ${lead.category || "local business"}
-Location: ${lead.location || lead.address}
-Address: ${lead.address}
-Google rating: ${lead.rating ?? "N/A"} (${lead.reviewCount} reviews)`;
+Location: ${location}
+Address: ${lead.address || "not provided"}
+Google rating: ${lead.rating ?? "N/A"} (${lead.reviewCount} reviews)
+Reputation signal to use: ${
+    hasStrongReviews
+      ? "strong — lean on the rating/review count as proof they deliver, contrasted with having no site"
+      : lead.reviewCount > 0
+        ? "modest — don't oversell the rating, focus on visibility and credibility instead"
+        : "unestablished online — focus entirely on getting found and looking legitimate"
+  }`;
 
   if (kind === "website_prompt") {
+    const angle = pick(WEBSITE_ANGLES);
+    const tone = pick(WEBSITE_TONES);
+    const PERSONA_OPENER =
+      "You are a professional website builder with 4 years of experience";
     return {
       system:
-        "You are an expert web designer who writes detailed website-build prompts for AI builders like Lovable, Framer AI, v0, and Claude. Output a single, ready-to-paste prompt. Be specific about sections, copy direction, color palette, imagery, and CTAs tailored to the business. Do not include explanations before or after the prompt." +
-        NO_MARKDOWN,
-      user: `Write a detailed AI website-build prompt for this business so a freelancer can instantly generate a modern, conversion-focused website for them.\n\n${ctx}`,
+        "You are a senior web designer who writes build-ready prompts for AI site builders (Lovable, Framer AI, v0, Claude). " +
+        "Your prompts are specific enough that a builder produces something genuinely tailored to the business — never a generic template with the business name swapped in. " +
+        `The prompt you output must begin with the exact sentence "${PERSONA_OPENER}", followed by one clause naming the kind of sites you specialize in (choose something that fits this business's category), then continue directly into the build brief in the same paragraph or the next line — do not add a heading, label, or blank explanation before it. ` +
+        "After that opening, the prompt must include: a named site structure (specific sections, not just 'homepage'), real copy direction with example headline options (not placeholder brackets), a color palette described with actual hex-adjacent reasoning tied to the category (not 'modern blue'), specific imagery direction (what should actually be photographed or shown, not stock-photo clichés), and 2-3 concrete calls-to-action tied to how this type of business actually converts customers (booking, calling, quoting, visiting). " +
+        "Output only the finished prompt — no preamble, no explanation, no meta-commentary about what you're doing." +
+        NO_MARKDOWN +
+        CLICHE_BAN,
+      user: `Write a detailed, build-ready website prompt for this specific business. It must open with the exact sentence "${PERSONA_OPENER}" as instructed.
+
+${ctx}
+
+Creative direction for this one: ${angle}. Tone: ${tone}.
+
+Make at least three details in the prompt (a headline option, a section name, or a CTA) something that could only apply to a business like this one — not something that would work equally well for any local business.`,
     };
   }
+
+  const opener = pick(CALL_OPENERS);
+  const structure = pick(CALL_STRUCTURES);
   return {
     system:
-      "You are a friendly, high-converting sales coach for freelance web designers. Write a concise, natural cold-call script (under 200 words) with an opener, value hook referencing their strong reviews but missing website, a soft question, objection handling, and a clear next step. Use [brackets] for the caller to fill in their name." +
-      NO_MARKDOWN,
-    user: `Write a personalized cold-call script to pitch building a website for this business.\n\n${ctx}`,
+      "You are a sharp, experienced cold-calling coach for freelance web designers who sell to local businesses. " +
+      "You write scripts that sound like a real person talking, not a sales template — short sentences, natural pauses, no corporate polish. " +
+      "Every script needs: an opener under 15 words, one value point that's specific to this business (not generic 'a website helps you grow'), one real open-ended question, one specific objection with a genuine one-line answer (not 'I understand your concern'), and a low-pressure next step (not 'let's schedule a call' — something concrete like a free mockup or a two-minute look at their current search presence). " +
+      "Keep the whole script under 200 words. Use [Name] as the only placeholder." +
+      NO_MARKDOWN +
+      CLICHE_BAN,
+    user: `Write a cold-call script to pitch this specific business owner on a new website.
+
+${ctx}
+
+Use ${opener}. Structure the call as: ${structure}.
+
+The value point and the objection you handle must both reference something specific to this business (its category, its rating, or its location) — not something generic that would work for any local business.`,
   };
+}
+
+const WEBSITE_PERSONA_OPENER =
+  "You are a professional website builder with 4 years of experience";
+
+// Safety net: if the model drops the required opening line (or
+// prefaces it with something like "Here's the prompt:"), force it
+// on so the output is consistent every time.
+function ensureWebsitePersonaOpener(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.startsWith(WEBSITE_PERSONA_OPENER)) return trimmed;
+  return `${WEBSITE_PERSONA_OPENER} building sites for businesses like this one.\n\n${trimmed}`;
 }
 
 export const generateContent = createServerFn({ method: "POST" })
@@ -120,7 +207,9 @@ export const generateContent = createServerFn({ method: "POST" })
         { role: "system", content: system },
         { role: "user", content: user },
       ]);
-      return { content: stripMarkdown(raw) } as const;
+      const cleaned = stripMarkdown(raw);
+      const content = data.kind === "website_prompt" ? ensureWebsitePersonaOpener(cleaned) : cleaned;
+      return { content } as const;
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "rate_limited") {
         return { error: "rate_limited", message: "AI is busy right now. Try again shortly." } as const;
@@ -133,6 +222,19 @@ export const generateContent = createServerFn({ method: "POST" })
     }
   });
 
+// Safety net: strips common markdown emphasis/heading characters in
+// case a model ignores the system instruction above. Intentionally
+// conservative — only targets *, _, and leading # so it won't mangle
+// things like "5-star" or bracketed placeholders.
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, "") // leading heading hashes
+    .replace(/\*\*(.*?)\*\*/g, "$1") // **bold**
+    .replace(/(?<!\w)\*(?!\s)(.*?)(?<!\s)\*(?!\w)/g, "$1") // *italic*
+    .replace(/(?<!\w)_(?!\s)(.*?)(?<!\s)_(?!\w)/g, "$1") // _italic_
+    .trim();
+}
+
 // ─── Email Sequence Generator ────────────────────────────────────────────────
 
 const seqSchema = z.object({ lead: leadSchema });
@@ -140,28 +242,40 @@ const seqSchema = z.object({ lead: leadSchema });
 export interface EmailDraft { subject: string; body: string }
 export interface EmailSequence { email1: EmailDraft; email2: EmailDraft; email3: EmailDraft }
 
+const EMAIL_ANGLES = [
+  "the gap between their reputation and their online presence",
+  "what a potential customer sees (or doesn't see) when they search for this business right now",
+  "a specific, low-effort offer to prove value before asking for anything",
+];
+
 export const generateEmailSequence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => seqSchema.parse(data))
   .handler(async ({ data }) => {
+    const location = data.lead.location || data.lead.address || "their area";
     const ctx = `Business: ${data.lead.name}
 Category: ${data.lead.category || "local business"}
-Location: ${data.lead.location || data.lead.address}
+Location: ${location}
 Rating: ${data.lead.rating ?? "N/A"} (${data.lead.reviewCount} reviews)`;
+    const angle = pick(EMAIL_ANGLES);
 
     try {
       const raw = await groqChat([
         {
           role: "system",
-          content: `You are a cold email expert for freelance web designers. Write a 3-email outreach sequence. Return ONLY valid JSON (no markdown, no code blocks) in this exact shape:
+          content: `You are a cold email expert for freelance web designers pitching local businesses. Write a 3-email outreach sequence that sounds like it was written by a person who actually looked at this business, not a mail-merge template. Return ONLY valid JSON (no markdown, no code blocks) in this exact shape:
 {"email1":{"subject":"...","body":"..."},"email2":{"subject":"...","body":"..."},"email3":{"subject":"...","body":"..."}}
-Email 1 (Day 1): casual intro, mention no website, offer to help, soft CTA. Under 80 words.
-Email 2 (Day 3): follow-up, reference email 1, add one social proof line. Under 70 words.
-Email 3 (Day 7): final short nudge, create mild urgency, easy opt-out. Under 60 words.
-Use [Your Name] and [Your Website] placeholders. No fluff or filler words.
+Email 1 (Day 1): casual intro referencing something specific and true about the business, soft CTA. Under 80 words.
+Email 2 (Day 3): follow-up that adds new information (not a repeat of email 1) — one concrete social proof line or observation. Under 70 words.
+Email 3 (Day 7): short, direct final nudge with a real reason to reply now, easy opt-out. Under 60 words.
+Subject lines must be specific to this business, never generic ("Quick question", "Following up" are banned).
+Use [Your Name] and [Your Website] as the only placeholders.${CLICHE_BAN}
 The "body" fields must be plain text only — no markdown, no asterisks, no underscores, no hash headers. Write them as you would a plain email.`,
         },
-        { role: "user", content: `Write email sequence for:\n${ctx}` },
+        {
+          role: "user",
+          content: `Write an email sequence for this business, angled around: ${angle}.\n\n${ctx}`,
+        },
       ]);
 
       const cleaned = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
