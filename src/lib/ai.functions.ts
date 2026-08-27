@@ -17,28 +17,54 @@ const typeSchema = z.object({
 });
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+// Ordered fallback chain: tried top to bottom. If a model gets
+// decommissioned, drop it from this list (or just leave it — the
+// fallback will skip it automatically) and add its replacement at
+// the top. Check https://console.groq.com/docs/deprecations when
+// generation starts failing again.
+const GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b"];
 
 async function groqChat(messages: { role: string; content: string }[]): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY not set");
 
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: GROQ_MODEL, messages }),
-  });
+  let lastErr: Error | null = null;
 
-  if (res.status === 429) throw new Error("rate_limited");
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Groq error ${res.status}: ${txt}`);
+  for (const model of GROQ_MODELS) {
+    try {
+      const res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages }),
+      });
+
+      if (res.status === 429) throw new Error("rate_limited");
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        // Model retired or unknown — try the next one in the chain
+        if (txt.includes("model_decommissioned") || txt.includes("does not exist")) {
+          console.warn(`Groq model unavailable, falling back: ${model}`);
+          lastErr = new Error(`Groq error ${res.status}: ${txt}`);
+          continue;
+        }
+        throw new Error(`Groq error ${res.status}: ${txt}`);
+      }
+
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const content = json.choices?.[0]?.message?.content?.trim();
+      if (!content) throw new Error("Empty response from Groq");
+
+      return content;
+    } catch (e) {
+      if (e instanceof Error && e.message === "rate_limited") throw e;
+      lastErr = e as Error;
+      // try next model
+    }
   }
 
-  const json = await res.json() as { choices?: { message?: { content?: string } }[] };
-  const content = json.choices?.[0]?.message?.content?.trim();
-  if (!content) throw new Error("Empty response from Groq");
-  return content;
+  throw lastErr ?? new Error("All Groq models failed");
 }
 
 function buildPrompt(kind: string, lead: z.infer<typeof leadSchema>) {
