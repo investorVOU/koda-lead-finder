@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { stripeFetch, paystackFetch } from "@/lib/billing.server";
+import { paystackFetch } from "@/lib/billing.server";
 import { getCachedFxRate } from "@/lib/wallet.server";
 import { verifyHCaptcha } from "@/lib/hcaptcha.server";
 
@@ -34,7 +34,7 @@ export const getWalletData = createServerFn({ method: "GET" })
 
 const topUpSchema = z.object({
   amountNgn:    z.number().min(500).max(500000),
-  provider:     z.enum(["stripe", "paystack"]),
+  provider:     z.enum(["paystack"]),
   captchaToken: z.string().min(1).optional(), // optional so non-hcaptcha contexts still work
 });
 
@@ -55,35 +55,6 @@ export const initiateWalletTopUp = createServerFn({ method: "POST" })
 
     const base       = appUrl();
     const successUrl = `${base}/numbers?wallet=funded`;
-    const cancelUrl  = `${base}/numbers`;
-
-    if (data.provider === "stripe") {
-      const fxRate    = await getCachedFxRate();
-      const amountUsd = Math.ceil((data.amountNgn / fxRate) * 100); // cents
-      try {
-        const session = await stripeFetch<{ url: string }>("/checkout/sessions", {
-          mode: "payment",
-          success_url: successUrl,
-          cancel_url:  cancelUrl,
-          client_reference_id: userId,
-          customer_email: email,
-          "metadata[user_id]":       userId,
-          "metadata[kind]":          "wallet_topup",
-          "metadata[amount_ngn]":    String(data.amountNgn),
-          "payment_intent_data[metadata][user_id]":      userId,
-          "payment_intent_data[metadata][kind]":         "wallet_topup",
-          "payment_intent_data[metadata][amount_ngn]":   String(data.amountNgn),
-          "line_items[0][quantity]": 1,
-          "line_items[0][price_data][currency]":         "usd",
-          "line_items[0][price_data][unit_amount]":       amountUsd,
-          "line_items[0][price_data][product_data][name]":
-            `Kodarai Wallet Top-up (₦${data.amountNgn.toLocaleString()})`,
-        });
-        return { url: session.url } as const;
-      } catch (e: unknown) {
-        return { error: true, message: e instanceof Error ? e.message : "Stripe error" } as const;
-      }
-    }
 
     // ── Paystack (NGN) ────────────────────────────────────────────────────────
     if (!email) return { error: true, message: "Email required for Paystack" } as const;
