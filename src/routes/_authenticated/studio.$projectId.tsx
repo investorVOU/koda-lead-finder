@@ -35,46 +35,47 @@ export const Route = createFileRoute("/_authenticated/studio/$projectId")({
   component: Builder,
 });
 
+// ─── Types matching backend SSE payloads ──────────────────────────────────────
+
+type FileAction = "create" | "update" | "delete";
+
+type FileChange = {
+  path: string;
+  action: FileAction;
+  content: string;
+};
+
+type StreamEvent =
+  | { type: "progress" }
+  | { type: "text"; text: string }
+  | { type: "files"; fileChanges: FileChange[] }
+  | {
+      type: "done";
+      fullContent?: string;
+      summary?: string;
+      fileChanges?: FileChange[];
+      filesChanged?: string[];
+    }
+  | { type: "error"; error: string };
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function applyFileChanges(current: Record<string, string>, xml: string): Record<string, string> {
+// Apply the STRUCTURED file changes the backend already parsed. Do not
+// re-parse raw XML on the client — the backend is the single source of
+// truth for that (see parseFileChanges in api/studio/generate).
+function applyStructuredChanges(
+  current: Record<string, string>,
+  changes: FileChange[],
+): Record<string, string> {
   const result = { ...current };
-  const regex = /<file\s+path="([^"]+)"\s+action="([^"]+)">([\s\S]*?)<\/file>/g;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(xml)) !== null) {
-    const [, path, action, content] = m;
+  for (const { path, action, content } of changes) {
     if (action === "delete") {
       delete result[path];
     } else {
-      result[path] = content.trim();
+      result[path] = content;
     }
   }
   return result;
-}
-
-function stripFileChanges(text: string): string {
-  return text.replace(/<file_changes>[\s\S]*?<\/file_changes>/g, "").trim();
-}
-
-// Safe for live streaming: hides the <file_changes> block even before closing tag arrives
-function streamingChatContent(text: string): string {
-  const closeIdx = text.indexOf("</file_changes>");
-  if (closeIdx !== -1) {
-    // Block complete — strip it and show the summary after it
-    return stripFileChanges(text);
-  }
-  const openIdx = text.indexOf("<file_changes>");
-  if (openIdx !== -1) {
-    // Block still being written — only show text that came before it
-    return text.slice(0, openIdx).trim();
-  }
-  return text.trim();
-}
-
-function fileChangesSummary(text: string): string | null {
-  const match = text.match(/<file_changes>([\s\S]*?)<\/file_changes>/);
-  if (!match) return null;
-  return match[0].slice(0, 800);
 }
 
 const CHAT_PLACEHOLDERS = [
@@ -420,7 +421,13 @@ function Builder() {
 
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
-      let fullText = "";
+
+      // These come from the backend's already-parsed output — do NOT
+      // re-parse raw XML on the client. The backend is the single
+      // source of truth for file changes and the human summary.
+      let finalSummary = "";
+      let finalFileChanges: FileChange[] = [];
+      let sawError = false;
 
       while (true) {
         const { value, done } = await reader.read();
@@ -428,34 +435,67 @@ function Builder() {
         const chunk = decoder.decode(value, { stream: true });
         for (const line of chunk.split("\n")) {
           if (!line.startsWith("data: ")) continue;
+          let event: StreamEvent;
           try {
-            const event = JSON.parse(line.slice(6)) as { type: string; text?: string; fullContent?: string };
-            if (event.type === "text" && event.text) {
-              fullText += event.text;
-              setOptimisticMessages((prev) =>
-                prev.map((m) => m.id === tempAsstId ? { ...m, content: streamingChatContent(fullText) } : m)
-              );
-            }
-            if (event.type === "done") {
-              fullText = event.fullContent ?? fullText;
-            }
-          } catch { /* skip malformed */ }
+            event = JSON.parse(line.slice(6)) as StreamEvent;
+          } catch {
+            continue; // skip malformed SSE record
+          }
+
+          if (event.type === "progress") {
+            // Mid-generation heartbeat only — no text payload by design
+            // (the backend withholds raw XML while it's still streaming).
+            continue;
+          }
+
+          if (event.type === "text") {
+            // Backend sends the final, already-stripped summary here.
+            finalSummary = event.text;
+            setOptimisticMessages((prev) =>
+              prev.map((m) => (m.id === tempAsstId ? { ...m, content: finalSummary } : m)),
+            );
+          }
+
+          if (event.type === "files") {
+            finalFileChanges = event.fileChanges ?? [];
+          }
+
+          if (event.type === "done") {
+            if (event.summary) finalSummary = event.summary;
+            if (event.fileChanges) finalFileChanges = event.fileChanges;
+          }
+
+          if (event.type === "error") {
+            sawError = true;
+            console.error("Studio generate stream error:", event.error);
+          }
         }
       }
 
-      const newFiles = applyFileChanges(files, fullText);
+      if (sawError && !finalSummary && finalFileChanges.length === 0) {
+        toast.error("Generation failed. Please try again.");
+        setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempAsstId && m.id !== tempUserMsg.id));
+        return;
+      }
+
+      const newFiles = applyStructuredChanges(files, finalFileChanges);
       setFiles(newFiles);
 
-      const changedPaths = Object.keys(newFiles).filter((k) => !files[k] || files[k] !== newFiles[k]);
-      if (changedPaths.length > 0) handleFileSelect(changedPaths[0]);
+      if (finalFileChanges.length > 0) {
+        handleFileSelect(finalFileChanges[0].path);
+      }
 
-      const summaryText = stripFileChanges(fullText) || fullText;
-      const changesXml  = fileChangesSummary(fullText);
+      const summaryText = finalSummary || "Done — I updated the site.";
+      // Store a compact JSON marker (used only to show the "Files updated"
+      // badge) instead of a slice of raw XML.
+      const changesMarker = finalFileChanges.length > 0
+        ? JSON.stringify(finalFileChanges.map((f) => ({ path: f.path, action: f.action })))
+        : null;
 
-      await runCreateMessage({ data: { project_id: projectId, role: "assistant", content: summaryText, file_changes: changesXml } });
+      await runCreateMessage({ data: { project_id: projectId, role: "assistant", content: summaryText, file_changes: changesMarker } });
       await runUpdateProject({ data: { id: projectId, files_json: JSON.stringify(newFiles) } });
 
-      if (changesXml) {
+      if (changesMarker) {
         await runCreateSnapshot({
           data: { project_id: projectId, label: promptText.slice(0, 80), files_json: JSON.stringify(newFiles), files_count: Object.keys(newFiles).length },
         });
