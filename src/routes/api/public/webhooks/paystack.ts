@@ -64,6 +64,11 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
                   reference: data.reference,
                   description: `Wallet top-up via Paystack (₦${amountNgn.toLocaleString()})`,
                 });
+                // Mark user as onboarded after any successful paid fulfillment
+                await supabaseAdmin
+                  .from("profiles")
+                  .update({ onboarded: true })
+                  .eq("id", userId);
                 break;
               }
               if (kind === "number_rental") {
@@ -101,6 +106,14 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
                   amount,
                 });
               }
+
+              // Mark user as onboarded after any successful paid fulfillment
+              // (number_rental, subscription, credit_pack all land here)
+              await supabaseAdmin
+                .from("profiles")
+                .update({ onboarded: true })
+                .eq("id", userId);
+
               break;
             }
             case "subscription.create": {
