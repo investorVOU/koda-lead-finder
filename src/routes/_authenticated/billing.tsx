@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Loader2, ReceiptText, CreditCard, Settings, Zap } from "lucide-react";
+import { Check, Loader2, ReceiptText, CreditCard, Zap } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
-import { PLANS, PACKS, PLAN_LABELS, formatNgn, type Provider } from "@/lib/billing";
-import { createCheckout, cancelSubscription, createBillingPortal } from "@/lib/billing.functions";
+import { PLANS, PACKS, PLAN_LABELS, formatNgn } from "@/lib/billing";
+import { createCheckout, cancelSubscription } from "@/lib/billing.functions";
 
 export const Route = createFileRoute("/_authenticated/billing")({
   head: () => ({ meta: [{ title: "Billing & Plans — Kodarai" }] }),
@@ -24,7 +24,6 @@ function BillingPage() {
 
   const runCheckout = useServerFn(createCheckout);
   const runCancel = useServerFn(cancelSubscription);
-  const runPortal = useServerFn(createBillingPortal);
 
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -49,14 +48,13 @@ function BillingPage() {
   }, [queryClient, user]);
 
   const checkout = async (
-    provider: Provider,
     kind: "subscription" | "pack",
     id: string,
     key: string,
   ) => {
     setBusy(key);
     const res = await runCheckout({
-      data: { provider, kind, id, origin: window.location.origin },
+      data: { provider: "paystack", kind, id, origin: window.location.origin },
     });
     if ("error" in res) {
       toast.error(res.message);
@@ -67,7 +65,6 @@ function BillingPage() {
   };
 
   const isActive = sub?.status === "active" || sub?.status === "canceling";
-  const hasStripe = sub?.provider === "stripe";
 
   const cancel = async () => {
     setBusy("cancel");
@@ -81,24 +78,13 @@ function BillingPage() {
     queryClient.invalidateQueries();
   };
 
-  const openPortal = async () => {
-    setBusy("portal");
-    const res = await runPortal({ data: { origin: window.location.origin } });
-    if ("error" in res) {
-      toast.error(res.message);
-      setBusy(null);
-      return;
-    }
-    window.location.href = res.url!;
-  };
-
   return (
     <DashboardShell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Billing & Plans</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Subscribe for monthly leads, or buy a one-time lead pack. Pay by card (USD) or Paystack (₦).
+            Subscribe for monthly leads, or buy a one-time lead pack — pay via Paystack.
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -117,42 +103,24 @@ function BillingPage() {
             <p className="mt-1 text-xs capitalize text-muted-foreground">
               Status: {sub?.status ?? "inactive"}
             </p>
-            {isActive && (
-              <div className="mt-4 space-y-2">
-                {hasStripe && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={openPortal}
-                    disabled={busy !== null}
-                  >
-                    {busy === "portal" ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Settings className="size-4" />
-                    )}
-                    Manage subscription
-                  </Button>
-                )}
-                {sub?.status !== "canceling" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-destructive hover:text-destructive"
-                    onClick={cancel}
-                    disabled={busy !== null}
-                  >
-                    {busy === "cancel" ? <Loader2 className="size-4 animate-spin" /> : null}
-                    Cancel subscription
-                  </Button>
-                )}
-                {sub?.status === "canceling" && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Ends on {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : "period end"}
-                  </p>
-                )}
+            {isActive && sub?.status !== "canceling" && (
+              <div className="mt-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-destructive hover:text-destructive"
+                  onClick={cancel}
+                  disabled={busy !== null}
+                >
+                  {busy === "cancel" ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Cancel subscription
+                </Button>
               </div>
+            )}
+            {sub?.status === "canceling" && (
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Ends on {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : "period end"}
+              </p>
             )}
           </div>
         </div>
@@ -183,11 +151,11 @@ function BillingPage() {
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{p.tagline}</p>
                     <div className="mt-3 flex items-end gap-1">
-                      <span className="font-display text-3xl font-bold">${p.usd}</span>
+                      <span className="font-display text-3xl font-bold">{formatNgn(p.ngn)}</span>
                       <span className="mb-1 text-sm text-muted-foreground">/mo</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {formatNgn(p.ngn)} / month · {p.credits} leads
+                      {p.credits} leads / month
                     </p>
 
                     <ul className="mt-4 flex-1 space-y-2">
@@ -198,29 +166,17 @@ function BillingPage() {
                       ))}
                     </ul>
 
-                    <div className="mt-5 space-y-2">
+                    <div className="mt-5">
                       <Button
-                        variant="hero"
+                        variant={p.highlight ? "hero" : "outline"}
                         className="w-full"
                         disabled={current || busy !== null}
-                        onClick={() => checkout("stripe", "subscription", p.id, p.id + "stripe")}
-                      >
-                        {busy === p.id + "stripe" ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          "Pay with Card"
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        disabled={current || busy !== null}
-                        onClick={() => checkout("paystack", "subscription", p.id, p.id + "paystack")}
+                        onClick={() => checkout("subscription", p.id, p.id + "paystack")}
                       >
                         {busy === p.id + "paystack" ? (
                           <Loader2 className="size-4 animate-spin" />
                         ) : (
-                          `Paystack · ${formatNgn(p.ngn)}`
+                          `Subscribe · ${formatNgn(p.ngn)}`
                         )}
                       </Button>
                     </div>
@@ -253,37 +209,23 @@ function BillingPage() {
                   )}
                   <h3 className="text-base font-semibold">{p.name}</h3>
                   <div className="mt-2 flex items-end gap-1">
-                    <span className="font-display text-2xl font-bold">${p.usd}</span>
+                    <span className="font-display text-2xl font-bold">{formatNgn(p.ngn)}</span>
                     <span className="mb-0.5 text-sm text-muted-foreground">= {p.credits} leads</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatNgn(p.ngn)} via Paystack</p>
 
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-4">
                     <Button
                       variant="hero"
                       className="w-full"
                       disabled={busy !== null}
-                      onClick={() => checkout("stripe", "pack", p.id, p.id + "stripe")}
-                    >
-                      {busy === p.id + "stripe" ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        "Buy with Card"
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full border-primary/40 text-foreground"
-                      disabled={busy !== null}
-                      onClick={() => checkout("paystack", "pack", p.id, p.id + "paystack")}
+                      onClick={() => checkout("pack", p.id, p.id + "paystack")}
                     >
                       {busy === p.id + "paystack" ? (
                         <Loader2 className="size-4 animate-spin" />
                       ) : (
-                        `Paystack · ${formatNgn(p.ngn)}`
+                        `Buy · ${formatNgn(p.ngn)}`
                       )}
                     </Button>
-
                   </div>
                 </div>
               ))}
