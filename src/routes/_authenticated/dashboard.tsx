@@ -88,8 +88,8 @@ function DashboardPage() {
 
   return (
     <DashboardShell>
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <div className="order-2 lg:order-1">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[1fr_280px]">
+        <div className="order-2 min-w-0 lg:order-1">
           <div className="mb-5">
             <h1 className="text-2xl font-bold">Lead Finder</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -124,7 +124,7 @@ function DashboardPage() {
 
           {/* Loading skeletons */}
           {loading && (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
               {Array.from({ length: 4 }).map((_, i) => (
                 <LeadResultSkeleton key={i} />
               ))}
@@ -134,7 +134,7 @@ function DashboardPage() {
           {/* Results */}
           {!loading && visible.length > 0 && (
             <>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
                 {visible.map((lead) => (
                   <LeadResultCard
                     key={lead.placeId}
