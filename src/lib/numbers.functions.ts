@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { stripeFetch, paystackFetch } from "@/lib/billing.server";
+import { paystackFetch } from "@/lib/billing.server";
 import { NUMBER_COUNTRIES } from "@/lib/numbers";
 import { verifyHCaptcha } from "@/lib/hcaptcha.server";
 import {
@@ -48,7 +48,6 @@ export const searchAvailableNumbers = createServerFn({ method: "POST" })
 const purchaseSchema = z.object({
   phoneNumber:  z.string().min(7),
   country:      z.string().length(2),
-  provider:     z.enum(["stripe", "paystack"]),
   captchaToken: z.string().min(1).optional(),
   // Origin / price intentionally NOT accepted from client — derived server-side
 });
@@ -99,35 +98,6 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
 
     const base       = appUrl();
     const successUrl = `${base}/numbers?status=success`;
-    const cancelUrl  = `${base}/numbers?status=cancel`;
-
-    if (data.provider === "stripe") {
-      try {
-        const session = await stripeFetch<{ url: string }>("/checkout/sessions", {
-          mode: "payment",
-          success_url: successUrl,
-          cancel_url:  cancelUrl,
-          client_reference_id: userId,
-          customer_email: email,
-          "metadata[user_id]":       userId,
-          "metadata[kind]":          "number_rental",
-          "metadata[number_id]":     numRow.id,
-          "metadata[phone_number]":  data.phoneNumber,
-          "metadata[country]":       data.country,
-          "payment_intent_data[metadata][user_id]": userId,
-          "payment_intent_data[metadata][kind]":    "number_rental",
-          "line_items[0][quantity]": 1,
-          "line_items[0][price_data][currency]":    "usd",
-          "line_items[0][price_data][unit_amount]": Math.round(actualUsd * 100),
-          "line_items[0][price_data][product_data][name]":
-            `Kodarai Virtual Number (${data.country}) — 1 month`,
-        });
-        return { url: session.url } as const;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Stripe error";
-        return { error: true, message: msg } as const;
-      }
-    }
 
     // ── Paystack (NGN) ────────────────────────────────────────────────────────
     if (!email) return { error: true, message: "Email required for Paystack" } as const;
