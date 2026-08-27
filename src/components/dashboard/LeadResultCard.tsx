@@ -159,7 +159,7 @@ export function LeadResultCard({
             <h3 className="truncate text-base font-semibold">{lead.name}</h3>
             <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
               <MapPin className="mt-0.5 size-3.5 shrink-0" />
-              <span className="line-clamp-2">{lead.address}</span>
+              <span className="min-w-0 line-clamp-2">{lead.address}</span>
             </p>
           </div>
           {!lead.hasWebsite ? (
