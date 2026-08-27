@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Check, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PLANS } from "@/lib/billing";
+import { PLANS, formatNgn } from "@/lib/billing";
 import { Logo } from "@/components/landing/Logo";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
@@ -42,7 +42,10 @@ function ChoosePlanPage() {
                 </span>
               )}
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{plan.name}</p>
-              <p className="mt-2 text-3xl font-bold">${plan.usd}<span className="text-base font-normal text-muted-foreground">/mo</span></p>
+              <p className="mt-2 text-3xl font-bold">
+                {formatNgn(plan.ngn)}
+                <span className="text-base font-normal text-muted-foreground">/mo</span>
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
               <ul className="mt-4 flex-1 space-y-2">
                 {plan.features.map((f) => (
