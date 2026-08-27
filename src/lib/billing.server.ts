@@ -1,73 +1,19 @@
 // Server-only billing helpers. The .server.ts suffix keeps this out of the
 // client bundle. Reads secrets at call time (Workers bind env per-request).
+// Paystack only — Stripe support removed.
 import process from "node:process";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { findPlan, findPack, type Provider } from "@/lib/billing";
+import { findPlan, findPack } from "@/lib/billing";
 
-export const STRIPE_API = "https://api.stripe.com/v1";
+export type Provider = "paystack";
+
 export const PAYSTACK_API = "https://api.paystack.co";
-
-export function getStripeKey(): string {
-  const k = process.env.STRIPE_SECRET_KEY;
-  if (!k) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return k;
-}
-
-export function getStripeWebhookSecret(): string {
-  const k = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!k) throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
-  return k;
-}
 
 export function getPaystackKey(): string {
   const k = process.env.PAYSTACK_SECRET_KEY;
   if (!k) throw new Error("PAYSTACK_SECRET_KEY is not configured");
   return k;
-}
-
-// ---- Stripe (REST, no SDK — Worker friendly) ----
-export async function stripeFetch<T = any>(
-  path: string,
-  params: Record<string, string | number | undefined | null>,
-): Promise<T> {
-  const body = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== "") body.append(k, String(v));
-  }
-  const res = await fetch(`${STRIPE_API}${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${getStripeKey()}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-  const json = (await res.json()) as any;
-  if (!res.ok) throw new Error(json?.error?.message || "Stripe request failed");
-  return json as T;
-}
-
-export function verifyStripeSignature(payload: string, header: string | null, secret: string): boolean {
-  if (!header) return false;
-  const parts: Record<string, string> = {};
-  for (const piece of header.split(",")) {
-    const idx = piece.indexOf("=");
-    if (idx > 0) parts[piece.slice(0, idx).trim()] = piece.slice(idx + 1).trim();
-  }
-  const t = parts["t"];
-  const v1 = parts["v1"];
-  if (!t || !v1) return false;
-
-  // Reject requests whose timestamp is more than 5 minutes old (replay protection)
-  const ts = parseInt(t, 10);
-  if (isNaN(ts) || Math.abs(Math.floor(Date.now() / 1000) - ts) > 300) return false;
-
-  const expected = createHmac("sha256", secret).update(`${t}.${payload}`).digest("hex");
-  const a = Buffer.from(expected);
-  const b = Buffer.from(v1);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
 }
 
 // ---- Paystack ----
@@ -229,8 +175,8 @@ export async function applySubscription(args: {
     kind: "subscription",
     description: `${plan.name} plan — ${plan.credits} leads / month`,
     plan_id: plan.id,
-    amount: args.amount ?? plan.usd,
-    currency: args.currency ?? "USD",
+    amount: args.amount ?? plan.ngn,
+    currency: args.currency ?? "NGN",
     credits_granted: plan.credits,
     status: "success",
   });
@@ -266,8 +212,8 @@ export async function applyCreditPack(args: {
     kind: "credit_pack",
     description: `${pack.name} — ${pack.credits} leads`,
     plan_id: pack.id,
-    amount: args.amount ?? pack.usd,
-    currency: args.currency ?? "USD",
+    amount: args.amount ?? pack.ngn,
+    currency: args.currency ?? "NGN",
     credits_granted: pack.credits,
     status: "success",
   });
