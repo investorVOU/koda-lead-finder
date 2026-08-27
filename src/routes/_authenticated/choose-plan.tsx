@@ -1,12 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { toast } from "sonner";
-import { Check, Loader2, Zap } from "lucide-react";
+import { Check, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { PLANS, FREE_PLAN } from "@/lib/billing";
+import { PLANS } from "@/lib/billing";
 import { Logo } from "@/components/landing/Logo";
-import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
   head: () => ({ meta: [{ title: "Choose your plan — Kodarai" }] }),
@@ -14,34 +10,7 @@ export const Route = createFileRoute("/_authenticated/choose-plan")({
 });
 
 function ChoosePlanPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-
-  const activateFree = async () => {
-    setBusy(true);
-    const { error } = await supabase.rpc("activate_free_trial");
-    if (error) {
-      setBusy(false);
-      toast.error(error.message);
-      return;
-    }
-
-    if (user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ onboarded: true })
-        .eq("id", user.id);
-      if (profileError) {
-        setBusy(false);
-        toast.error(profileError.message);
-        return;
-      }
-    }
-
-    setBusy(false);
-    navigate({ to: "/trial-welcome" });
-  };
 
   const goToBilling = () => navigate({ to: "/billing" });
 
@@ -56,40 +25,10 @@ function ChoosePlanPage() {
 
         <div className="mt-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Choose your plan</h1>
-          <p className="mt-2 text-muted-foreground">Start free or unlock the full pipeline right away.</p>
+          <p className="mt-2 text-muted-foreground">Unlock the full pipeline right away.</p>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* Free trial card */}
-          <div className="flex flex-col rounded-2xl border-2 border-border bg-card p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Free trial</p>
-            <p className="mt-2 text-3xl font-bold">$0</p>
-            <p className="mt-1 text-sm text-muted-foreground">{FREE_PLAN.tagline}</p>
-            <ul className="mt-4 flex-1 space-y-2">
-              {FREE_PLAN.features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Check className="size-3.5 shrink-0 text-primary" /> {f}
-                </li>
-              ))}
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Check className="size-3.5 shrink-0 text-primary" /> 250 searches for 3 days
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Check className="size-3.5 shrink-0 text-primary" /> Drops to free (0 searches) after
-              </li>
-            </ul>
-            <Button
-              className="mt-6 w-full"
-              variant="outline"
-              onClick={activateFree}
-              disabled={busy}
-            >
-              {busy ? <Loader2 className="size-4 animate-spin" /> : "Start free trial"}
-            </Button>
-          </div>
-
-          {/* Paid plans */}
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PLANS.map((plan) => (
             <div
               key={plan.id}
@@ -122,10 +61,6 @@ function ChoosePlanPage() {
             </div>
           ))}
         </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Free trial gives you 250 searches for 3 days · no card required · upgrade anytime
-        </p>
       </div>
     </div>
   );
