@@ -36,10 +36,10 @@ function SignupPage() {
   }, []);
 
   // If a session already exists (e.g. user landed on /signup while logged in),
-  // don't force them to /choose-plan — let the authenticated layout decide
-  // where they belong based on their actual plan/profile state.
+  // send them to /dashboard — it's inside the authenticated layout, which
+  // will route them to /choose-plan itself if they actually lack a plan.
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/" });
+    if (!loading && user) navigate({ to: "/dashboard" });
   }, [user, loading, navigate]);
 
   const resetCaptcha = () => {
@@ -86,11 +86,11 @@ function SignupPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      // Land on "/" instead of "/choose-plan" — Google OAuth is used for
-      // both new signups and returning logins, and we can't tell which
-      // it is until the session comes back. Let the authenticated layout's
-      // plan check route new users to /choose-plan and existing users home.
-      options: { redirectTo: window.location.origin + "/" },
+      // Google OAuth is used for both new signups and returning logins, and
+      // we can't tell which it is until the session comes back. Send to
+      // /dashboard — the authenticated layout's plan check will route new
+      // users (no profile/no plan) to /choose-plan, and existing users stay put.
+      options: { redirectTo: window.location.origin + "/dashboard" },
     });
     if (error) {
       setBusy(false);
