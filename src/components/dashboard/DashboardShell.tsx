@@ -13,6 +13,7 @@ import {
   faGear,
   faCode,
   faEllipsis,
+  faPenToSquare,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "@/components/landing/Logo";
@@ -32,15 +33,16 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { to: "/dashboard", label: "Finder",   icon: faSearch },
-  { to: "/leads",     label: "Saved",    icon: faBookmark },
-  { to: "/revenue",   label: "Revenue",  icon: faChartBar },
-  { to: "/studio",    label: "Studio",   icon: faCode },
-  { to: "/referrals", label: "Earn",     icon: faGift,      mobileHide: true },
-  { to: "/billing",   label: "Billing",  icon: faCreditCard },
-  { to: "/invoices",  label: "Invoices", icon: faReceipt,   mobileHide: true },
-  { to: "/numbers",   label: "Numbers",  icon: faMobileAlt, mobileHide: true },
-  { to: "/settings",  label: "Settings", icon: faGear,      mobileHide: true },
+  { to: "/dashboard",        label: "Finder",         icon: faSearch },
+  { to: "/social-content",   label: "Social Content", icon: faPenToSquare },
+  { to: "/leads",            label: "Saved",          icon: faBookmark },
+  { to: "/revenue",          label: "Revenue",        icon: faChartBar },
+  { to: "/studio",           label: "Studio",         icon: faCode },
+  { to: "/referrals",        label: "Earn",           icon: faGift, mobileHide: true },
+  { to: "/billing",          label: "Billing",        icon: faCreditCard },
+  { to: "/invoices",         label: "Invoices",       icon: faReceipt, mobileHide: true },
+  { to: "/numbers",          label: "Numbers",        icon: faMobileAlt, mobileHide: true },
+  { to: "/settings",         label: "Settings",       icon: faGear, mobileHide: true },
 ];
 
 const mobileNavItems = navItems.filter((i) => !i.mobileHide);
