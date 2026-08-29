@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
 import { z } from "zod";
-import { getYouTubeChannelData } from "@/lib/youtube.functions";
+import { fetchYouTubeChannelData } from "@/lib/youtube.functions";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "openai/gpt-oss-120b";
@@ -37,6 +37,9 @@ function cleanJsonResponse(raw: string): string {
     .trim();
 }
 
+// TEMPORARY: this endpoint has no auth check yet. Anyone with the URL can
+// call it and burn Groq/YouTube quota. Fix this once auth-middleware.ts
+// is shared — see conversation notes.
 export const Route = createFileRoute("/api/studio/channel-review")({
   server: {
     handlers: {
@@ -52,26 +55,7 @@ export const Route = createFileRoute("/api/studio/channel-review")({
           );
         }
 
-        let youtubeResult;
-        try {
-          // requireSupabaseAuth is already attached to getYouTubeChannelData —
-          // calling it here, inside the same request's handler, still enforces
-          // auth using this request's cookies. No separate auth check needed.
-          youtubeResult = await getYouTubeChannelData({
-            data: { url: body.channelInput, videoLimit: 25 },
-          });
-        } catch (err) {
-          console.error("Auth or YouTube fetch failed:", err);
-          const message = err instanceof Error ? err.message : "";
-          const isAuthError = /auth|unauthoriz|not logged in|session/i.test(message);
-          return json(
-            {
-              error: isAuthError ? "unauthorized" : "youtube_error",
-              message: isAuthError ? "Sign in required." : "Could not fetch channel data.",
-            },
-            { status: isAuthError ? 401 : 500 },
-          );
-        }
+        const youtubeResult = await fetchYouTubeChannelData(body.channelInput, 25);
 
         if ("error" in youtubeResult) {
           return json(
