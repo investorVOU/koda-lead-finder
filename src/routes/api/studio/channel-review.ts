@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getYouTubeChannelData } from "@/lib/youtube.functions";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "openai/gpt-oss-120b"; // verify against console.groq.com/docs/models
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const bodySchema = z.object({
   channelInput: z.string().min(1).max(500),
@@ -37,48 +37,10 @@ function cleanJsonResponse(raw: string): string {
     .trim();
 }
 
-/**
- * AUTH: this uses @supabase/ssr reading the session from request cookies —
- * the standard pattern for Supabase + TanStack Start. If your existing
- * requireSupabaseAuth middleware works differently (different cookie name,
- * different client setup), paste that file's contents and I'll match it
- * exactly instead of guessing.
- */
-async function getAuthedUser(request: Request) {
-  const { createServerClient, parseCookieHeader } = await import(
-    "@supabase/ssr"
-  );
-
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const cookies = parseCookieHeader(cookieHeader);
-
-  const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookies,
-        setAll: () => {}, // no-op; not setting cookies from this read-only check
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  return user;
-}
-
 export const Route = createFileRoute("/api/studio/channel-review")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const user = await getAuthedUser(request);
-        if (!user) {
-          return json({ error: "unauthorized", message: "Sign in required." }, { status: 401 });
-        }
-
         let body: z.infer<typeof bodySchema>;
         try {
           const raw = await request.json();
@@ -90,9 +52,26 @@ export const Route = createFileRoute("/api/studio/channel-review")({
           );
         }
 
-        const youtubeResult = await getYouTubeChannelData({
-          data: { url: body.channelInput, videoLimit: 25 },
-        });
+        let youtubeResult;
+        try {
+          // requireSupabaseAuth is already attached to getYouTubeChannelData —
+          // calling it here, inside the same request's handler, still enforces
+          // auth using this request's cookies. No separate auth check needed.
+          youtubeResult = await getYouTubeChannelData({
+            data: { url: body.channelInput, videoLimit: 25 },
+          });
+        } catch (err) {
+          console.error("Auth or YouTube fetch failed:", err);
+          const message = err instanceof Error ? err.message : "";
+          const isAuthError = /auth|unauthoriz|not logged in|session/i.test(message);
+          return json(
+            {
+              error: isAuthError ? "unauthorized" : "youtube_error",
+              message: isAuthError ? "Sign in required." : "Could not fetch channel data.",
+            },
+            { status: isAuthError ? 401 : 500 },
+          );
+        }
 
         if ("error" in youtubeResult) {
           return json(
