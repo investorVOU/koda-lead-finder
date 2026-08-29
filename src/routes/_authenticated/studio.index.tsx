@@ -1,239 +1,279 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Plus, Trash2, ExternalLink, LayoutTemplate, Loader2,
-  Globe, Code2, FileCode2,
+  ArrowRight,
+  Bot,
+  Clapperboard,
+  Code2,
+  FileText,
+  Lightbulb,
+  MessageSquareText,
+  PlaySquare,
+  Search,
+  Sparkles,
+  WandSparkles,
+  Workflow,
+  Youtube,
 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
-import {
-  listStudioProjects,
-  deleteStudioProject,
-  getStudioUsage,
-  type StudioProject,
-} from "@/lib/studio.functions";
 
 export const Route = createFileRoute("/_authenticated/studio/")({
-  head: () => ({ meta: [{ title: "Studio — Kodarai" }] }),
+  head: () => ({
+    meta: [{ title: "Creator Studio — Kodarai" }],
+  }),
   component: StudioPage,
 });
 
-const STATUS_CONFIG = {
-  draft:    { label: "Draft",    cls: "bg-muted text-muted-foreground" },
-  building: { label: "Building", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-  live:     { label: "Live",     cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-  error:    { label: "Error",    cls: "bg-destructive/15 text-destructive" },
-} as const;
+type ToolCardProps = {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  href?: string;
+  badge?: string;
+  disabled?: boolean;
+};
+
+function ToolCard({
+  title,
+  description,
+  icon: Icon,
+  href,
+  badge,
+  disabled = false,
+}: ToolCardProps) {
+  const content = (
+    <div
+      className={`group relative h-full rounded-2xl border border-border bg-card p-5 transition-all ${
+        disabled
+          ? "cursor-default opacity-60"
+          : "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+      }`}
+    >
+      {badge && (
+        <span className="absolute right-4 top-4 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+          {badge}
+        </span>
+      )}
+
+      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="size-5" />
+      </div>
+
+      <h3 className="mt-4 text-sm font-semibold">{title}</h3>
+
+      <p className="mt-1.5 max-w-sm text-xs leading-5 text-muted-foreground">
+        {description}
+      </p>
+
+      {!disabled && (
+        <div className="mt-4 flex items-center gap-1.5 text-xs font-medium text-primary">
+          Open tool
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </div>
+      )}
+    </div>
+  );
+
+  if (disabled || !href) {
+    return content;
+  }
+
+  return (
+    <Link to={href as never} className="block h-full">
+      {content}
+    </Link>
+  );
+}
 
 function StudioPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const runList = useServerFn(listStudioProjects);
-  const runDelete = useServerFn(deleteStudioProject);
-  const runUsage = useServerFn(getStudioUsage);
-
-  const { data: projectsData, isLoading } = useQuery({
-    queryKey: ["studio-projects", user?.id],
-    queryFn: () => runList({}),
-    enabled: !!user,
-  });
-
-  const { data: usageData } = useQuery({
-    queryKey: ["studio-usage", user?.id],
-    queryFn: () => runUsage({}),
-    enabled: !!user,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => runDelete({ data: { id } }),
-    onSuccess: (res) => {
-      if ("error" in res) { toast.error(res.error); return; }
-      queryClient.invalidateQueries({ queryKey: ["studio-projects"] });
-      queryClient.invalidateQueries({ queryKey: ["studio-usage"] });
-      toast.success("Project deleted.");
-    },
-  });
-
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-
-  const projects = projectsData?.projects ?? [];
-  const usage = usageData;
-
   return (
     <DashboardShell>
-      <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Studio</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Build client websites with AI — describe it, generate it, deploy it.
+      <div className="mx-auto max-w-6xl space-y-8 p-4 sm:p-6">
+        {/* Hero */}
+        <section className="relative overflow-hidden rounded-3xl border border-border bg-card">
+          <div className="absolute -right-20 -top-20 size-64 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-20 size-64 rounded-full bg-primary/5 blur-3xl" />
+
+          <div className="relative p-6 sm:p-8">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Sparkles className="size-6" />
+            </div>
+
+            <h1 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl">
+              Creator Studio
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Your AI workspace for researching, planning, creating, and
+              automating content. Turn an idea into videos, scripts, stories,
+              and repeatable workflows.
             </p>
           </div>
-          <Button asChild variant="hero" className="h-fit">
-            <Link to="/studio/new" search={{ leadId: undefined }}>
-              <Plus className="size-4" /> New project
-            </Link>
-          </Button>
-        </div>
+        </section>
 
-        {/* Usage bar */}
-        {usage && (
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">AI messages this month</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {usage.messagesThisMonth} of {usage.messagesLimit === 9999 ? "∞" : usage.messagesLimit} used
-                </p>
-              </div>
-              <div className="w-40 shrink-0">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{
-                      width: usage.messagesLimit === 9999
-                        ? "10%"
-                        : `${Math.min(100, (usage.messagesThisMonth / usage.messagesLimit) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
+        {/* YouTube */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Youtube className="size-4 text-primary" />
+            <div>
+              <h2 className="text-base font-semibold">YouTube & Content Research</h2>
+              <p className="text-xs text-muted-foreground">
+                Find opportunities before you start creating.
+              </p>
             </div>
           </div>
-        )}
 
-        {/* Projects grid */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ToolCard
+              title="Channel Review"
+              description="Analyze a YouTube channel, identify what is working, what is weak, and where the biggest content opportunities are."
+              icon={PlaySquare}
+              badge="Coming soon"
+              disabled
+            />
+
+            <ToolCard
+              title="Video Ideas"
+              description="Generate specific video concepts based on a niche, audience, channel, trend, or competitor."
+              icon={Lightbulb}
+              badge="Coming soon"
+              disabled
+            />
+
+            <ToolCard
+              title="Competitor Research"
+              description="Study competing channels and uncover topics, formats, hooks, and gaps worth attacking."
+              icon={Search}
+              badge="Coming soon"
+              disabled
+            />
           </div>
-        ) : projects.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onDelete={(id) => setConfirmDelete(id)}
-              />
-            ))}
+        </section>
+
+        {/* Content creation */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Clapperboard className="size-4 text-primary" />
+            <div>
+              <h2 className="text-base font-semibold">Content Creation</h2>
+              <p className="text-xs text-muted-foreground">
+                Go from idea to finished content faster.
+              </p>
+            </div>
           </div>
-        )}
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ToolCard
+              title="Scripts & Stories"
+              description="Create long-form YouTube scripts, documentary stories, faceless videos, storytelling content, and narrative concepts."
+              icon={FileText}
+              badge="Coming soon"
+              disabled
+            />
+
+            <ToolCard
+              title="Titles & Hooks"
+              description="Generate attention-grabbing titles, opening hooks, angles, and variations designed around the actual topic."
+              icon={MessageSquareText}
+              badge="Coming soon"
+              disabled
+            />
+
+            <ToolCard
+              title="Content Repurposer"
+              description="Turn one piece of content into Shorts, tweets, captions, posts, hooks, clips, and new video ideas."
+              icon={WandSparkles}
+              badge="Coming soon"
+              disabled
+            />
+          </div>
+        </section>
+
+        {/* Automation */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Workflow className="size-4 text-primary" />
+            <div>
+              <h2 className="text-base font-semibold">AI Automation</h2>
+              <p className="text-xs text-muted-foreground">
+                Find and design workflows that remove repetitive work.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ToolCard
+              title="Automation Ideas"
+              description="Describe a repetitive task and discover practical AI automation workflows you could build."
+              icon={Bot}
+              badge="Coming soon"
+              disabled
+            />
+
+            <ToolCard
+              title="Research & Scrapers"
+              description="Design research workflows for collecting, organizing, filtering, and summarizing useful public information."
+              icon={Search}
+              badge="Coming soon"
+              disabled
+            />
+
+            <ToolCard
+              title="Workflow Builder"
+              description="Turn an automation idea into a structured workflow with inputs, steps, AI actions, and outputs."
+              icon={Workflow}
+              badge="Coming soon"
+              disabled
+            />
+          </div>
+        </section>
+
+        {/* Website builder */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Code2 className="size-4 text-primary" />
+            <div>
+              <h2 className="text-base font-semibold">Website Builder</h2>
+              <p className="text-xs text-muted-foreground">
+                Keep the existing AI website builder available as one Studio
+                tool.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ToolCard
+              title="New Website Project"
+              description="Create a client website from a prompt using the existing Kodarai website-building workflow."
+              icon={Code2}
+              href="/studio/new"
+            />
+
+            <ToolCard
+              title="My Website Projects"
+              description="Open and continue working on websites you've already created."
+              icon={Code2}
+              href="/studio/projects"
+              badge="Coming soon"
+              disabled
+            />
+          </div>
+        </section>
+
+        {/* Bottom message */}
+        <section className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 text-center">
+          <Sparkles className="mx-auto size-5 text-primary" />
+
+          <h3 className="mt-2 text-sm font-semibold">
+            More creator tools are coming
+          </h3>
+
+          <p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-muted-foreground">
+            Kodarai Studio is becoming a complete AI workspace for creators,
+            researchers, agencies, and automation builders — not just a
+            website generator.
+          </p>
+        </section>
       </div>
-
-      {/* Delete confirm modal */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <h3 className="font-semibold">Delete project?</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              This will permanently delete the project and all its files, messages, and history.
-            </p>
-            <div className="mt-5 flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                disabled={deleteMutation.isPending}
-                onClick={() => {
-                  deleteMutation.mutate(confirmDelete);
-                  setConfirmDelete(null);
-                }}
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardShell>
-  );
-}
-
-function ProjectCard({ project, onDelete }: { project: StudioProject; onDelete: (id: string) => void }) {
-  const status = STATUS_CONFIG[project.status] ?? STATUS_CONFIG.draft;
-
-  return (
-    <div className="group rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-md">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <FileCode2 className="size-4 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{project.name}</p>
-            <p className="text-[11px] text-muted-foreground">
-              {formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })}
-            </p>
-          </div>
-        </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.cls}`}>
-          {status.label}
-        </span>
-      </div>
-
-      {project.deployment_url && (
-        <a
-          href={project.deployment_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 flex items-center gap-1.5 truncate text-xs text-emerald-600 hover:underline dark:text-emerald-400"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Globe className="size-3 shrink-0" />
-          {project.deployment_url.replace(/^https?:\/\//, "")}
-          <ExternalLink className="size-3 shrink-0" />
-        </a>
-      )}
-
-      <div className="mt-4 flex gap-2">
-        <Link
-          to="/studio/$projectId"
-          params={{ projectId: project.id }}
-          className="flex-1"
-        >
-          <Button variant="outline" size="sm" className="w-full gap-1.5">
-            <Code2 className="size-3.5" /> Open builder
-          </Button>
-        </Link>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="size-8 shrink-0 text-destructive hover:bg-destructive/10"
-          onClick={() => onDelete(project.id)}
-        >
-          <Trash2 className="size-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-        <LayoutTemplate className="size-7 text-primary" />
-      </div>
-      <h3 className="mt-4 text-base font-semibold">No projects yet</h3>
-      <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
-        Build your first client site — describe what you want and the AI writes all the code.
-      </p>
-      <Button asChild variant="hero" className="mt-6 w-full sm:w-auto">
-        <Link to="/studio/new" search={{ leadId: undefined }}>
-          <Plus className="size-4" /> Build first site
-        </Link>
-      </Button>
-    </div>
   );
 }
