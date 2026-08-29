@@ -7,7 +7,7 @@ import {
 } from "@/lib/youtube.functions";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b"; // verify against console.groq.com/docs/models — Groq deprecates fast
 
 export interface ChannelReviewVideo {
   id: string;
@@ -187,6 +187,7 @@ Rules:
       model: GROQ_MODEL,
       temperature: 0.4,
       max_tokens: 1800,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
