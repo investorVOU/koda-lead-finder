@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getYouTubeChannelData } from "@/lib/youtube.functions";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b"; // verify against console.groq.com/docs/models before shipping — Groq deprecates fast
 
 const generateIdeasSchema = z.object({
   topic: z.string().max(500).optional().default(""),
@@ -254,6 +254,7 @@ Exact shape:
         body: JSON.stringify({
           model: GROQ_MODEL,
           temperature: 0.8,
+          response_format: { type: "json_object" },
           messages: [
             {
               role: "system",
