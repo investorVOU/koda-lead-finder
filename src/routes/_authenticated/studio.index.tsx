@@ -5,9 +5,6 @@ import {
   PenLine,
   Workflow,
   Youtube,
-  Sparkles,
-  ArrowRight,
-  Bot,
   Database,
 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -21,42 +18,42 @@ const TOOLS = [
   {
     id: "channel-review",
     title: "Channel Review",
-    description: "Analyze a YouTube channel, content strategy, titles and growth opportunities.",
+    description: "Paste a channel. See what's working, what's not, what to make next.",
     icon: Youtube,
     href: "/studio/channel-review",
   },
   {
     id: "ideas",
     title: "Video Ideas",
-    description: "Find fresh video ideas, hooks, angles and titles for your niche.",
+    description: "Titles, hooks and angles for your niche.",
     icon: Lightbulb,
     href: "/studio/ideas",
   },
   {
     id: "scraper",
     title: "AI Scraper",
-    description: "Research channels, videos, competitors and content patterns.",
+    description: "Pull channels, videos and competitor patterns.",
     icon: Search,
     href: "/studio/scraper",
   },
   {
     id: "content",
     title: "Content Studio",
-    description: "Create scripts, stories, hooks, titles, descriptions and more.",
+    description: "Scripts, stories, titles and descriptions.",
     icon: PenLine,
     href: "/studio/content",
   },
   {
     id: "automation",
-    title: "AI Automations",
-    description: "Build repeatable AI workflows that handle research and content tasks.",
+    title: "Automations",
+    description: "Chain tools into repeatable workflows.",
     icon: Workflow,
     href: "/studio/automations",
   },
   {
     id: "research",
     title: "My Research",
-    description: "Keep your saved channels, videos, ideas, research and generated content.",
+    description: "Saved channels, videos, ideas and drafts.",
     icon: Database,
     href: "/studio/research",
   },
@@ -66,111 +63,18 @@ function StudioPage() {
   return (
     <DashboardShell>
       <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
-        {/* Header */}
-        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-              <Sparkles className="size-5 text-primary" />
-            </div>
-
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                Studio
-              </h1>
-
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                Your AI workspace for researching content, finding ideas,
-                creating videos and building automations.
-              </p>
-            </div>
-          </div>
+        <div className="border-b border-border pb-5">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Studio</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Research, write and ship content, in one place.
+          </p>
         </div>
 
-        {/* Quick tools */}
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold">AI Tools</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Pick a tool and get to work.
-              </p>
-            </div>
-          </div>
-
-          {/* 2 columns on mobile */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-            {TOOLS.map((tool) => (
-              <ToolCard key={tool.id} {...tool} />
-            ))}
-          </div>
-        </section>
-
-        {/* Creator workflow */}
-        <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <Bot className="size-4 text-primary" />
-            </div>
-
-            <div>
-              <h2 className="text-sm font-semibold">
-                A simple creator workflow
-              </h2>
-
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Research what is working, discover opportunities, generate
-                ideas and turn them into content.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-4">
-            <WorkflowStep
-              number="01"
-              title="Research"
-              description="Find channels, videos and patterns."
-            />
-
-            <WorkflowStep
-              number="02"
-              title="Analyze"
-              description="Understand what is working."
-            />
-
-            <WorkflowStep
-              number="03"
-              title="Create"
-              description="Turn insights into ideas and scripts."
-            />
-
-            <WorkflowStep
-              number="04"
-              title="Automate"
-              description="Build workflows for repetitive work."
-            />
-          </div>
-        </section>
-
-        {/* Coming soon / positioning */}
-        <section className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 sm:p-6">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background">
-              <Sparkles className="size-4 text-primary" />
-            </div>
-
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold">
-                Built for AI creators
-              </h2>
-
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                KodarAI Studio is becoming a workspace for AI YouTubers,
-                automation builders and creators — from research to finished
-                content.
-              </p>
-            </div>
-          </div>
-        </section>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          {TOOLS.map((tool) => (
+            <ToolCard key={tool.id} {...tool} />
+          ))}
+        </div>
       </div>
     </DashboardShell>
   );
@@ -190,48 +94,13 @@ function ToolCard({
   return (
     <Link
       to={href}
-      className="group block h-full rounded-xl border border-border bg-card p-3 transition-all hover:border-primary/40 hover:bg-primary/[0.02] hover:shadow-sm sm:p-4"
+      className="group flex h-full flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
     >
-      <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
-        <Icon className="size-4 sm:size-4" />
-      </div>
-
-      <div className="mt-3">
-        <h3 className="text-xs font-semibold leading-tight sm:text-sm">
-          {title}
-        </h3>
-
-        <p className="mt-1.5 line-clamp-3 text-[10px] leading-relaxed text-muted-foreground sm:text-xs">
-          {description}
-        </p>
-      </div>
-
-      <div className="mt-3 flex items-center gap-1 text-[10px] font-medium text-primary opacity-80 transition-transform group-hover:translate-x-0.5 sm:text-xs">
-        Open
-        <ArrowRight className="size-3" />
-      </div>
-    </Link>
-  );
-}
-
-function WorkflowStep({
-  number,
-  title,
-  description,
-}: {
-  number: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-background p-3">
-      <span className="text-[10px] font-bold text-primary">{number}</span>
-
-      <h3 className="mt-1 text-xs font-semibold">{title}</h3>
-
-      <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+      <Icon className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+      <h3 className="text-sm font-semibold leading-tight">{title}</h3>
+      <p className="text-xs leading-relaxed text-muted-foreground">
         {description}
       </p>
-    </div>
+    </Link>
   );
 }
