@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import {
   Youtube,
@@ -15,10 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import {
-  reviewYouTubeChannel,
-  type ChannelReviewResult,
-} from "@/lib/channel-review.functions";
+import type { ChannelReviewResult } from "@/lib/channel-review.functions";
 
 export const Route = createFileRoute("/_authenticated/studio/channel-review")({
   head: () => ({
@@ -28,8 +24,6 @@ export const Route = createFileRoute("/_authenticated/studio/channel-review")({
 });
 
 function ChannelReviewPage() {
-  const runReview = useServerFn(reviewYouTubeChannel);
-
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,17 +42,19 @@ function ChannelReviewPage() {
     setResult(null);
 
     try {
-      const data = await runReview({
-        data: {
-          channelInput: input.trim(),
-        },
+      const res = await fetch("/api/studio/channel-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelInput: input.trim() }),
       });
 
-      if ("error" in data) {
-        throw new Error(data.message);
+      const data = await res.json();
+
+      if (!res.ok || "error" in data) {
+        throw new Error(data.message ?? "Something went wrong while reviewing the channel.");
       }
 
-      setResult(data);
+      setResult(data as ChannelReviewResult);
     } catch (err) {
       setError(
         err instanceof Error
