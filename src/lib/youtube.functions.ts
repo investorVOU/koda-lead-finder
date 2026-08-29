@@ -485,8 +485,6 @@ export const getYouTubeChannelVideos = createServerFn({
         }),
       );
 
-      // The search endpoint normally returns newest first, but
-      // preserve that ordering explicitly.
       videos.sort((a, b) => {
         const aDate = a.publishedAt
           ? new Date(a.publishedAt).getTime()
@@ -518,7 +516,12 @@ export const getYouTubeChannelVideos = createServerFn({
 /**
  * Fetch the channel plus its latest videos in one call.
  *
- * This is the function Channel Review should use.
+ * This is the function Channel Review used to call directly. Kept as-is
+ * for any other caller that goes through TanStack's normal server-fn
+ * dispatch (client components using useServerFn). Do NOT call this one
+ * from a plain API route handler — its requireSupabaseAuth middleware
+ * depends on TanStack's RPC dispatch context, which API routes don't
+ * provide. Use fetchYouTubeChannelData below for that case instead.
  */
 export const getYouTubeChannelData = createServerFn({
   method: "POST",
@@ -678,3 +681,96 @@ export const getYouTubeChannelData = createServerFn({
       } as const;
     }
   });
+
+/**
+ * Plain, middleware-free version of the channel+videos fetch — safe to call
+ * from anywhere on the server (API routes, other plain functions) without
+ * depending on TanStack's RPC dispatch context. This is what
+ * /api/studio/channel-review uses.
+ *
+ * IMPORTANT: this function does NOT check authentication on its own.
+ * Whatever calls it is responsible for verifying the user first.
+ */
+export async function fetchYouTubeChannelData(
+  url: string,
+  videoLimit = 25,
+): Promise<
+  | { channel: YouTubeChannel; videos: YouTubeVideo[] }
+  | { error: string; message: string }
+> {
+  try {
+    const parsed = parseYouTubeChannelUrl(url);
+    const channelId = await resolveChannelId(parsed);
+
+    const [channelResult, searchResult] = await Promise.all([
+      youtubeFetch<{ items?: YouTubeApiChannel[] }>("channels", {
+        part: "snippet,statistics",
+        id: channelId,
+      }),
+      youtubeFetch<{ items?: { id?: { videoId?: string } }[] }>("search", {
+        part: "snippet",
+        channelId,
+        type: "video",
+        order: "date",
+        maxResults: String(videoLimit),
+      }),
+    ]);
+
+    const rawChannel = channelResult.items?.[0];
+    if (!rawChannel) {
+      return { error: "not_found", message: "YouTube channel not found." };
+    }
+
+    const channel: YouTubeChannel = {
+      id: rawChannel.id,
+      title: rawChannel.snippet?.title || "Untitled Channel",
+      description: rawChannel.snippet?.description || "",
+      customUrl: rawChannel.snippet?.customUrl || null,
+      publishedAt: rawChannel.snippet?.publishedAt || null,
+      thumbnailUrl: thumbnailUrl(rawChannel.snippet?.thumbnails),
+      country: rawChannel.snippet?.country || null,
+      subscribers: toNullableNumber(rawChannel.statistics?.subscriberCount),
+      videoCount: toNumber(rawChannel.statistics?.videoCount),
+      viewCount: toNumber(rawChannel.statistics?.viewCount),
+    };
+
+    const videoIds = (searchResult.items ?? [])
+      .map((item) => item.id?.videoId)
+      .filter((id): id is string => Boolean(id));
+
+    let videos: YouTubeVideo[] = [];
+    if (videoIds.length > 0) {
+      const videoResult = await youtubeFetch<{ items?: YouTubeApiVideo[] }>(
+        "videos",
+        { part: "snippet,statistics,contentDetails", id: videoIds.join(",") },
+      );
+      videos = (videoResult.items ?? []).map((video) => ({
+        id: video.id,
+        title: video.snippet?.title || "Untitled Video",
+        description: video.snippet?.description || "",
+        publishedAt: video.snippet?.publishedAt || null,
+        thumbnailUrl: thumbnailUrl(video.snippet?.thumbnails),
+        channelId: video.snippet?.channelId || channelId,
+        channelTitle: video.snippet?.channelTitle || channel.title,
+        views: toNumber(video.statistics?.viewCount),
+        likes: toNullableNumber(video.statistics?.likeCount),
+        comments: toNullableNumber(video.statistics?.commentCount),
+        duration: video.contentDetails?.duration || null,
+      }));
+    }
+
+    videos.sort((a, b) => {
+      const aDate = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bDate = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return bDate - aDate;
+    });
+
+    return { channel, videos };
+  } catch (error) {
+    console.error("fetchYouTubeChannelData failed:", error);
+    return {
+      error: "youtube_error",
+      message: error instanceof Error ? error.message : "Could not fetch YouTube channel data.",
+    };
+  }
+}
