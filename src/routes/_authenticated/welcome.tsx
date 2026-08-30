@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Briefcase, Youtube, Lightbulb, PenLine, ArrowRight } from "lucide-react";
+import { Search, Youtube, Lightbulb, PenLine, ArrowRight, Check, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/welcome")({
   head: () => ({ meta: [{ title: "Welcome to Kodarai" }] }),
@@ -7,10 +7,16 @@ export const Route = createFileRoute("/_authenticated/welcome")({
 });
 
 const FEATURES = [
-  { icon: Briefcase, title: "Find clients", text: "Businesses without a website, ready to pitch." },
+  { icon: Search, title: "Find high-rated businesses without websites", text: "See them, estimate the deal, and close them fast." },
   { icon: Youtube, title: "Grow your channel", text: "See what's working and what to make next." },
   { icon: Lightbulb, title: "Never run out of ideas", text: "Titles, hooks and angles in seconds." },
   { icon: PenLine, title: "Skip the blank page", text: "Full scripts, ready to record." },
+];
+
+const COMPARISON = [
+  { without: "Cold-calling blind, hoping someone needs a website", with: "See who already needs one before you reach out" },
+  { without: "Hours of research before making a single video", with: "Know what to make next in minutes" },
+  { without: "Paying for 4-5 separate tools", with: "One place for leads, research and content" },
 ];
 
 function WelcomePage() {
@@ -33,6 +39,28 @@ function WelcomePage() {
               <div>
                 <p className="text-sm font-semibold">{f.title}</p>
                 <p className="text-xs text-muted-foreground">{f.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 overflow-hidden rounded-xl border border-border">
+          <div className="grid grid-cols-2 border-b border-border text-left">
+            <p className="p-2.5 text-[11px] font-semibold text-muted-foreground">Without Kodarai</p>
+            <p className="border-l border-border bg-primary/[0.04] p-2.5 text-[11px] font-semibold text-primary">With Kodarai</p>
+          </div>
+          {COMPARISON.map((row, i) => (
+            <div
+              key={i}
+              className={`grid grid-cols-2 text-left ${i < COMPARISON.length - 1 ? "border-b border-border" : ""}`}
+            >
+              <div className="flex gap-1.5 p-2.5">
+                <X className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
+                <p className="text-[11px] leading-snug text-muted-foreground">{row.without}</p>
+              </div>
+              <div className="flex gap-1.5 border-l border-border bg-primary/[0.04] p-2.5">
+                <Check className="mt-0.5 size-3 shrink-0 text-primary" />
+                <p className="text-[11px] leading-snug">{row.with}</p>
               </div>
             </div>
           ))}
