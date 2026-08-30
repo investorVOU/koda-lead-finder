@@ -66,6 +66,22 @@ function AuthenticatedLayout() {
     ];
 
     if (exemptPaths.includes(pathname)) {
+      /*
+       * Special case: if a user with an active plan lands on
+       * /choose-plan, send them to the dashboard instead of
+       * showing the plan picker again.
+       */
+      if (pathname === "/choose-plan") {
+        const hasAccess =
+          sub?.status === "active" ||
+          sub?.status === "canceling" ||
+          (sub?.topup_credits ?? 0) > 0;
+
+        if (hasAccess) {
+          navigate({ to: "/dashboard" });
+        }
+      }
+
       return;
     }
 
@@ -99,6 +115,7 @@ function AuthenticatedLayout() {
   }, [
     user,
     profile,
+    sub,
     profileLoading,
     subLoading,
     location.pathname,
