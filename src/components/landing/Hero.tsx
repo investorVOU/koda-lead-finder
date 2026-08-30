@@ -1,82 +1,50 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  BadgeDollarSign,
+  Globe,
   MapPin,
-  PlayCircle,
-  Star,
+  MessageSquare,
   Phone,
+  PhoneCall,
+  PlayCircle,
   Search,
   Smartphone,
-  Globe,
-  MessageSquare,
+  Star,
+  Users,
   Youtube,
-  BadgeDollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoModal } from "@/components/landing/VideoModal";
 import { DEMO_VIDEO } from "@/lib/videos";
-import { LiveNotification } from "@/components/LiveNotification";
 
 const HERO_PHRASES = [
   {
-    line1: "Find businesses that need",
-    highlight: "a website",
-    line2: "and turn them into clients",
+    line1: "Find high-rated businesses",
+    highlight: "without websites",
+    line2: "& close them fast",
   },
   {
-    line1: "Don't know how to code?",
-    highlight: "Build with AI",
-    line2: "and sell the website",
-  },
-  {
-    line1: "Find the opportunity",
-    highlight: "build the site",
-    line2: "and close the deal",
-  },
-  {
-    line1: "Turn local businesses into",
+    line1: "Turn no-website leads into",
     highlight: "paying clients",
-    line2: "with Kodarai",
+    line2: "with the right outreach",
+  },
+  {
+    line1: "Find your next web design client",
+    highlight: "before they find an agency",
+    line2: "",
   },
   {
     line1: "Find leads, build websites,",
     highlight: "reach clients",
-    line2: "and make money",
+    line2: "and get paid",
   },
   {
-    line1: "Create better content",
-    highlight: "in less time",
-    line2: "with AI-powered research",
+    line1: "Build faster with AI,",
+    highlight: "reach more businesses",
+    line2: "and grow your income",
   },
-  {
-    line1: "Buy virtual numbers",
-    highlight: "and foreign numbers",
-    line2: "to reach more leads",
-  },
-];
-
-const WORKFLOW = [
-  {
-    icon: Search,
-    title: "Find",
-    text: "Discover businesses that need a website.",
-  },
-  {
-    icon: Globe,
-    title: "Build",
-    text: "Create the website with AI, even without coding.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Reach",
-    text: "Get scripts and tools to approach the client.",
-  },
-  {
-  icon: BadgeDollarSign,
-  title: "Get paid",
-  text: "Turn opportunities into website projects.",
-},
 ];
 
 export function Hero() {
@@ -99,7 +67,7 @@ export function Hero() {
 
   return (
     <section className="relative overflow-hidden border-b border-border bg-background">
-      {/* Ambient glow */}
+      {/* Ambient background */}
       <div className="pointer-events-none absolute inset-0 bg-[image:var(--gradient-hero)]" />
 
       {/* Technical grid */}
@@ -118,18 +86,22 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-14 sm:pt-20 lg:pb-24">
         <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-          {/* Left: copy */}
+          {/* Left */}
           <div className="text-center lg:text-left">
-            <p className="text-sm font-medium text-muted-foreground">
-  Find more opportunities. Close more clients.
-</p>
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+              <span className="size-1.5 rounded-full bg-primary" />
+              Find clients. Build. Reach. Get paid.
+            </span>
 
             <h1
               className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.4rem]"
               style={{
                 opacity: visible ? 1 : 0,
-                transform: visible ? "translateY(0)" : "translateY(10px)",
-                transition: "opacity 0.4s ease, transform 0.4s ease",
+                transform: visible
+                  ? "translateY(0)"
+                  : "translateY(10px)",
+                transition:
+                  "opacity 0.4s ease, transform 0.4s ease",
               }}
             >
               {HERO_PHRASES[index].line1}{" "}
@@ -140,9 +112,11 @@ export function Hero() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg lg:mx-0">
-              Kodarai helps you find businesses that need websites, build sites
-              with AI, reach out with confidence, and turn opportunities into
-              paying clients. Research your niche and create content faster too.
+              Kodarai helps you find businesses that need a website,
+              research the opportunity, generate what you need to build
+              it, reach the owner, and turn leads into paying clients.
+              You can also research YouTube channels, create content,
+              and get virtual numbers for outreach.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
@@ -153,7 +127,7 @@ export function Hero() {
                 asChild
               >
                 <Link to="/signup">
-                  Get your first client
+                  Start finding clients
                   <ArrowRight className="size-4" />
                 </Link>
               </Button>
@@ -169,51 +143,29 @@ export function Hero() {
               </Button>
             </div>
 
-            {/* Main capabilities */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground lg:justify-start">
-              <span className="inline-flex items-center gap-1.5">
-                <Search className="size-3.5 text-primary" />
-                Find real leads
-              </span>
-
-              <span className="inline-flex items-center gap-1.5">
-                <Globe className="size-3.5 text-primary" />
-                Build with AI
-              </span>
-
-              <span className="inline-flex items-center gap-1.5">
-                <Phone className="size-3.5 text-primary" />
-                Reach clients
-              </span>
-
-              <span className="inline-flex items-center gap-1.5">
-                <Smartphone className="size-3.5 text-primary" />
-                Buy virtual & foreign numbers
-              </span>
-
-              <span className="inline-flex items-center gap-1.5">
-                <Youtube className="size-3.5 text-primary" />
-                Grow your channel
-              </span>
-            </div>
-
-            {/* Small trust row */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] text-muted-foreground lg:justify-start">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground lg:justify-start">
               <span className="inline-flex items-center gap-1.5">
                 <Star className="size-3.5 fill-warning text-warning" />
-                Lead packs from $2
+                Lead packs from ₦3,200
               </span>
 
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="size-3.5 text-primary" />
-                Works worldwide
+                Nigeria & worldwide
               </span>
 
-              <span>Pay by card or Paystack</span>
+              <span>
+                Pay with card or Paystack
+              </span>
+
+              <span className="inline-flex items-center gap-1.5">
+                <Smartphone className="size-3.5 text-primary" />
+                Virtual & foreign numbers
+              </span>
             </div>
           </div>
 
-          {/* Right: product preview */}
+          {/* Right: Product preview */}
           <div className="relative mx-auto w-full max-w-md lg:max-w-none">
             <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-[image:var(--gradient-primary)] opacity-15 blur-3xl" />
 
@@ -227,72 +179,84 @@ export function Hero() {
                 </div>
 
                 <span className="text-xs text-muted-foreground">
-                  HVAC · Chicago
+                  Restaurants · Lagos
                 </span>
               </div>
 
               <div className="space-y-3">
                 <LeadCard
-                  name="Pietro's Italian Bistro"
-                  location="Chicago, USA"
+                  name="The Orchid Bistro"
+                  location="Victoria Island, Lagos"
                   rating="4.8"
                   reviews="214"
                   highlight
                 />
 
                 <LeadCard
-                  name="Apex Plumbing Co."
-                  location="Chicago, USA"
+                  name="Prime Cuts Kitchen"
+                  location="Lekki, Lagos"
                   rating="4.6"
                   reviews="96"
                 />
 
                 <LeadCard
-                  name="Bloom & Branch Florist"
-                  location="Chicago, USA"
+                  name="Bloom Events & Décor"
+                  location="Ikeja, Lagos"
                   rating="4.9"
                   reviews="173"
                 />
               </div>
 
-              {/* Workflow preview */}
-              <div className="mt-4 grid grid-cols-4 gap-1.5 border-t border-border pt-4">
-                {WORKFLOW.map((step, i) => {
-                  const Icon = step.icon;
-
-                  return (
-                    <div
-                      key={step.title}
-                      className="flex flex-col items-center text-center"
-                    >
-                      <div
-                        className={`flex size-8 items-center justify-center rounded-lg ${
-                          i === 0
-                            ? "bg-primary/10 text-primary"
-                            : "bg-accent text-accent-foreground"
-                        }`}
-                      >
-                        <Icon className="size-3.5" />
-                      </div>
-
-                      <span className="mt-1.5 text-[9px] font-semibold">
-                        {step.title}
-                      </span>
-                    </div>
-                  );
-                })}
+              {/* Product capability row */}
+              <div className="mt-3 grid grid-cols-4 gap-2 border-t border-border pt-3">
+                <Capability
+                  icon={Search}
+                  label="Find"
+                />
+                <Capability
+                  icon={Globe}
+                  label="Build"
+                />
+                <Capability
+                  icon={PhoneCall}
+                  label="Reach"
+                />
+                <Capability
+                  icon={BadgeDollarSign}
+                  label="Close"
+                />
               </div>
 
-              <p className="mt-3 text-center text-[10px] text-muted-foreground">
-                Find an opportunity → build → reach out → close
-              </p>
+              {/* Additional products */}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                  <Youtube className="size-3.5 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold">
+                      YouTube Studio
+                    </p>
+                    <p className="truncate text-[9px] text-muted-foreground">
+                      Research & content
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                  <Smartphone className="size-3.5 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold">
+                      Virtual Numbers
+                    </p>
+                    <p className="truncate text-[9px] text-muted-foreground">
+                      Reach more leads
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Live activity notification */}
-      <LiveNotification />
 
       <VideoModal
         open={demoOpen}
@@ -330,7 +294,9 @@ function LeadCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold">{name}</h3>
+          <h3 className="truncate text-sm font-semibold">
+            {name}
+          </h3>
 
           <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
@@ -345,7 +311,9 @@ function LeadCard({
 
             <span className="size-1 rounded-full bg-border" />
 
-            <span className="truncate">{location}</span>
+            <span className="truncate">
+              {location}
+            </span>
           </p>
         </div>
 
@@ -356,14 +324,32 @@ function LeadCard({
 
       <div className="mt-3 flex gap-2">
         <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 py-1.5 text-[11px] font-semibold text-primary">
-          AI prompt
+          <Globe className="size-3" />
+          Build
         </span>
 
         <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent py-1.5 text-[11px] font-semibold text-accent-foreground">
           <Phone className="size-3" />
-          Call script
+          Reach
         </span>
       </div>
+    </div>
+  );
+}
+
+function Capability({
+  icon: Icon,
+  label,
+}: {
+  icon: typeof Search;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 rounded-lg bg-background/60 py-2">
+      <Icon className="size-3.5 text-primary" />
+      <span className="text-[9px] font-medium text-muted-foreground">
+        {label}
+      </span>
     </div>
   );
 }
