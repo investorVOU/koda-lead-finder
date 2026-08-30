@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  CheckCircle2,
-  DollarSign,
+  BadgeDollarSign,
+  CreditCard,
+  FileText,
+  PhoneCall,
   Search,
-  Sparkles,
+  Globe,
+  Youtube,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,10 +25,10 @@ const BETWEEN_DURATION = 2500;
 const INITIAL_DELAY = 2500;
 
 const CATEGORY_ICONS: Record<NotificationCategory, LucideIcon> = {
-  deal: DollarSign,
-  leads: Search,
-  upgrade: Sparkles,
-  activity: CheckCircle2,
+  deal: BadgeDollarSign,
+  leads: Users,
+  upgrade: CreditCard,
+  activity: FileText,
 };
 
 function getSeenIds(): string[] {
