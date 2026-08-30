@@ -23,8 +23,8 @@ function WelcomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-md text-center">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-md px-4 pb-32 pt-10 text-center">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
           Everything to grow, in one place
         </h1>
@@ -66,14 +66,23 @@ function WelcomePage() {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/onboarding" })}
-          className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Get started
-          <ArrowRight className="size-4" />
-        </button>
+        <p className="mt-6 text-xs text-muted-foreground">
+          Setup takes less than 2 minutes.
+        </p>
+      </div>
+
+      {/* Floating CTA */}
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gradient-to-t from-background via-background to-transparent pt-8">
+        <div className="mx-auto w-full max-w-md px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/onboarding" })}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg transition-opacity hover:opacity-90"
+          >
+            Get started
+            <ArrowRight className="size-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
