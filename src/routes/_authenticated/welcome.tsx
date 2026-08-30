@@ -43,52 +43,36 @@ const FEATURES = [
 
 const COMPARISON = [
   {
-    without: "Cold-calling businesses and hoping they need a website",
-    with: "Find businesses already showing signs of opportunity",
+    without: "Find a business that needs a website, then figure out how to build one",
+    with: "Find the business and build the website with AI",
   },
   {
-    without: "Searching Google Maps one business at a time",
+    without: "Learn HTML, CSS, React and web design before you can sell",
+    with: "Describe what you want and let AI handle the starting point",
+  },
+  {
+    without: "Spend hours searching for businesses to contact",
     with: "Find dozens of potential clients in a single search",
   },
   {
-    without: "Opening multiple tabs to research every business",
-    with: "See ratings, reviews, website status and deal potential together",
+    without: "Guess which businesses are worth approaching",
+    with: "Research businesses and prioritize better opportunities",
   },
   {
-    without: "Spending hours figuring out who is worth contacting",
-    with: "Prioritize leads with the strongest potential first",
+    without: "Write every cold message from scratch",
+    with: "Create personalized outreach faster",
   },
   {
-    without: "Writing a new pitch for every prospect",
-    with: "Generate outreach copy tailored to the opportunity",
+    without: "Close a client and then scramble to build the site",
+    with: "Build the site, preview it and have something to show your prospect",
   },
   {
-    without: "Sending messages and hoping someone responds",
-    with: "Build a pipeline and keep track of who needs follow-up",
+    without: "Use one tool for leads, another for websites and another for content",
+    with: "Find, build and create from one workspace",
   },
   {
-    without: "Waiting weeks to find your next client",
-    with: "Keep a steady pipeline of businesses to reach out to",
-  },
-  {
-    without: "Watching YouTube videos trying to figure out what to make",
-    with: "Find content opportunities based on what's already working",
-  },
-  {
-    without: "Spending hours researching before making a video",
-    with: "Turn research into titles, hooks and scripts in minutes",
-  },
-  {
-    without: "Paying for separate tools for leads, research and content",
-    with: "Handle lead generation, research and content in one place",
-  },
-  {
-    without: "Switching between 4–5 different tools",
-    with: "One workflow from opportunity → outreach → content",
-  },
-  {
-    without: "Finding a business and manually estimating what to charge",
-    with: "Get a clearer picture of the opportunity before you pitch",
+    without: "Spend hours researching what to post on YouTube",
+    with: "Find topics, titles, hooks and scripts in minutes",
   },
 ];
 
