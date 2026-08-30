@@ -11,25 +11,36 @@ import { FAQ } from "@/components/landing/FAQ";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
+import { LiveNotification } from "@/components/LiveNotification";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Kodarai — Find Businesses Without Websites & Close Them Fast" },
+      {
+        title:
+          "Kodarai — Find Businesses Without Websites & Close Them Fast",
+      },
       {
         name: "description",
         content:
           "Kodarai helps web designers find high-rated local businesses with no website, generate AI website prompts, and get cold-call scripts to close clients fast.",
       },
-      { property: "og:title", content: "Kodarai — Lead Gen for Web Designers" },
+      {
+        property: "og:title",
+        content: "Kodarai — Lead Gen for Web Designers",
+      },
       {
         property: "og:description",
         content:
           "Find high-rated businesses without websites, generate AI build prompts and cold-call scripts, and close clients fast.",
       },
-      { property: "og:type", content: "website" },
+      {
+        property: "og:type",
+        content: "website",
+      },
     ],
   }),
+
   component: Index,
 });
 
@@ -37,6 +48,7 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
+
       <main>
         <Hero />
         <LogosCarousel />
@@ -48,8 +60,14 @@ function Index() {
         <FAQ />
         <FinalCta />
       </main>
+
       <SiteFooter />
-      <VirtualNumberModal storageKey="virtual_number_modal_shown_public" />
+
+      <LiveNotification />
+
+      <VirtualNumberModal
+        storageKey="virtual_number_modal_shown_public"
+      />
     </div>
   );
 }
