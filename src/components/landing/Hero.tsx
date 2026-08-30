@@ -9,9 +9,9 @@ import {
   Search,
   Smartphone,
   Globe,
-  Sparkles,
   MessageSquare,
   Youtube,
+  BadgeDollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoModal } from "@/components/landing/VideoModal";
@@ -73,10 +73,10 @@ const WORKFLOW = [
     text: "Get scripts and tools to approach the client.",
   },
   {
-    icon: Sparkles,
-    title: "Get paid",
-    text: "Turn opportunities into website projects.",
-  },
+  icon: BadgeDollarSign,
+  title: "Get paid",
+  text: "Turn opportunities into website projects.",
+},
 ];
 
 export function Hero() {
