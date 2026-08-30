@@ -3,20 +3,21 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PLANS, PACKS, formatNgn } from "@/lib/billing";
 import { FadeUp } from "./FadeUp";
-
 export function Pricing() {
   return (
     <section id="pricing" className="border-y border-border bg-secondary/40">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
         <FadeUp>
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-bold sm:text-4xl">Pricing that fits your hustle</h2>
+            <h2 className="text-2xl font-bold sm:text-4xl">
+              Pricing that fits your hustle
+            </h2>
             <p className="mt-4 text-muted-foreground">
-              Get your first client for $2. Pay in USD with card or in Naira with Paystack. Cancel anytime.
+              Start with the plan that fits you, find more opportunities, and
+              scale when you need more. Pay securely in Naira with Paystack.
             </p>
           </div>
         </FadeUp>
-
         {/* Monthly plans */}
         <div className="mt-14 grid items-start gap-6 lg:grid-cols-3">
           {PLANS.map((p) => (
@@ -34,23 +35,35 @@ export function Pricing() {
                 </span>
               )}
               <h3 className="text-lg font-semibold">{p.name}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{p.tagline}</p>
-
+              <p className="mt-1 text-sm text-muted-foreground">
+                {p.tagline}
+              </p>
+              {/* Monthly price */}
               <div className="mt-5 flex items-end gap-1">
-                <span className="font-display text-4xl font-bold">${p.usd}</span>
-                <span className="mb-1 text-sm text-muted-foreground">/mo</span>
+                <span className="font-display text-4xl font-bold">
+                  {formatNgn(p.ngn)}
+                </span>
+                <span className="mb-1 text-sm text-muted-foreground">
+                  /mo
+                </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {formatNgn(p.ngn)} / month · {p.credits} leads
+                {p.credits.toLocaleString("en-NG")} leads included each month
               </p>
-
-              <Button variant={p.highlight ? "hero" : "outline"} size="lg" className="mt-6 w-full" asChild>
+              <Button
+                variant={p.highlight ? "hero" : "outline"}
+                size="lg"
+                className="mt-6 w-full"
+                asChild
+              >
                 <Link to="/signup">Get {p.name}</Link>
               </Button>
-
               <ul className="mt-6 space-y-3">
                 {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                  <li
+                    key={f}
+                    className="flex items-start gap-2.5 text-sm"
+                  >
                     <Check className="mt-0.5 size-4 shrink-0 text-primary" />
                     <span>{f}</span>
                   </li>
@@ -59,12 +72,14 @@ export function Pricing() {
             </div>
           ))}
         </div>
-
         {/* One-time lead packs */}
         <div className="mx-auto mt-16 max-w-2xl text-center">
-          <h3 className="text-xl font-bold">Not ready to subscribe?</h3>
+          <h3 className="text-xl font-bold">
+            Not ready to subscribe?
+          </h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Buy a one-time lead pack. Leads never expire — top up whenever you need more.
+            Buy a one-time lead pack. Your leads never expire, so you can top
+            up whenever you need more.
           </p>
         </div>
         <div className="mt-8 grid gap-5 sm:grid-cols-3">
@@ -72,7 +87,9 @@ export function Pricing() {
             <div
               key={p.id}
               className={`rounded-2xl border bg-card p-6 text-center ${
-                p.highlight ? "border-primary shadow-[var(--shadow-md)]" : "border-border"
+                p.highlight
+                  ? "border-primary shadow-[var(--shadow-md)]"
+                  : "border-border"
               }`}
             >
               {p.highlight && (
@@ -81,13 +98,27 @@ export function Pricing() {
                 </span>
               )}
               <h4 className="font-semibold">{p.name}</h4>
+              {/* One-time price */}
               <div className="mt-2 flex items-end justify-center gap-1">
-                <span className="font-display text-3xl font-bold">${p.usd}</span>
+                <span className="font-display text-3xl font-bold">
+                  {formatNgn(p.ngn)}
+                </span>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">{p.credits} leads</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{formatNgn(p.ngn)} via Paystack</p>
-              <Button variant="soft" size="sm" className="mt-4 w-full" asChild>
-                <Link to="/signup">Buy {p.credits} leads</Link>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {p.credits.toLocaleString("en-NG")} leads
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                One-time payment via Paystack
+              </p>
+              <Button
+                variant="soft"
+                size="sm"
+                className="mt-4 w-full"
+                asChild
+              >
+                <Link to="/signup">
+                  Buy {p.credits.toLocaleString("en-NG")} leads
+                </Link>
               </Button>
             </div>
           ))}
