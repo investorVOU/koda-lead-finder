@@ -127,7 +127,7 @@ export function Hero() {
                 asChild
               >
                 <Link to="/signup">
-                  Start finding clients
+                  Get your first client
                   <ArrowRight className="size-4" />
                 </Link>
               </Button>
@@ -223,7 +223,7 @@ export function Hero() {
                 />
                 <Capability
                   icon={BadgeDollarSign}
-                  label="Close"
+                  label="Get Paid"
                 />
               </div>
 
