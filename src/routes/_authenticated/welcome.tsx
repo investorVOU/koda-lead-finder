@@ -43,16 +43,52 @@ const FEATURES = [
 
 const COMPARISON = [
   {
-    without: "Cold-calling blind, hoping someone needs a website",
-    with: "See who already needs one before you reach out",
+    without: "Cold-calling businesses and hoping they need a website",
+    with: "Find businesses already showing signs of opportunity",
   },
   {
-    without: "Hours of research before making a single video",
-    with: "Know what to make next in minutes",
+    without: "Searching Google Maps one business at a time",
+    with: "Find dozens of potential clients in a single search",
   },
   {
-    without: "Paying for 4-5 separate tools",
-    with: "One place for leads, research and content",
+    without: "Opening multiple tabs to research every business",
+    with: "See ratings, reviews, website status and deal potential together",
+  },
+  {
+    without: "Spending hours figuring out who is worth contacting",
+    with: "Prioritize leads with the strongest potential first",
+  },
+  {
+    without: "Writing a new pitch for every prospect",
+    with: "Generate outreach copy tailored to the opportunity",
+  },
+  {
+    without: "Sending messages and hoping someone responds",
+    with: "Build a pipeline and keep track of who needs follow-up",
+  },
+  {
+    without: "Waiting weeks to find your next client",
+    with: "Keep a steady pipeline of businesses to reach out to",
+  },
+  {
+    without: "Watching YouTube videos trying to figure out what to make",
+    with: "Find content opportunities based on what's already working",
+  },
+  {
+    without: "Spending hours researching before making a video",
+    with: "Turn research into titles, hooks and scripts in minutes",
+  },
+  {
+    without: "Paying for separate tools for leads, research and content",
+    with: "Handle lead generation, research and content in one place",
+  },
+  {
+    without: "Switching between 4–5 different tools",
+    with: "One workflow from opportunity → outreach → content",
+  },
+  {
+    without: "Finding a business and manually estimating what to charge",
+    with: "Get a clearer picture of the opportunity before you pitch",
   },
 ];
 
