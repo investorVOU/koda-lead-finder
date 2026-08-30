@@ -37,7 +37,7 @@ function SignupPage() {
 
   // If a session already exists (e.g. user landed on /signup while logged in),
   // send them to /dashboard — it's inside the authenticated layout, which
-  // will route them to /choose-plan itself if they actually lack a plan.
+  // will route them to /welcome, /choose-plan, or let them through as needed.
   useEffect(() => {
     if (!loading && user) navigate({ to: "/dashboard" });
   }, [user, loading, navigate]);
@@ -62,7 +62,7 @@ function SignupPage() {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin + "/choose-plan",
+        emailRedirectTo: window.location.origin + "/dashboard",
         data: { full_name: fullName },
         ...(captchaToken ? { captchaToken } : {}),
       },
@@ -74,9 +74,10 @@ function SignupPage() {
       return;
     }
     if (data.session) {
-      // Genuinely a brand-new account with a session — safe to send to choose-plan.
+      // Genuinely a brand-new account with a session — send to /dashboard
+      // and let the authenticated layout route to /welcome for new users.
       toast.success("Account created! Let's set you up.");
-      navigate({ to: "/choose-plan" });
+      navigate({ to: "/dashboard" });
     } else {
       toast.success("Check your email to confirm your account.");
     }
@@ -88,8 +89,8 @@ function SignupPage() {
       provider: "google",
       // Google OAuth is used for both new signups and returning logins, and
       // we can't tell which it is until the session comes back. Send to
-      // /dashboard — the authenticated layout's plan check will route new
-      // users (no profile/no plan) to /choose-plan, and existing users stay put.
+      // /dashboard — the authenticated layout's routing will send new
+      // users (no profile/no plan) to /welcome, and existing users stay put.
       options: { redirectTo: window.location.origin + "/dashboard" },
     });
     if (error) {
