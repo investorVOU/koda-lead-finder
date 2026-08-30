@@ -139,7 +139,7 @@ export function Hero() {
                 onClick={() => setDemoOpen(true)}
               >
                 <PlayCircle className="size-5" />
-                Watch 2-min demo
+                Watch sales walkthrough
               </Button>
             </div>
 

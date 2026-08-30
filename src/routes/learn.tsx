@@ -70,6 +70,7 @@ function LearnPage() {
                       description={v.description}
                       duration={v.duration}
                       category={v.category}
+                      youtubeId={v.youtubeId}
                       onPlay={() => setActive(v)}
                     />
                   ))}

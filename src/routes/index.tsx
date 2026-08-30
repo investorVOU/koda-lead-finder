@@ -12,6 +12,7 @@ import { FinalCta } from "@/components/landing/FinalCta";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
 import { LiveNotification } from "@/components/LiveNotification";
+import { SupportChat } from "@/components/support/SupportChat";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -64,6 +65,7 @@ function Index() {
       <SiteFooter />
 
       <LiveNotification />
+      <SupportChat />
 
       <VirtualNumberModal
         storageKey="virtual_number_modal_shown_public"

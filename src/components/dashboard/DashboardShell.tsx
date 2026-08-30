@@ -13,7 +13,6 @@ import {
   faGear,
   faCode,
   faEllipsis,
-  faPenToSquare,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "@/components/landing/Logo";
@@ -21,6 +20,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
 import { AvatarUpload } from "@/components/dashboard/AvatarUpload";
 import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
+import { SupportChat } from "@/components/support/SupportChat";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useSubscription, trialDaysLeft, isTrialExpired } from "@/lib/queries";
@@ -34,7 +34,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: "/dashboard",        label: "Finder",         icon: faSearch },
-  { to: "/social-content",   label: "Social Content", icon: faPenToSquare },
   { to: "/leads",            label: "Saved",          icon: faBookmark },
   { to: "/revenue",          label: "Revenue",        icon: faChartBar },
   { to: "/studio",           label: "Studio",         icon: faCode },
@@ -158,6 +157,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       </main>
 
       <VirtualNumberModal storageKey="virtual_number_modal_shown_dashboard" />
+      <SupportChat />
 
       {/* Mobile bottom nav */}
       <nav

@@ -16,15 +16,20 @@ export function VideoCard({
   description,
   duration,
   category,
+  youtubeId,
   onPlay,
 }: {
   title: string;
   description: string;
   duration: string;
   category: LearnCategory;
+  youtubeId: string;
   onPlay: () => void;
 }) {
   const Icon = ICONS[category];
+  const thumbnailUrl = youtubeId
+    ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
+    : undefined;
   return (
     <button
       type="button"
@@ -33,8 +38,20 @@ export function VideoCard({
       aria-label={`Play ${title}`}
     >
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-[image:var(--gradient-hero)]">
-        <div className="absolute inset-0 bg-[image:var(--gradient-primary)] opacity-[0.07]" />
-        <Icon className="pointer-events-none absolute -bottom-4 -right-3 size-28 text-primary/10" />
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+            loading="lazy"
+          />
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[image:var(--gradient-primary)] opacity-[0.07]" />
+            <Icon className="pointer-events-none absolute -bottom-4 -right-3 size-28 text-primary/10" />
+          </>
+        )}
+        {thumbnailUrl && <div className="absolute inset-0 bg-foreground/25" />}
 
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-background/85 px-2.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
           <Icon className="size-3.5 text-primary" /> {category}

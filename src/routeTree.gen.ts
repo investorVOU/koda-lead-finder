@@ -21,7 +21,10 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
 import { Route as ApiPingRouteImport } from './routes/api/ping'
+import { Route as AuthenticatedWelcomeRouteImport } from './routes/_authenticated/welcome'
+import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
 import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
+import { Route as AuthenticatedSocialContentRouteImport } from './routes/_authenticated/social-content'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRevenueRouteImport } from './routes/_authenticated/revenue'
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
@@ -34,11 +37,17 @@ import { Route as AuthenticatedChoosePlanRouteImport } from './routes/_authentic
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedStudioIndexRouteImport } from './routes/_authenticated/studio.index'
 import { Route as ApiStudioGenerateRouteImport } from './routes/api/studio/generate'
+import { Route as ApiStudioChannelReviewRouteImport } from './routes/api/studio/channel-review'
+import { Route as AuthenticatedStudioScraperRouteImport } from './routes/_authenticated/studio/scraper'
+import { Route as AuthenticatedStudioResearchRouteImport } from './routes/_authenticated/studio/research'
 import { Route as AuthenticatedStudioNewRouteImport } from './routes/_authenticated/studio.new'
+import { Route as AuthenticatedStudioIdeasRouteImport } from './routes/_authenticated/studio/ideas'
+import { Route as AuthenticatedStudioContentRouteImport } from './routes/_authenticated/studio/content'
+import { Route as AuthenticatedStudioChannelReviewRouteImport } from './routes/_authenticated/studio/channel-review'
+import { Route as AuthenticatedStudioAutomationsRouteImport } from './routes/_authenticated/studio/automations'
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool/poll.$numberId'
 import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
-import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks/stripe'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 
@@ -101,11 +110,27 @@ const ApiPingRoute = ApiPingRouteImport.update({
   path: '/api/ping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedWelcomeRoute = AuthenticatedWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSupportRoute = AuthenticatedSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedStudioRoute = AuthenticatedStudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSocialContentRoute =
+  AuthenticatedSocialContentRouteImport.update({
+    id: '/social-content',
+    path: '/social-content',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -167,11 +192,52 @@ const ApiStudioGenerateRoute = ApiStudioGenerateRouteImport.update({
   path: '/api/studio/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStudioChannelReviewRoute = ApiStudioChannelReviewRouteImport.update({
+  id: '/api/studio/channel-review',
+  path: '/api/studio/channel-review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedStudioScraperRoute =
+  AuthenticatedStudioScraperRouteImport.update({
+    id: '/scraper',
+    path: '/scraper',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
+const AuthenticatedStudioResearchRoute =
+  AuthenticatedStudioResearchRouteImport.update({
+    id: '/research',
+    path: '/research',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
 const AuthenticatedStudioNewRoute = AuthenticatedStudioNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => AuthenticatedStudioRoute,
 } as any)
+const AuthenticatedStudioIdeasRoute =
+  AuthenticatedStudioIdeasRouteImport.update({
+    id: '/ideas',
+    path: '/ideas',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
+const AuthenticatedStudioContentRoute =
+  AuthenticatedStudioContentRouteImport.update({
+    id: '/content',
+    path: '/content',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
+const AuthenticatedStudioChannelReviewRoute =
+  AuthenticatedStudioChannelReviewRouteImport.update({
+    id: '/channel-review',
+    path: '/channel-review',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
+const AuthenticatedStudioAutomationsRoute =
+  AuthenticatedStudioAutomationsRouteImport.update({
+    id: '/automations',
+    path: '/automations',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
 const AuthenticatedStudioProjectIdRoute =
   AuthenticatedStudioProjectIdRouteImport.update({
     id: '/$projectId',
@@ -189,11 +255,6 @@ const ApiPublicWebhooksTelnyxVoiceRoute =
     path: '/api/public/webhooks/telnyx-voice',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicWebhooksStripeRoute = ApiPublicWebhooksStripeRouteImport.update({
-  id: '/api/public/webhooks/stripe',
-  path: '/api/public/webhooks/stripe',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicWebhooksSmsIncomingRoute =
   ApiPublicWebhooksSmsIncomingRouteImport.update({
     id: '/api/public/webhooks/sms-incoming',
@@ -227,16 +288,25 @@ export interface FileRoutesByFullPath {
   '/referrals': typeof AuthenticatedReferralsRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/social-content': typeof AuthenticatedSocialContentRoute
   '/studio': typeof AuthenticatedStudioRouteWithChildren
+  '/support': typeof AuthenticatedSupportRoute
+  '/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/studio/automations': typeof AuthenticatedStudioAutomationsRoute
+  '/studio/channel-review': typeof AuthenticatedStudioChannelReviewRoute
+  '/studio/content': typeof AuthenticatedStudioContentRoute
+  '/studio/ideas': typeof AuthenticatedStudioIdeasRoute
   '/studio/new': typeof AuthenticatedStudioNewRoute
+  '/studio/research': typeof AuthenticatedStudioResearchRoute
+  '/studio/scraper': typeof AuthenticatedStudioScraperRoute
+  '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio/': typeof AuthenticatedStudioIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
-  '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
@@ -260,15 +330,24 @@ export interface FileRoutesByTo {
   '/referrals': typeof AuthenticatedReferralsRoute
   '/revenue': typeof AuthenticatedRevenueRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/social-content': typeof AuthenticatedSocialContentRoute
+  '/support': typeof AuthenticatedSupportRoute
+  '/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/studio/automations': typeof AuthenticatedStudioAutomationsRoute
+  '/studio/channel-review': typeof AuthenticatedStudioChannelReviewRoute
+  '/studio/content': typeof AuthenticatedStudioContentRoute
+  '/studio/ideas': typeof AuthenticatedStudioIdeasRoute
   '/studio/new': typeof AuthenticatedStudioNewRoute
+  '/studio/research': typeof AuthenticatedStudioResearchRoute
+  '/studio/scraper': typeof AuthenticatedStudioScraperRoute
+  '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio': typeof AuthenticatedStudioIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
-  '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
@@ -294,16 +373,25 @@ export interface FileRoutesById {
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/revenue': typeof AuthenticatedRevenueRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/social-content': typeof AuthenticatedSocialContentRoute
   '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
+  '/_authenticated/support': typeof AuthenticatedSupportRoute
+  '/_authenticated/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/_authenticated/studio/automations': typeof AuthenticatedStudioAutomationsRoute
+  '/_authenticated/studio/channel-review': typeof AuthenticatedStudioChannelReviewRoute
+  '/_authenticated/studio/content': typeof AuthenticatedStudioContentRoute
+  '/_authenticated/studio/ideas': typeof AuthenticatedStudioIdeasRoute
   '/_authenticated/studio/new': typeof AuthenticatedStudioNewRoute
+  '/_authenticated/studio/research': typeof AuthenticatedStudioResearchRoute
+  '/_authenticated/studio/scraper': typeof AuthenticatedStudioScraperRoute
+  '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/_authenticated/studio/': typeof AuthenticatedStudioIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
-  '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
@@ -329,16 +417,25 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/revenue'
     | '/settings'
+    | '/social-content'
     | '/studio'
+    | '/support'
+    | '/welcome'
     | '/api/ping'
     | '/preview/$slug'
     | '/studio/$projectId'
+    | '/studio/automations'
+    | '/studio/channel-review'
+    | '/studio/content'
+    | '/studio/ideas'
     | '/studio/new'
+    | '/studio/research'
+    | '/studio/scraper'
+    | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio/'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
-    | '/api/public/webhooks/stripe'
     | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   fileRoutesByTo: FileRoutesByTo
@@ -362,15 +459,24 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/revenue'
     | '/settings'
+    | '/social-content'
+    | '/support'
+    | '/welcome'
     | '/api/ping'
     | '/preview/$slug'
     | '/studio/$projectId'
+    | '/studio/automations'
+    | '/studio/channel-review'
+    | '/studio/content'
+    | '/studio/ideas'
     | '/studio/new'
+    | '/studio/research'
+    | '/studio/scraper'
+    | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
-    | '/api/public/webhooks/stripe'
     | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   id:
@@ -395,16 +501,25 @@ export interface FileRouteTypes {
     | '/_authenticated/referrals'
     | '/_authenticated/revenue'
     | '/_authenticated/settings'
+    | '/_authenticated/social-content'
     | '/_authenticated/studio'
+    | '/_authenticated/support'
+    | '/_authenticated/welcome'
     | '/api/ping'
     | '/preview/$slug'
     | '/_authenticated/studio/$projectId'
+    | '/_authenticated/studio/automations'
+    | '/_authenticated/studio/channel-review'
+    | '/_authenticated/studio/content'
+    | '/_authenticated/studio/ideas'
     | '/_authenticated/studio/new'
+    | '/_authenticated/studio/research'
+    | '/_authenticated/studio/scraper'
+    | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/_authenticated/studio/'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
-    | '/api/public/webhooks/stripe'
     | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   fileRoutesById: FileRoutesById
@@ -422,10 +537,10 @@ export interface RootRouteChildren {
   TrialWelcomeRoute: typeof TrialWelcomeRoute
   ApiPingRoute: typeof ApiPingRoute
   PreviewSlugRoute: typeof PreviewSlugRoute
+  ApiStudioChannelReviewRoute: typeof ApiStudioChannelReviewRoute
   ApiStudioGenerateRoute: typeof ApiStudioGenerateRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksSmsIncomingRoute: typeof ApiPublicWebhooksSmsIncomingRoute
-  ApiPublicWebhooksStripeRoute: typeof ApiPublicWebhooksStripeRoute
   ApiPublicWebhooksTelnyxVoiceRoute: typeof ApiPublicWebhooksTelnyxVoiceRoute
   ApiSmspoolPollNumberIdRoute: typeof ApiSmspoolPollNumberIdRoute
 }
@@ -516,11 +631,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/welcome': {
+      id: '/_authenticated/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof AuthenticatedWelcomeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/support': {
+      id: '/_authenticated/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof AuthenticatedSupportRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/studio': {
       id: '/_authenticated/studio'
       path: '/studio'
       fullPath: '/studio'
       preLoaderRoute: typeof AuthenticatedStudioRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/social-content': {
+      id: '/_authenticated/social-content'
+      path: '/social-content'
+      fullPath: '/social-content'
+      preLoaderRoute: typeof AuthenticatedSocialContentRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/settings': {
@@ -607,11 +743,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStudioGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/studio/channel-review': {
+      id: '/api/studio/channel-review'
+      path: '/api/studio/channel-review'
+      fullPath: '/api/studio/channel-review'
+      preLoaderRoute: typeof ApiStudioChannelReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/studio/scraper': {
+      id: '/_authenticated/studio/scraper'
+      path: '/scraper'
+      fullPath: '/studio/scraper'
+      preLoaderRoute: typeof AuthenticatedStudioScraperRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
+    '/_authenticated/studio/research': {
+      id: '/_authenticated/studio/research'
+      path: '/research'
+      fullPath: '/studio/research'
+      preLoaderRoute: typeof AuthenticatedStudioResearchRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
     '/_authenticated/studio/new': {
       id: '/_authenticated/studio/new'
       path: '/new'
       fullPath: '/studio/new'
       preLoaderRoute: typeof AuthenticatedStudioNewRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
+    '/_authenticated/studio/ideas': {
+      id: '/_authenticated/studio/ideas'
+      path: '/ideas'
+      fullPath: '/studio/ideas'
+      preLoaderRoute: typeof AuthenticatedStudioIdeasRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
+    '/_authenticated/studio/content': {
+      id: '/_authenticated/studio/content'
+      path: '/content'
+      fullPath: '/studio/content'
+      preLoaderRoute: typeof AuthenticatedStudioContentRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
+    '/_authenticated/studio/channel-review': {
+      id: '/_authenticated/studio/channel-review'
+      path: '/channel-review'
+      fullPath: '/studio/channel-review'
+      preLoaderRoute: typeof AuthenticatedStudioChannelReviewRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
+    '/_authenticated/studio/automations': {
+      id: '/_authenticated/studio/automations'
+      path: '/automations'
+      fullPath: '/studio/automations'
+      preLoaderRoute: typeof AuthenticatedStudioAutomationsRouteImport
       parentRoute: typeof AuthenticatedStudioRoute
     }
     '/_authenticated/studio/$projectId': {
@@ -635,13 +820,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksTelnyxVoiceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/webhooks/stripe': {
-      id: '/api/public/webhooks/stripe'
-      path: '/api/public/webhooks/stripe'
-      fullPath: '/api/public/webhooks/stripe'
-      preLoaderRoute: typeof ApiPublicWebhooksStripeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/webhooks/sms-incoming': {
       id: '/api/public/webhooks/sms-incoming'
       path: '/api/public/webhooks/sms-incoming'
@@ -661,13 +839,25 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedStudioRouteChildren {
   AuthenticatedStudioProjectIdRoute: typeof AuthenticatedStudioProjectIdRoute
+  AuthenticatedStudioAutomationsRoute: typeof AuthenticatedStudioAutomationsRoute
+  AuthenticatedStudioChannelReviewRoute: typeof AuthenticatedStudioChannelReviewRoute
+  AuthenticatedStudioContentRoute: typeof AuthenticatedStudioContentRoute
+  AuthenticatedStudioIdeasRoute: typeof AuthenticatedStudioIdeasRoute
   AuthenticatedStudioNewRoute: typeof AuthenticatedStudioNewRoute
+  AuthenticatedStudioResearchRoute: typeof AuthenticatedStudioResearchRoute
+  AuthenticatedStudioScraperRoute: typeof AuthenticatedStudioScraperRoute
   AuthenticatedStudioIndexRoute: typeof AuthenticatedStudioIndexRoute
 }
 
 const AuthenticatedStudioRouteChildren: AuthenticatedStudioRouteChildren = {
   AuthenticatedStudioProjectIdRoute: AuthenticatedStudioProjectIdRoute,
+  AuthenticatedStudioAutomationsRoute: AuthenticatedStudioAutomationsRoute,
+  AuthenticatedStudioChannelReviewRoute: AuthenticatedStudioChannelReviewRoute,
+  AuthenticatedStudioContentRoute: AuthenticatedStudioContentRoute,
+  AuthenticatedStudioIdeasRoute: AuthenticatedStudioIdeasRoute,
   AuthenticatedStudioNewRoute: AuthenticatedStudioNewRoute,
+  AuthenticatedStudioResearchRoute: AuthenticatedStudioResearchRoute,
+  AuthenticatedStudioScraperRoute: AuthenticatedStudioScraperRoute,
   AuthenticatedStudioIndexRoute: AuthenticatedStudioIndexRoute,
 }
 
@@ -685,7 +875,10 @@ interface AuthenticatedRouteChildren {
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedRevenueRoute: typeof AuthenticatedRevenueRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSocialContentRoute: typeof AuthenticatedSocialContentRoute
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
+  AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
+  AuthenticatedWelcomeRoute: typeof AuthenticatedWelcomeRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -699,7 +892,10 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedRevenueRoute: AuthenticatedRevenueRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSocialContentRoute: AuthenticatedSocialContentRoute,
   AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
+  AuthenticatedSupportRoute: AuthenticatedSupportRoute,
+  AuthenticatedWelcomeRoute: AuthenticatedWelcomeRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -719,10 +915,10 @@ const rootRouteChildren: RootRouteChildren = {
   TrialWelcomeRoute: TrialWelcomeRoute,
   ApiPingRoute: ApiPingRoute,
   PreviewSlugRoute: PreviewSlugRoute,
+  ApiStudioChannelReviewRoute: ApiStudioChannelReviewRoute,
   ApiStudioGenerateRoute: ApiStudioGenerateRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksSmsIncomingRoute: ApiPublicWebhooksSmsIncomingRoute,
-  ApiPublicWebhooksStripeRoute: ApiPublicWebhooksStripeRoute,
   ApiPublicWebhooksTelnyxVoiceRoute: ApiPublicWebhooksTelnyxVoiceRoute,
   ApiSmspoolPollNumberIdRoute: ApiSmspoolPollNumberIdRoute,
 }

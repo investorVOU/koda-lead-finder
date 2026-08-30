@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Phone, X } from "lucide-react";
+import { Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,22 +16,27 @@ interface VirtualNumberModalProps {
 
 export function VirtualNumberModal({ storageKey = "virtual_number_modal_shown" }: VirtualNumberModalProps) {
   const [open, setOpen] = useState(false);
+  const dismissalKey = `${storageKey}_dismissed_v2`;
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) localStorage.setItem(dismissalKey, String(Date.now()));
+  };
 
   useEffect(() => {
-    const lastShown = localStorage.getItem(storageKey);
+    const lastDismissed = localStorage.getItem(dismissalKey);
     const now = Date.now();
 
-    if (!lastShown || now - parseInt(lastShown, 10) > 24 * 60 * 60 * 1000) {
+    if (!lastDismissed || now - parseInt(lastDismissed, 10) > 24 * 60 * 60 * 1000) {
       const timer = setTimeout(() => {
         setOpen(true);
-        localStorage.setItem(storageKey, String(now));
       }, 2000); // Show after 2 seconds
       return () => clearTimeout(timer);
     }
-  }, [storageKey]);
+  }, [dismissalKey]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -43,12 +48,6 @@ export function VirtualNumberModal({ storageKey = "virtual_number_modal_shown" }
                 <DialogTitle>Get a virtual number</DialogTitle>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-5" />
-            </button>
           </div>
           <DialogDescription className="mt-2 text-sm">
             Rent a real number in 50+ countries. Receive SMS verifications, WhatsApp OTPs, and client messages.
@@ -82,7 +81,7 @@ export function VirtualNumberModal({ storageKey = "virtual_number_modal_shown" }
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => setOpen(false)}
+            onClick={() => handleOpenChange(false)}
           >
             Not now
           </Button>

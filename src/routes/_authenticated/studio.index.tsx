@@ -3,6 +3,7 @@ import {
   Search,
   Lightbulb,
   PenLine,
+  Share2,
   Workflow,
   Youtube,
   Database,
@@ -42,6 +43,13 @@ const TOOLS = [
     description: "Scripts, stories, titles and descriptions.",
     icon: PenLine,
     href: "/studio/content",
+  },
+  {
+    id: "social-content",
+    title: "Social Content",
+    description: "Plan posts and create platform-ready social content.",
+    icon: Share2,
+    href: "/social-content",
   },
   {
     id: "automation",

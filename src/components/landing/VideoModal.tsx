@@ -1,4 +1,4 @@
-import { PlayCircle } from "lucide-react";
+import { ExternalLink, PlayCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -106,6 +106,16 @@ export function VideoModal({
         <DialogHeader className="space-y-1 p-5 text-left">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
+          {hasYoutube && (
+            <a
+              href={`https://www.youtube.com/watch?v=${youtubeId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-fit items-center gap-1.5 pt-2 text-sm font-medium text-primary hover:underline"
+            >
+              Watch on YouTube <ExternalLink className="size-3.5" />
+            </a>
+          )}
         </DialogHeader>
       </DialogContent>
     </Dialog>

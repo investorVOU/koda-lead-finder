@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/landing/Logo";
-import { ArrowLeft } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const links = [
   { label: "Features", href: "/#features" },
@@ -16,6 +16,7 @@ const links = [
 
 export function SiteNav() {
   const [open, setOpen] = useState(false);
+  const { user, loading } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -45,12 +46,20 @@ export function SiteNav() {
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Button variant="ghost" asChild>
-            <Link to="/login">Sign in</Link>
-          </Button>
-          <Button variant="hero" asChild>
-            <Link to="/signup">Get started</Link>
-          </Button>
+          {!loading && (user ? (
+            <Button variant="hero" asChild>
+              <Link to="/dashboard">Open dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/login">Sign in</Link>
+              </Button>
+              <Button variant="hero" asChild>
+                <Link to="/signup">Get started</Link>
+              </Button>
+            </>
+          ))}
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
@@ -82,12 +91,20 @@ export function SiteNav() {
               Academy
             </Link>
             <div className="mt-2 flex flex-col gap-2">
-              <Button variant="ghost" asChild>
-                <Link to="/login" onClick={() => setOpen(false)}>Sign in</Link>
-              </Button>
-              <Button variant="hero" asChild>
-                <Link to="/signup" onClick={() => setOpen(false)}>Get started</Link>
-              </Button>
+              {!loading && (user ? (
+                <Button variant="hero" asChild>
+                  <Link to="/dashboard" onClick={() => setOpen(false)}>Open dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" asChild>
+                    <Link to="/login" onClick={() => setOpen(false)}>Sign in</Link>
+                  </Button>
+                  <Button variant="hero" asChild>
+                    <Link to="/signup" onClick={() => setOpen(false)}>Get started</Link>
+                  </Button>
+                </>
+              ))}
             </div>
           </nav>
         </div>

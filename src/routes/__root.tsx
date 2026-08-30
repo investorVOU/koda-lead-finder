@@ -80,6 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#2a9d6f" },
       { title: "Kodarai — Find Businesses Without Websites" },
       { name: "description", content: "Kodarai helps web designers find high-rated local businesses with no website and close them fast." },
       { name: "author", content: "Kodarai" },
@@ -91,6 +92,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       {
         rel: "preconnect",
         href: "https://fonts.googleapis.com",
