@@ -106,8 +106,11 @@ export function verifyMarketingUnsubscribeToken(userId: string, token: string) {
 export async function sendMarketingEmail({ userId, to, name }: { userId: string; to: string; name?: string | null }) {
   const token = createMarketingUnsubscribeToken(userId);
   if (!token) return { sent: false, reason: "Marketing unsubscribe protection is not configured." } as const;
+  const postalAddress = process.env.MARKETING_POSTAL_ADDRESS?.trim();
+  if (!postalAddress) return { sent: false, reason: "Marketing sender address is not configured." } as const;
   const unsubscribeUrl = `${getAppUrl()}/api/public/marketing/unsubscribe?user=${encodeURIComponent(userId)}&token=${encodeURIComponent(token)}`;
   const safeUnsubscribeUrl = escapeHtml(unsubscribeUrl);
+  const safePostalAddress = escapeHtml(postalAddress);
   const firstName = name?.trim().split(/\s+/)[0] || "there";
   return sendTransactionalEmail({
     to,
@@ -121,7 +124,7 @@ export async function sendMarketingEmail({ userId, to, name }: { userId: string;
       "List-Unsubscribe": `<${unsubscribeUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
-    footerHtml: `You opted in to KodarAI lead ideas. <a href="${safeUnsubscribeUrl}" style="color:#52525b;">Unsubscribe from marketing emails</a>.`,
+    footerHtml: `You opted in to KodarAI lead ideas. <a href="${safeUnsubscribeUrl}" style="color:#52525b;">Unsubscribe from marketing emails</a>.<br />KodarAI, ${safePostalAddress}`,
   });
 }
 
