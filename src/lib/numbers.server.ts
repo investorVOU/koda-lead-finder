@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getTelnyxWebhookUrl } from "@/lib/telnyx.server";
 import { purchaseTelnyxNumber } from "@/lib/services/phone-numbers";
+import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 // Re-export for use in numbers.functions.ts
 export { getTelnyxWebhookUrl };
@@ -49,6 +50,15 @@ export async function activateVirtualNumber({
     status:          "paid",
     reference,
   });
+
+  await sendUserTransactionalEmail(userId, {
+    subject: "Your KodarAI virtual number is active",
+    title: "Your virtual number is ready",
+    preview: `${phoneNumber} is active and ready to use.`,
+    body: `Your virtual number ${phoneNumber} is active and available in your KodarAI account.`,
+    ctaLabel: "Open virtual numbers",
+    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/numbers`,
+  });
 }
 
 /** Activate an SMSPool temp number — no external API needed (already purchased) */
@@ -76,4 +86,13 @@ export async function activateSMSPoolNumber({
     })
     .eq("id", numberId)
     .eq("user_id", userId);
+
+  await sendUserTransactionalEmail(userId, {
+    subject: "Your KodarAI temporary number is active",
+    title: "Your temporary number is ready",
+    preview: `${phoneNumber} is active for your verification.`,
+    body: `Your temporary number ${phoneNumber} is active. It will expire in around 20 minutes.`,
+    ctaLabel: "Open virtual numbers",
+    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/numbers`,
+  });
 }

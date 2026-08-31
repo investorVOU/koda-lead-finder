@@ -4,6 +4,7 @@ import webpush from "web-push";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { sendTransactionalEmail } from "@/lib/email.server";
 
 const db = supabaseAdmin as any;
 
@@ -178,6 +179,45 @@ async function notifySupportAdmin(conversationId: string, preview: string) {
   }));
 }
 
+async function getConversationCustomerEmail(conversation: SupportConversation) {
+  if (conversation.contact_email) return conversation.contact_email;
+  if (!conversation.user_id) return null;
+
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(conversation.user_id);
+  if (error) return null;
+  return data.user?.email?.trim().toLowerCase() || null;
+}
+
+async function emailSupportAdmin(conversation: SupportConversation, preview: string) {
+  const recipient = process.env.SUPPORT_ADMIN_EMAIL?.trim().toLowerCase();
+  if (!recipient) return;
+  const customerEmail = await getConversationCustomerEmail(conversation);
+  const customer = customerEmail || "a guest visitor";
+  await sendTransactionalEmail({
+    to: recipient,
+    subject: "New support message — KodarAI",
+    title: "A customer needs support",
+    preview: preview.slice(0, 140),
+    body: `${customer} wrote:\n\n${preview}\n\nOpen the support inbox to reply.`,
+    ctaLabel: "Open support inbox",
+    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/support`,
+  });
+}
+
+async function emailCustomerReply(conversation: SupportConversation, content: string) {
+  const recipient = await getConversationCustomerEmail(conversation);
+  if (!recipient) return;
+  await sendTransactionalEmail({
+    to: recipient,
+    subject: "KodarAI Support replied to your message",
+    title: "You have a reply from KodarAI Support",
+    preview: content.slice(0, 140),
+    body: `${content}\n\nYou can continue the conversation in KodarAI.`,
+    ctaLabel: "Open support",
+    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/support`,
+  });
+}
+
 async function appendCustomerMessage(conversation: SupportConversation, content: string) {
   if (conversation.status === "closed") throw new Error("This conversation has ended.");
 
@@ -208,7 +248,12 @@ async function appendCustomerMessage(conversation: SupportConversation, content:
     .update(conversationUpdate)
     .eq("id", conversation.id);
 
-  if (conversationUpdate.status === "human") await notifySupportAdmin(conversation.id, content);
+  if (conversationUpdate.status === "human") {
+    await Promise.all([
+      notifySupportAdmin(conversation.id, content),
+      emailSupportAdmin({ ...conversation, ...conversationUpdate } as SupportConversation, content),
+    ]);
+  }
 
   return {
     conversation: { ...conversation, ...conversationUpdate } as SupportConversation,
@@ -463,6 +508,13 @@ export const replyToSupportConversation = createServerFn({ method: "POST" })
       return { error: "This inbox is restricted to the configured support admin." } as const;
     }
 
+    const { data: conversation, error: conversationError } = await db
+      .from("support_conversations")
+      .select("*")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (conversationError || !conversation) return { error: conversationError?.message || "Conversation not found." } as const;
+
     const { data: message, error } = await db
       .from("support_messages")
       .insert({ conversation_id: data.conversationId, sender: "agent", content: data.content })
@@ -474,6 +526,8 @@ export const replyToSupportConversation = createServerFn({ method: "POST" })
       .from("support_conversations")
       .update({ status: "human", agent_replied_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("id", data.conversationId);
+
+    await emailCustomerReply(conversation as SupportConversation, data.content);
 
     return { message: message as SupportMessage } as const;
   });

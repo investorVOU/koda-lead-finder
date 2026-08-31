@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 export async function creditWallet({
   userId,
@@ -24,6 +25,17 @@ export async function creditWallet({
     p_description: description ?? null,
   });
   if (error) throw error;
+
+  if (type === "topup" || type === "refund") {
+    await sendUserTransactionalEmail(userId, {
+      subject: type === "topup" ? "Your KodarAI wallet was topped up" : "Your KodarAI wallet was refunded",
+      title: type === "topup" ? "Wallet funds added" : "Wallet refund added",
+      preview: `₦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.`,
+      body: `₦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.${description ? `\n\n${description}` : ""}`,
+      ctaLabel: "Open virtual numbers",
+      ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/numbers`,
+    });
+  }
 }
 
 export async function debitWallet({

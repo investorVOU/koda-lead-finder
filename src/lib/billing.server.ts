@@ -5,6 +5,7 @@ import process from "node:process";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { findPlan, findPack } from "@/lib/billing";
+import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 export type Provider = "paystack";
 
@@ -128,6 +129,15 @@ export async function creditReferrer(refereeId: string): Promise<void> {
       .from("referrals")
       .update({ credited: true })
       .eq("id", referral.id);
+
+    await sendUserTransactionalEmail(referral.referrer_id, {
+      subject: "You earned 10 KodarAI leads",
+      title: "Your referral reward is ready",
+      preview: "10 leads were added to your KodarAI account.",
+      body: "Someone you referred completed their first paid plan. We added 10 leads to your account as a thank you.",
+      ctaLabel: "View referrals",
+      ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/referrals`,
+    });
   } catch {
     // Silently skip — referrals table may not exist yet
   }
@@ -180,6 +190,15 @@ export async function applySubscription(args: {
     credits_granted: plan.credits,
     status: "success",
   });
+
+  await sendUserTransactionalEmail(args.userId, {
+    subject: `Your ${plan.name} plan is active — KodarAI`,
+    title: "Your subscription is active",
+    preview: `${plan.credits} leads are ready for this billing period.`,
+    body: `Your ${plan.name} plan is now active. ${plan.credits} leads are available for this billing period.`,
+    ctaLabel: "Open billing",
+    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/billing`,
+  });
 }
 
 export async function applyCreditPack(args: {
@@ -216,6 +235,15 @@ export async function applyCreditPack(args: {
     currency: args.currency ?? "NGN",
     credits_granted: pack.credits,
     status: "success",
+  });
+
+  await sendUserTransactionalEmail(args.userId, {
+    subject: `${pack.credits} KodarAI leads added to your account`,
+    title: "Your lead pack is ready",
+    preview: `${pack.credits} leads were added to your account.`,
+    body: `Your ${pack.name} purchase is complete. ${pack.credits} leads have been added to your account and do not expire.`,
+    ctaLabel: "Start finding leads",
+    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/dashboard`,
   });
 }
 

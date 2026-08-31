@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { findPlan, findPack } from "@/lib/billing";
 import { paystackFetch, getPaystackPlanCode } from "@/lib/billing.server";
+import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 const checkoutSchema = z.object({
   kind: z.enum(["subscription", "pack"]),
@@ -92,6 +93,14 @@ export const cancelSubscription = createServerFn({ method: "POST" })
         .from("subscriptions")
         .update({ status: "canceling", updated_at: new Date().toISOString() })
         .eq("user_id", userId);
+      await sendUserTransactionalEmail(userId, {
+        subject: "Your KodarAI subscription will not renew",
+        title: "Your subscription cancellation is scheduled",
+        preview: "Your plan remains available until the end of the current billing period.",
+        body: "Your subscription will not renew. You can keep using your plan until the end of the current billing period.",
+        ctaLabel: "View billing",
+        ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/billing`,
+      });
       return { ok: true } as const;
     } catch (e) {
       console.error("cancel error", e);
