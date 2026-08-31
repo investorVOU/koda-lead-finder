@@ -133,16 +133,23 @@ function SupportInboxPage() {
       toast.error("Push notifications require the secure https:// version of this site.");
       return;
     }
-    if (!("serviceWorker" in navigator) || !("Notification" in window)) {
-      toast.error("Push notifications are unavailable in this browser session.");
+    if (!("serviceWorker" in navigator)) {
+      toast.error("Push notifications need a normal Chrome tab. They are unavailable in this embedded or restricted browser session.");
+      return;
+    }
+    if (!("Notification" in window)) {
+      toast.error("Notifications are disabled by this browser session. Open /support directly in Chrome and try again.");
       return;
     }
     setEnablingAlerts(true);
     try {
       const config = await runGetPushConfig();
       if ("error" in config) throw new Error(config.error);
-      const registration = await navigator.serviceWorker.register("/support-push-sw.js");
-      if (!registration.pushManager) throw new Error("Push notifications are unavailable in this browser session.");
+      await navigator.serviceWorker.register("/support-push-sw.js", { scope: "/" });
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration.pushManager) {
+        throw new Error("This Chrome session is blocking the Push API. Open /support in a regular Chrome tab (not Incognito, embedded, or a preview browser). Email alerts are still active.");
+      }
       const permission = await Notification.requestPermission();
       if (permission !== "granted") throw new Error("Notification permission was not granted.");
       const existing = await registration.pushManager.getSubscription();

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { deleteAccount, updateProfileName, changePassword } from "@/lib/account.functions";
+import { getMarketingEmailPreference, updateMarketingEmailPreference } from "@/lib/marketing.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — Kodarai" }] }),
@@ -63,6 +64,8 @@ function SettingsPage() {
   const runUpdateName = useServerFn(updateProfileName);
   const runChangePassword = useServerFn(changePassword);
   const runDeleteAccount = useServerFn(deleteAccount);
+  const runGetMarketingPreference = useServerFn(getMarketingEmailPreference);
+  const runUpdateMarketingPreference = useServerFn(updateMarketingEmailPreference);
 
   // Profile
   const [name, setName] = useState(profile?.full_name ?? user?.user_metadata?.full_name ?? "");
@@ -78,6 +81,29 @@ function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [savingMarketingOptIn, setSavingMarketingOptIn] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    runGetMarketingPreference().then((result) => {
+      if (!("error" in result)) setMarketingOptIn(result.marketingOptIn);
+    });
+  }, [user?.id]);
+
+  const toggleMarketingOptIn = async () => {
+    if (savingMarketingOptIn) return;
+    const nextValue = !marketingOptIn;
+    setSavingMarketingOptIn(true);
+    const result = await runUpdateMarketingPreference({ data: { marketingOptIn: nextValue } });
+    setSavingMarketingOptIn(false);
+    if ("error" in result) {
+      toast.error("Could not update email preferences.");
+      return;
+    }
+    setMarketingOptIn(nextValue);
+    toast.success(nextValue ? "Weekly lead emails enabled." : "Marketing emails disabled.");
+  };
 
   const handleSaveName = async (e: FormEvent) => {
     e.preventDefault();
@@ -220,28 +246,23 @@ function SettingsPage() {
         </Section>
 
         {/* ── Notifications ── */}
-        <Section icon={Bell} title="Notifications" description="Control what Kodarai sends you">
-          <div className="space-y-3">
-            {[
-              { label: "Follow-up reminders", sub: "Get reminded when a lead follow-up is due", defaultOn: true },
-              { label: "New feature announcements", sub: "Hear about new Kodarai features and improvements", defaultOn: true },
-              { label: "Weekly summary", sub: "A digest of your pipeline activity every Monday", defaultOn: false },
-            ].map(({ label, sub, defaultOn }) => (
-              <div key={label} className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium">{label}</p>
-                  <p className="text-xs text-muted-foreground">{sub}</p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={defaultOn}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${defaultOn ? "bg-primary" : "bg-input"}`}
-                >
-                  <span className={`inline-block size-4 rounded-full bg-background shadow transition-transform ${defaultOn ? "translate-x-4" : "translate-x-0.5"}`} />
-                </button>
-              </div>
-            ))}
+        <Section icon={Bell} title="Email preferences" description="Choose optional product and marketing emails">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Weekly lead ideas and offers</p>
+              <p className="text-xs text-muted-foreground">Receive an occasional KodarAI lead-finding tip or offer. Transactional account emails are always sent.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={marketingOptIn}
+              aria-label="Toggle weekly lead emails"
+              disabled={savingMarketingOptIn}
+              onClick={toggleMarketingOptIn}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60 ${marketingOptIn ? "bg-primary" : "bg-input"}`}
+            >
+              <span className={`inline-block size-4 rounded-full bg-background shadow transition-transform ${marketingOptIn ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
           </div>
         </Section>
 

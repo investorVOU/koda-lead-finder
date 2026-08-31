@@ -50,6 +50,8 @@ import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool
 import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
+import { Route as ApiPublicMarketingWeeklyRouteImport } from './routes/api/public/marketing/weekly'
+import { Route as ApiPublicMarketingUnsubscribeRouteImport } from './routes/api/public/marketing/unsubscribe'
 
 const TrialWelcomeRoute = TrialWelcomeRouteImport.update({
   id: '/trial-welcome',
@@ -267,6 +269,18 @@ const ApiPublicWebhooksPaystackRoute =
     path: '/api/public/webhooks/paystack',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicMarketingWeeklyRoute =
+  ApiPublicMarketingWeeklyRouteImport.update({
+    id: '/api/public/marketing/weekly',
+    path: '/api/public/marketing/weekly',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicMarketingUnsubscribeRoute =
+  ApiPublicMarketingUnsubscribeRouteImport.update({
+    id: '/api/public/marketing/unsubscribe',
+    path: '/api/public/marketing/unsubscribe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -305,6 +319,8 @@ export interface FileRoutesByFullPath {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio/': typeof AuthenticatedStudioIndexRoute
+  '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
+  '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -346,6 +362,8 @@ export interface FileRoutesByTo {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio': typeof AuthenticatedStudioIndexRoute
+  '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
+  '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -390,6 +408,8 @@ export interface FileRoutesById {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/_authenticated/studio/': typeof AuthenticatedStudioIndexRoute
+  '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
+  '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -434,6 +454,8 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio/'
+    | '/api/public/marketing/unsubscribe'
+    | '/api/public/marketing/weekly'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/telnyx-voice'
@@ -475,6 +497,8 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio'
+    | '/api/public/marketing/unsubscribe'
+    | '/api/public/marketing/weekly'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/telnyx-voice'
@@ -518,6 +542,8 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/_authenticated/studio/'
+    | '/api/public/marketing/unsubscribe'
+    | '/api/public/marketing/weekly'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/telnyx-voice'
@@ -539,6 +565,8 @@ export interface RootRouteChildren {
   PreviewSlugRoute: typeof PreviewSlugRoute
   ApiStudioChannelReviewRoute: typeof ApiStudioChannelReviewRoute
   ApiStudioGenerateRoute: typeof ApiStudioGenerateRoute
+  ApiPublicMarketingUnsubscribeRoute: typeof ApiPublicMarketingUnsubscribeRoute
+  ApiPublicMarketingWeeklyRoute: typeof ApiPublicMarketingWeeklyRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksSmsIncomingRoute: typeof ApiPublicWebhooksSmsIncomingRoute
   ApiPublicWebhooksTelnyxVoiceRoute: typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -834,6 +862,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksPaystackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/marketing/weekly': {
+      id: '/api/public/marketing/weekly'
+      path: '/api/public/marketing/weekly'
+      fullPath: '/api/public/marketing/weekly'
+      preLoaderRoute: typeof ApiPublicMarketingWeeklyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/marketing/unsubscribe': {
+      id: '/api/public/marketing/unsubscribe'
+      path: '/api/public/marketing/unsubscribe'
+      fullPath: '/api/public/marketing/unsubscribe'
+      preLoaderRoute: typeof ApiPublicMarketingUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -917,6 +959,8 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewSlugRoute: PreviewSlugRoute,
   ApiStudioChannelReviewRoute: ApiStudioChannelReviewRoute,
   ApiStudioGenerateRoute: ApiStudioGenerateRoute,
+  ApiPublicMarketingUnsubscribeRoute: ApiPublicMarketingUnsubscribeRoute,
+  ApiPublicMarketingWeeklyRoute: ApiPublicMarketingWeeklyRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksSmsIncomingRoute: ApiPublicWebhooksSmsIncomingRoute,
   ApiPublicWebhooksTelnyxVoiceRoute: ApiPublicWebhooksTelnyxVoiceRoute,

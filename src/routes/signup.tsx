@@ -27,6 +27,7 @@ function SignupPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
@@ -60,7 +61,7 @@ function SignupPage() {
       password,
       options: {
         emailRedirectTo: window.location.origin + "/dashboard",
-        data: { full_name: fullName },
+        data: { full_name: fullName, marketing_email_opt_in: marketingOptIn },
         ...(captchaToken ? { captchaToken } : {}),
       },
     });
@@ -115,6 +116,19 @@ function SignupPage() {
           <Label htmlFor="name">Full name</Label>
           <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Designer" required />
         </div>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+          <input
+            type="checkbox"
+            checked={marketingOptIn}
+            onChange={(event) => setMarketingOptIn(event.target.checked)}
+            className="mt-0.5 size-4 accent-primary"
+          />
+          <span>
+            <span className="font-medium">Send me weekly lead ideas and KodarAI offers</span>
+            <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">Optional. You can unsubscribe at any time from Settings or an email link.</span>
+          </span>
+        </label>
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
           <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />

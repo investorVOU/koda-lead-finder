@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type TransactionalEmail = {
@@ -9,6 +10,8 @@ type TransactionalEmail = {
   body: string;
   ctaLabel?: string;
   ctaUrl?: string;
+  headers?: Record<string, string>;
+  footerHtml?: string;
 };
 
 function escapeHtml(value: string) {
@@ -33,6 +36,8 @@ export async function sendTransactionalEmail({
   body,
   ctaLabel,
   ctaUrl,
+  headers,
+  footerHtml,
 }: TransactionalEmail) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
@@ -54,7 +59,7 @@ export async function sendTransactionalEmail({
         <p style="margin:0;color:#52525b;font-size:15px;line-height:1.65;">${safeBody}</p>
         <p style="margin:24px 0 0;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#18181b;color:#ffffff;padding:11px 16px;border-radius:7px;text-decoration:none;font-size:14px;font-weight:600;">${safeCtaLabel}</a></p>
       </div>
-      <div style="padding:16px 28px;background:#fafafa;border-top:1px solid #e5e7eb;color:#71717a;font-size:12px;line-height:1.5;">This is a transactional KodarAI notification.</div>
+      <div style="padding:16px 28px;background:#fafafa;border-top:1px solid #e5e7eb;color:#71717a;font-size:12px;line-height:1.5;">${footerHtml || "This is a transactional KodarAI notification."}</div>
     </main>
   </body>
 </html>`;
@@ -67,6 +72,7 @@ export async function sendTransactionalEmail({
       subject,
       html,
       text: `${title}\n\n${body}\n\n${safeCtaLabel}: ${actionUrl}`,
+      headers,
     });
     if (error) {
       console.error("Unable to send transactional email:", error.message);
@@ -77,6 +83,46 @@ export async function sendTransactionalEmail({
     console.error("Unable to send transactional email:", error);
     return { sent: false, reason: "Email delivery failed." } as const;
   }
+}
+
+function unsubscribeSecret() {
+  return process.env.EMAIL_UNSUBSCRIBE_SECRET;
+}
+
+export function createMarketingUnsubscribeToken(userId: string) {
+  const secret = unsubscribeSecret();
+  if (!secret) return null;
+  return createHmac("sha256", secret).update(userId).digest("hex");
+}
+
+export function verifyMarketingUnsubscribeToken(userId: string, token: string) {
+  const expected = createMarketingUnsubscribeToken(userId);
+  if (!expected || !token) return false;
+  const actual = Buffer.from(token);
+  const expectedBuffer = Buffer.from(expected);
+  return actual.length === expectedBuffer.length && timingSafeEqual(actual, expectedBuffer);
+}
+
+export async function sendMarketingEmail({ userId, to, name }: { userId: string; to: string; name?: string | null }) {
+  const token = createMarketingUnsubscribeToken(userId);
+  if (!token) return { sent: false, reason: "Marketing unsubscribe protection is not configured." } as const;
+  const unsubscribeUrl = `${getAppUrl()}/api/public/marketing/unsubscribe?user=${encodeURIComponent(userId)}&token=${encodeURIComponent(token)}`;
+  const safeUnsubscribeUrl = escapeHtml(unsubscribeUrl);
+  const firstName = name?.trim().split(/\s+/)[0] || "there";
+  return sendTransactionalEmail({
+    to,
+    subject: "This week's local lead opportunity — KodarAI",
+    title: "Find your next local client",
+    preview: "A practical way to find businesses that need a stronger online presence.",
+    body: `Hi ${firstName},\n\nEvery week, KodarAI helps you find local businesses that are missing a website and need a stronger online presence. Choose a plan when you are ready, then start building a focused prospect list in minutes.`,
+    ctaLabel: "Explore KodarAI plans",
+    ctaUrl: `${getAppUrl()}/billing`,
+    headers: {
+      "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+    footerHtml: `You opted in to KodarAI lead ideas. <a href="${safeUnsubscribeUrl}" style="color:#52525b;">Unsubscribe from marketing emails</a>.`,
+  });
 }
 
 export async function sendUserTransactionalEmail(userId: string, email: Omit<TransactionalEmail, "to">) {

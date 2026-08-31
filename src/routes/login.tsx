@@ -64,11 +64,17 @@ function LoginPage() {
       toast.error("Enter your email first");
       return;
     }
+    if (HCAPTCHA_SITE_KEY && !captchaToken) {
+      toast.error("Please complete the captcha before requesting a password reset.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin + "/reset-password",
+      ...(captchaToken ? { captchaToken } : {}),
     });
     setBusy(false);
+    resetCaptcha();
     if (error) {
       toast.error(error.message);
       return;
