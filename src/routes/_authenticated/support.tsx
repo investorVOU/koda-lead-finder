@@ -49,7 +49,8 @@ function SupportInboxPage() {
   const [error, setError] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "waiting">("all");
-  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [conversationListCollapsed, setConversationListCollapsed] = useState(false);
+  const [mobileConversationsOpen, setMobileConversationsOpen] = useState(true);
   const [query, setQuery] = useState("");
   const [enablingAlerts, setEnablingAlerts] = useState(false);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
@@ -217,51 +218,47 @@ function SupportInboxPage() {
         ) : error ? (
           <div className="border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
         ) : (
-          <div className={`grid min-h-[680px] overflow-hidden rounded-xl border border-border bg-background transition-[grid-template-columns] duration-200 ${navCollapsed ? "lg:grid-cols-[4.5rem_20rem_minmax(0,1fr)]" : "lg:grid-cols-[13rem_20rem_minmax(0,1fr)]"}`}>
-            <aside className={`flex flex-col border-b border-border bg-muted/20 p-4 lg:border-b-0 lg:border-r ${navCollapsed ? "items-center px-3" : ""}`}>
+          <div className={`grid min-h-[680px] overflow-hidden rounded-xl border border-border bg-background transition-[grid-template-columns] duration-200 ${conversationListCollapsed ? "lg:grid-cols-[13rem_4.5rem_minmax(0,1fr)]" : "lg:grid-cols-[13rem_20rem_minmax(0,1fr)]"}`}>
+            <aside className="flex flex-col border-b border-border bg-muted/20 p-3 sm:p-4 lg:border-b-0 lg:border-r">
               <div>
-                <div className={`flex items-center text-xs font-semibold uppercase tracking-[0.16em] text-primary ${navCollapsed ? "justify-center" : "gap-2"}`}>
-                  <ShieldCheck className="size-3.5" /> {!navCollapsed && "Operator"}
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                  <ShieldCheck className="size-3.5" /> Operator
                 </div>
-                {!navCollapsed && <>
-                  <h1 className="mt-3 text-xl font-semibold tracking-tight">Support Inbox</h1>
-                  <p className="mt-1 text-sm leading-5 text-muted-foreground">Customer conversations for Kodarai.</p>
-                </>}
+                <h1 className="mt-3 text-xl font-semibold tracking-tight">Support Inbox</h1>
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">Customer conversations for Kodarai.</p>
               </div>
-              <button type="button" onClick={() => setNavCollapsed((value) => !value)} className={`mt-5 flex h-9 items-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground ${navCollapsed ? "w-9 justify-center" : "w-full justify-between px-3"}`} aria-label={navCollapsed ? "Expand support navigation" : "Collapse support navigation"} title={navCollapsed ? "Expand navigation" : "Collapse navigation"}>
-                {!navCollapsed && <span className="text-xs font-medium">Collapse menu</span>}
-                {navCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-              </button>
-              <nav className={`mt-3 space-y-1 ${navCollapsed ? "w-9" : ""}`} aria-label="Support inbox views">
-                <button type="button" onClick={() => setActiveFilter("all")} className={`flex w-full items-center rounded-lg py-2 text-sm font-medium transition-colors ${navCollapsed ? "justify-center" : "justify-between px-3"} ${activeFilter === "all" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`} title="All conversations">
-                  <span className={`flex items-center ${navCollapsed ? "" : "gap-2"}`}><Inbox className="size-4" /> {!navCollapsed && "All conversations"}</span>{!navCollapsed && <span className="text-xs tabular-nums">{conversations.length}</span>}
+              <nav className="mt-4 flex gap-1 lg:block lg:space-y-1" aria-label="Support inbox views">
+                <button type="button" onClick={() => setActiveFilter("all")} className={`flex flex-1 items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors lg:w-full ${activeFilter === "all" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`} title="All conversations">
+                  <span className="flex items-center gap-2"><Inbox className="size-4" /> All conversations</span><span className="text-xs tabular-nums">{conversations.length}</span>
                 </button>
-                <button type="button" onClick={() => setActiveFilter("waiting")} className={`relative flex w-full items-center rounded-lg py-2 text-sm font-medium transition-colors ${navCollapsed ? "justify-center" : "justify-between px-3"} ${activeFilter === "waiting" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`} title="Awaiting reply">
-                  <span className={`flex items-center ${navCollapsed ? "" : "gap-2"}`}><Clock3 className="size-4" /> {!navCollapsed && "Awaiting reply"}</span>
-                  <span className={`rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${navCollapsed ? "absolute -right-1 -top-1" : ""} ${waitingConversations.length ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{waitingConversations.length}</span>
+                <button type="button" onClick={() => setActiveFilter("waiting")} className={`flex flex-1 items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors lg:w-full ${activeFilter === "waiting" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`} title="Awaiting reply">
+                  <span className="flex items-center gap-2"><Clock3 className="size-4" /> Awaiting reply</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${waitingConversations.length ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{waitingConversations.length}</span>
                 </button>
               </nav>
-              <div className={`mt-auto border-t border-border pt-4 ${navCollapsed ? "w-9" : "w-full"}`}>
-                <Button variant="outline" size="sm" className={navCollapsed ? "size-9 px-0" : "w-full"} onClick={enableAlerts} disabled={enablingAlerts || alertsEnabled} title={alertsEnabled ? "Alerts enabled" : "Enable alerts"}>
+              <div className="mt-4 border-t border-border pt-4 lg:mt-auto">
+                <Button variant="outline" size="sm" className="w-full" onClick={enableAlerts} disabled={enablingAlerts || alertsEnabled} title={alertsEnabled ? "Alerts enabled" : "Enable alerts"}>
                   {enablingAlerts ? <Loader2 className="size-4 animate-spin" /> : <Bell className="size-4" />}
-                  {!navCollapsed && (alertsEnabled ? "Alerts enabled" : "Enable alerts")}
+                  {alertsEnabled ? "Alerts enabled" : "Enable alerts"}
                 </Button>
-                {!navCollapsed && <p className="mt-3 text-xs leading-5 text-muted-foreground">Alerts are sent only for conversations awaiting a human reply.</p>}
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">Alerts are sent only for conversations awaiting a human reply.</p>
               </div>
             </aside>
 
-            <aside className="border-b border-border lg:border-b-0 lg:border-r">
-              <div className="space-y-3 border-b border-border p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Conversations</p>
-                  <span className="text-xs text-muted-foreground">{filteredConversations.length}</span>
+            <aside className={`${mobileConversationsOpen ? "block" : "hidden"} border-b border-border lg:block lg:border-b-0 lg:border-r`}>
+              <div className={`border-b border-border ${conversationListCollapsed ? "p-2" : "space-y-3 p-4"}`}>
+                <div className={`flex items-center ${conversationListCollapsed ? "justify-center" : "justify-between"}`}>
+                  {!conversationListCollapsed && <><p className="text-sm font-semibold">Conversations</p><span className="text-xs text-muted-foreground">{filteredConversations.length}</span></>}
+                  <button type="button" onClick={() => setConversationListCollapsed((value) => !value)} className="hidden size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:inline-flex" aria-label={conversationListCollapsed ? "Expand conversations" : "Collapse conversations"} title={conversationListCollapsed ? "Expand conversations" : "Collapse conversations"}>
+                    {conversationListCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+                  </button>
                 </div>
-                <div className="relative">
+                {!conversationListCollapsed && <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search customers" className="pl-9" />
-                </div>
+                </div>}
               </div>
-              <div className="max-h-72 overflow-y-auto p-2 lg:max-h-[628px]">
+              {!conversationListCollapsed && <div className="max-h-72 overflow-y-auto p-2 lg:max-h-[628px]">
                 {filteredConversations.length === 0 ? (
                   <p className="px-3 py-8 text-center text-sm text-muted-foreground">
                     {query ? "No matching conversations." : "No customer conversations yet."}
@@ -272,7 +269,7 @@ function SupportInboxPage() {
                   <button
                     key={conversation.id}
                     type="button"
-                    onClick={() => setSelectedId(conversation.id)}
+                    onClick={() => { setSelectedId(conversation.id); setMobileConversationsOpen(false); }}
                     className={`w-full rounded-md px-3 py-3 text-left transition-colors ${
                       selectedId === conversation.id ? "bg-primary/10" : "hover:bg-accent"
                     }`}
@@ -293,10 +290,14 @@ function SupportInboxPage() {
                   </button>
                   );
                 })}
-              </div>
+              </div>}
             </aside>
 
             <section className="flex min-h-80 flex-col">
+              <button type="button" onClick={() => setMobileConversationsOpen(true)} className="flex items-center justify-between border-b border-border px-4 py-3 text-left text-sm font-medium lg:hidden">
+                <span className="flex items-center gap-2"><MessageCircle className="size-4" /> Conversations</span>
+                <span className="text-xs text-muted-foreground">{filteredConversations.length}</span>
+              </button>
               {selected ? (
                 <>
                   {waitingConversations.length > 0 && (

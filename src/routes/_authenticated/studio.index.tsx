@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 
 export const Route = createFileRoute("/_authenticated/studio/")({
@@ -118,7 +119,7 @@ function StudioSection({
           <Link
             key={tool.href}
             to={tool.href}
-            className="group flex min-h-48 flex-col bg-card p-5 transition-colors hover:bg-muted/40"
+            className="group flex min-h-52 flex-col bg-card p-5 transition-[background-color,box-shadow] hover:bg-muted/40 hover:shadow-sm focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
               <span>{tool.detail}</span>
@@ -127,6 +128,9 @@ function StudioSection({
             <div className="mt-auto pt-8">
               <h3 className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary">{tool.title}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{tool.description}</p>
+              <span className="mt-5 inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors group-hover:border-primary/40 group-hover:bg-primary group-hover:text-primary-foreground">
+                Open tool <ArrowRight className="size-4" />
+              </span>
             </div>
           </Link>
         ))}
