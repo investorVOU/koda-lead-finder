@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Bell, CircleDot, Loader2, MessageCircle, Search, Send, ShieldCheck, XCircle } from "lucide-react";
+import { Bell, CircleDot, Clock3, Inbox, Loader2, MessageCircle, Search, Send, ShieldCheck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ function SupportInboxPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [activeFilter, setActiveFilter] = useState<"all" | "waiting">("all");
   const [query, setQuery] = useState("");
   const [enablingAlerts, setEnablingAlerts] = useState(false);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
@@ -126,17 +127,22 @@ function SupportInboxPage() {
   };
 
   const enableAlerts = async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      toast.error("This browser does not support push notifications.");
+    if (!window.isSecureContext) {
+      toast.error("Push notifications require the secure https:// version of this site.");
+      return;
+    }
+    if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+      toast.error("Push notifications are unavailable in this browser session.");
       return;
     }
     setEnablingAlerts(true);
     try {
       const config = await runGetPushConfig();
       if ("error" in config) throw new Error(config.error);
+      const registration = await navigator.serviceWorker.register("/support-push-sw.js");
+      if (!registration.pushManager) throw new Error("Push notifications are unavailable in this browser session.");
       const permission = await Notification.requestPermission();
       if (permission !== "granted") throw new Error("Notification permission was not granted.");
-      const registration = await navigator.serviceWorker.register("/support-push-sw.js");
       const existing = await registration.pushManager.getSubscription();
       const subscription = existing || await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -165,18 +171,30 @@ function SupportInboxPage() {
       toast.error(result.error);
       return;
     }
-    setConversations((current) => current.map((conversation) => conversation.id === selectedId ? { ...conversation, ...result.conversation } : conversation));
-    toast.success("Conversation closed.");
+    setConversations((current) => current.filter((conversation) => conversation.id !== selectedId));
+    setSelectedId(null);
+    setMessages([]);
+    toast.success("Conversation closed and cleared.");
   };
 
-  const selected = conversations.find((conversation) => conversation.id === selectedId);
+  const waitingConversations = useMemo(
+    () => conversations.filter((conversation) => conversation.status === "human" && !conversation.agent_replied_at),
+    [conversations],
+  );
   const filteredConversations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return conversations;
-    return conversations.filter((conversation) =>
+    const source = activeFilter === "waiting" ? waitingConversations : conversations;
+    if (!normalizedQuery) return source;
+    return source.filter((conversation) =>
       `${conversation.customer_name} ${conversation.customer_email}`.toLowerCase().includes(normalizedQuery),
     );
-  }, [conversations, query]);
+  }, [activeFilter, conversations, query, waitingConversations]);
+  const selected = filteredConversations.find((conversation) => conversation.id === selectedId);
+
+  useEffect(() => {
+    if (selectedId && filteredConversations.some((conversation) => conversation.id === selectedId)) return;
+    setSelectedId(filteredConversations[0]?.id ?? null);
+  }, [filteredConversations, selectedId]);
 
   if (authorized !== true) {
     return (
@@ -190,26 +208,7 @@ function SupportInboxPage() {
 
   return (
     <DashboardShell>
-      <div className="mx-auto w-full max-w-7xl space-y-5">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-primary">
-              <ShieldCheck className="size-4" /> Private operator workspace
-            </div>
-            <h1 className="text-2xl font-bold tracking-normal">Support Inbox</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Reply to customers as hello@kodarai.xyz.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <Button variant="outline" size="sm" onClick={enableAlerts} disabled={enablingAlerts || alertsEnabled}>
-              {enablingAlerts ? <Loader2 className="size-4 animate-spin" /> : <Bell className="size-4" />}
-              {alertsEnabled ? "Alerts enabled" : "Enable alerts"}
-            </Button>
-            <span className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-500" />
-              {conversations.length} active conversation{conversations.length === 1 ? "" : "s"}
-            </span>
-          </div>
-        </div>
-
+      <div className="mx-auto w-full max-w-[1440px]">
         {loading ? (
           <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 size-4 animate-spin" /> Loading inbox
@@ -217,8 +216,34 @@ function SupportInboxPage() {
         ) : error ? (
           <div className="border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
         ) : (
-          <div className="grid min-h-[620px] overflow-hidden border border-border bg-background lg:grid-cols-[21rem_minmax(0,1fr)]">
-            <aside className="border-b border-border md:border-b-0 md:border-r">
+          <div className="grid min-h-[680px] overflow-hidden rounded-xl border border-border bg-background lg:grid-cols-[13rem_20rem_minmax(0,1fr)]">
+            <aside className="flex flex-col border-b border-border bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                  <ShieldCheck className="size-3.5" /> Operator
+                </div>
+                <h1 className="mt-3 text-xl font-semibold tracking-tight">Support Inbox</h1>
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">Customer conversations for Kodarai.</p>
+              </div>
+              <nav className="mt-7 space-y-1" aria-label="Support inbox views">
+                <button type="button" onClick={() => setActiveFilter("all")} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${activeFilter === "all" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`}>
+                  <span className="flex items-center gap-2"><Inbox className="size-4" /> All conversations</span><span className="text-xs tabular-nums">{conversations.length}</span>
+                </button>
+                <button type="button" onClick={() => setActiveFilter("waiting")} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${activeFilter === "waiting" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/70 hover:text-foreground"}`}>
+                  <span className="flex items-center gap-2"><Clock3 className="size-4" /> Awaiting reply</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${waitingConversations.length ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{waitingConversations.length}</span>
+                </button>
+              </nav>
+              <div className="mt-auto border-t border-border pt-4">
+                <Button variant="outline" size="sm" className="w-full" onClick={enableAlerts} disabled={enablingAlerts || alertsEnabled}>
+                  {enablingAlerts ? <Loader2 className="size-4 animate-spin" /> : <Bell className="size-4" />}
+                  {alertsEnabled ? "Alerts enabled" : "Enable alerts"}
+                </Button>
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">Alerts are sent only for conversations awaiting a human reply.</p>
+              </div>
+            </aside>
+
+            <aside className="border-b border-border lg:border-b-0 lg:border-r">
               <div className="space-y-3 border-b border-border p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold">Conversations</p>
@@ -229,12 +254,14 @@ function SupportInboxPage() {
                   <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search customers" className="pl-9" />
                 </div>
               </div>
-              <div className="max-h-72 overflow-y-auto p-2 lg:max-h-[548px]">
+              <div className="max-h-72 overflow-y-auto p-2 lg:max-h-[628px]">
                 {filteredConversations.length === 0 ? (
                   <p className="px-3 py-8 text-center text-sm text-muted-foreground">
                     {query ? "No matching conversations." : "No customer conversations yet."}
                   </p>
-                ) : filteredConversations.map((conversation) => (
+                ) : filteredConversations.map((conversation) => {
+                  const awaitingReply = conversation.status === "human" && !conversation.agent_replied_at;
+                  return (
                   <button
                     key={conversation.id}
                     type="button"
@@ -250,20 +277,27 @@ function SupportInboxPage() {
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
                           <span className="truncate text-sm font-medium text-foreground">{conversation.customer_name}</span>
-                          <CircleDot className={`size-3 shrink-0 ${conversation.status === "human" ? "text-emerald-500" : "text-muted-foreground"}`} />
+                          <CircleDot className={`size-3 shrink-0 ${awaitingReply ? "text-primary" : "text-muted-foreground"}`} />
                         </span>
                         <span className="mt-0.5 block truncate text-xs text-muted-foreground">{conversation.customer_email}</span>
-                        <span className="mt-1.5 block text-[11px] font-medium capitalize text-muted-foreground">{conversation.status} queue</span>
+                        <span className={`mt-1.5 block text-[11px] font-medium ${awaitingReply ? "text-primary" : "text-muted-foreground"}`}>{awaitingReply ? "New message" : "In progress"}</span>
                       </span>
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </aside>
 
             <section className="flex min-h-80 flex-col">
               {selected ? (
                 <>
+                  {waitingConversations.length > 0 && (
+                    <button type="button" onClick={() => { setActiveFilter("waiting"); setSelectedId(waitingConversations[0]?.id ?? null); }} className="flex w-full items-center justify-between gap-3 border-b border-primary/20 bg-primary/5 px-5 py-2.5 text-left text-sm text-primary">
+                      <span><strong>{waitingConversations.length} new customer message{waitingConversations.length === 1 ? "" : "s"}</strong> waiting for a reply.</span>
+                      <span className="shrink-0 text-xs font-semibold">Review</span>
+                    </button>
+                  )}
                   <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
@@ -274,8 +308,8 @@ function SupportInboxPage() {
                         <p className="truncate text-xs text-muted-foreground">{selected.customer_email}</p>
                       </div>
                     </div>
-                    <span className="hidden items-center gap-1.5 text-xs font-medium text-emerald-600 sm:flex"><span className="size-2 rounded-full bg-emerald-500" /> Human support</span>
-                    <Button type="button" variant="ghost" size="icon" onClick={closeConversation} disabled={selected.status === "closed" || closingConversation} aria-label="Close conversation" title="Close conversation">
+                    <span className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground sm:flex"><span className="size-2 rounded-full bg-primary" /> {selected.status === "human" && !selected.agent_replied_at ? "New message" : "Conversation open"}</span>
+                    <Button type="button" variant="ghost" size="icon" onClick={closeConversation} disabled={closingConversation} aria-label="Close and clear conversation" title="Close and clear conversation">
                       {closingConversation ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
                     </Button>
                   </div>
@@ -300,16 +334,12 @@ function SupportInboxPage() {
                     })}
                     <div ref={messagesEndRef} />
                   </div>
-                  {selected.status === "closed" ? (
-                    <div className="border-t border-border px-4 py-3 text-sm text-muted-foreground">This conversation is closed.</div>
-                  ) : (
-                    <form className="flex items-end gap-2 border-t border-border bg-background p-3" onSubmit={(event) => { event.preventDefault(); reply(); }}>
+                  <form className="flex items-end gap-2 border-t border-border bg-background p-3" onSubmit={(event) => { event.preventDefault(); reply(); }}>
                       <Textarea value={content} onChange={(event) => setContent(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); reply(); } }} placeholder="Reply as hello@kodarai.xyz" disabled={sending} className="min-h-11 max-h-32 resize-none" rows={1} />
                       <Button type="submit" size="icon" disabled={!content.trim() || sending} aria-label="Send reply" className="shrink-0">
                         {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                       </Button>
-                    </form>
-                  )}
+                  </form>
                 </>
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center text-sm text-muted-foreground">

@@ -18,6 +18,7 @@ export interface LearnVideo {
 export const DEMO_VIDEO = {
   youtubeId: "jsRqPL9gzbw",
   instagramUrl: "",
+  tiktokUrl: "",
   title: "How to sell websites to local businesses",
   description:
     "A practical walkthrough for finding businesses without websites and turning them into web design clients.",

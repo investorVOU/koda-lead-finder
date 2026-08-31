@@ -1,13 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  Search,
-  Lightbulb,
-  PenLine,
-  Share2,
-  Workflow,
-  Youtube,
-  Database,
-} from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 
 export const Route = createFileRoute("/_authenticated/studio/")({
@@ -15,100 +6,131 @@ export const Route = createFileRoute("/_authenticated/studio/")({
   component: StudioPage,
 });
 
-const TOOLS = [
+type StudioTool = {
+  title: string;
+  description: string;
+  href: string;
+  detail: string;
+};
+
+const CREATE_TOOLS: StudioTool[] = [
   {
-    id: "channel-review",
     title: "Channel Review",
-    description: "Paste a channel. See what's working, what's not, what to make next.",
-    icon: Youtube,
+    description: "Find the strongest patterns in a channel and where to improve next.",
     href: "/studio/channel-review",
+    detail: "Strategy",
   },
   {
-    id: "ideas",
-    title: "Video Ideas",
-    description: "Titles, hooks and angles for your niche.",
-    icon: Lightbulb,
-    href: "/studio/ideas",
-  },
-  {
-    id: "scraper",
-    title: "AI Scraper",
-    description: "Pull channels, videos and competitor patterns.",
-    icon: Search,
-    href: "/studio/scraper",
-  },
-  {
-    id: "content",
     title: "Content Studio",
-    description: "Scripts, stories, titles and descriptions.",
-    icon: PenLine,
+    description: "Develop scripts, titles, descriptions, and polished creative briefs.",
     href: "/studio/content",
+    detail: "Writing",
   },
   {
-    id: "social-content",
     title: "Social Content",
-    description: "Plan posts and create platform-ready social content.",
-    icon: Share2,
+    description: "Build a practical publishing plan for the platforms your audience uses.",
     href: "/social-content",
+    detail: "Publishing",
   },
   {
-    id: "automation",
+    title: "Video Ideas",
+    description: "Plan focused video concepts, angles, titles, and opening hooks.",
+    href: "/studio/ideas",
+    detail: "Planning",
+  },
+];
+
+const MANAGE_TOOLS: StudioTool[] = [
+  {
+    title: "Channel Search",
+    description: "Explore channels, videos, and competitor patterns for your niche.",
+    href: "/studio/scraper",
+    detail: "Research",
+  },
+  {
     title: "Automations",
-    description: "Chain tools into repeatable workflows.",
-    icon: Workflow,
+    description: "Set up repeatable workflows for research and content preparation.",
     href: "/studio/automations",
+    detail: "Systems",
   },
   {
-    id: "research",
     title: "My Research",
-    description: "Saved channels, videos, ideas and drafts.",
-    icon: Database,
+    description: "Return to your saved channels, videos, ideas, and drafts.",
     href: "/studio/research",
+    detail: "Library",
   },
 ];
 
 function StudioPage() {
   return (
     <DashboardShell>
-      <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
-        <div className="border-b border-border pb-5">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Studio</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Research, write and ship content, in one place.
+      <main className="mx-auto w-full max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
+        <div className="border-b border-border pb-8 sm:pb-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Kodarai Studio</p>
+          <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+            A focused workspace for your content system.
+          </h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+            Research what matters, shape a strong idea, and prepare every piece of content with a clear next step.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {TOOLS.map((tool) => (
-            <ToolCard key={tool.id} {...tool} />
-          ))}
-        </div>
-      </div>
+        <StudioSection
+          eyebrow="Create"
+          title="Plan and produce"
+          description="Start with a clear direction, then turn it into work you can publish."
+          tools={CREATE_TOOLS}
+        />
+        <StudioSection
+          eyebrow="Organize"
+          title="Keep your work moving"
+          description="Build a useful reference library and put routine work on a dependable system."
+          tools={MANAGE_TOOLS}
+        />
+      </main>
     </DashboardShell>
   );
 }
 
-function ToolCard({
+function StudioSection({
+  eyebrow,
   title,
   description,
-  icon: Icon,
-  href,
+  tools,
 }: {
+  eyebrow: string;
   title: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  href: string;
+  tools: StudioTool[];
 }) {
   return (
-    <Link
-      to={href}
-      className="group flex h-full flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
-    >
-      <Icon className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
-      <h3 className="text-sm font-semibold leading-tight">{title}</h3>
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        {description}
-      </p>
-    </Link>
+    <section className="border-b border-border py-8 last:border-0 sm:py-10">
+      <div className="mb-5 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{eyebrow}</p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight">{title}</h2>
+        </div>
+        <p className="max-w-md text-sm leading-6 text-muted-foreground">{description}</p>
+      </div>
+
+      <div className={`grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 ${tools.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+        {tools.map((tool, index) => (
+          <Link
+            key={tool.href}
+            to={tool.href}
+            className="group flex min-h-48 flex-col bg-card p-5 transition-colors hover:bg-muted/40"
+          >
+            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+              <span>{tool.detail}</span>
+              <span className="font-mono text-[11px]">{String(index + 1).padStart(2, "0")}</span>
+            </div>
+            <div className="mt-auto pt-8">
+              <h3 className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary">{tool.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{tool.description}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

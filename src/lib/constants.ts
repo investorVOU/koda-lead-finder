@@ -445,6 +445,7 @@ export const PLAN_LABELS: Record<string, string> = {
 export interface LeadResult {
   placeId: string;
   name: string;
+  category?: string;
   address: string;
   phone: string | null;
   rating: number | null;

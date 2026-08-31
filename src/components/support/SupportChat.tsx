@@ -80,7 +80,9 @@ export function SupportChat() {
       else {
         setConversation(result.conversation);
         setMessages(result.messages);
-        if ("visitorToken" in result) setVisitorToken(result.visitorToken);
+        if ("visitorToken" in result && typeof result.visitorToken === "string") {
+          setVisitorToken(result.visitorToken);
+        }
       }
       setLoading(false);
     };
@@ -94,13 +96,34 @@ export function SupportChat() {
     let active = true;
     const refresh = async () => {
       const result = await runGetGuestChat({ data: { visitorToken } });
-      if (!active || "error" in result) return;
+      if (!active) return;
+      if ("error" in result) {
+        window.localStorage.removeItem(GUEST_TOKEN_KEY);
+        setConversation(null);
+        setMessages([]);
+        setVisitorToken(null);
+        setOpen(false);
+        return;
+      }
       setConversation(result.conversation);
       setMessages(result.messages);
     };
     const interval = window.setInterval(refresh, 5_000);
     return () => { active = false; window.clearInterval(interval); };
   }, [open, user?.id, visitorToken]);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    let active = true;
+    const refresh = async () => {
+      const result = await runGetChat();
+      if (!active || "error" in result) return;
+      setConversation(result.conversation);
+      setMessages(result.messages);
+    };
+    const interval = window.setInterval(refresh, 5_000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [open, user?.id]);
 
   useEffect(() => {
     if (!user || !conversation) return;
@@ -188,7 +211,8 @@ export function SupportChat() {
       return;
     }
     if (!user) window.localStorage.removeItem(GUEST_TOKEN_KEY);
-    setConversation(result.conversation);
+    setConversation(null);
+    setMessages([]);
     setVisitorToken(null);
     setOpen(false);
     toast.success("Chat ended.");
@@ -205,7 +229,7 @@ export function SupportChat() {
       toast.error(result.error);
       return;
     }
-    if ("visitorToken" in result) {
+    if ("visitorToken" in result && typeof result.visitorToken === "string") {
       window.localStorage.setItem(GUEST_TOKEN_KEY, result.visitorToken);
       setVisitorToken(result.visitorToken);
     }

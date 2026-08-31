@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Rocket, History, Send, ExternalLink,
   FileCode, FileJson, FileType2, File, Globe, X, Loader2,
-  Code2, Eye, RefreshCw, Sparkles, FolderGit2, Pencil,
+  Code2, Eye, RefreshCw, FolderGit2, Pencil,
   MessageSquare, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -90,10 +90,10 @@ const CHAT_PLACEHOLDERS = [
 ];
 
 const QUICK_STARTS = [
-  { icon: "🏠", label: "Add hero section", prompt: "Add a stunning hero section with a headline, subheading, and call-to-action button." },
-  { icon: "📞", label: "Contact section", prompt: "Add a contact section with phone, email, WhatsApp button, and a simple enquiry form." },
-  { icon: "📱", label: "Make mobile-friendly", prompt: "Make the site fully responsive and mobile-friendly with a hamburger menu." },
-  { icon: "⚡", label: "Improve speed", prompt: "Optimize the HTML and CSS for performance: lazy load images, clean up unused styles, and compress scripts." },
+  { label: "Add hero section", prompt: "Add a stunning hero section with a headline, subheading, and call-to-action button." },
+  { label: "Contact section", prompt: "Add a contact section with phone, email, WhatsApp button, and a simple enquiry form." },
+  { label: "Make mobile-friendly", prompt: "Make the site fully responsive and mobile-friendly with a hamburger menu." },
+  { label: "Improve speed", prompt: "Optimize the HTML and CSS for performance: lazy load images, clean up unused styles, and compress scripts." },
 ];
 
 // ─── Preview helpers ──────────────────────────────────────────────────────────
@@ -230,9 +230,6 @@ function LivePreview({
                   <rect x="2" y="29" width="30" height="4" rx="2" fill="rgba(255,255,255,0.05)"/>
                   <rect x="2" y="37" width="20" height="4" rx="2" fill="rgba(255,255,255,0.03)"/>
                 </svg>
-              </div>
-              <div className="absolute -right-1.5 -top-1.5 w-5 h-5 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center shadow-sm shadow-primary/20">
-                <Sparkles className="w-2.5 h-2.5 text-primary" />
               </div>
             </div>
 
@@ -534,9 +531,7 @@ function Builder() {
 
           {/* Brand pill */}
           <div className="flex items-center gap-1.5 shrink-0 select-none">
-            <div className="w-6 h-6 rounded-lg bg-primary/15 border border-primary/20 flex items-center justify-center">
-              <Sparkles className="w-3 h-3 text-primary" />
-            </div>
+            <span className="flex size-6 items-center justify-center rounded-lg border border-primary/20 bg-primary/15 font-mono text-[10px] font-semibold text-primary">K</span>
             <span className="text-xs font-semibold text-zinc-300 hidden sm:block tracking-tight">Studio</span>
           </div>
 
@@ -918,22 +913,20 @@ function ChatPanel({
 function ChatEmptyState({ onQuickStart, isStreaming }: { onQuickStart: (p: string) => void; isStreaming: boolean }) {
   return (
     <div className="flex flex-col h-full min-h-[420px] items-center justify-center px-6 py-8">
-      <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5 shadow-xl shadow-primary/10">
-        <Sparkles className="w-7 h-7 text-primary" />
-      </div>
+      <div className="mb-5 flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 font-mono text-sm font-semibold tracking-[0.18em] text-primary shadow-xl shadow-primary/10">01</div>
       <h3 className="text-sm font-semibold text-zinc-100 mb-1.5">What are we building?</h3>
       <p className="text-xs text-zinc-500 mb-7 max-w-[220px] text-center leading-relaxed">
         Describe a website or pick a quick action to get started instantly.
       </p>
       <div className="w-full space-y-2 max-w-[280px]">
-        {QUICK_STARTS.map((qs) => (
+        {QUICK_STARTS.map((qs, index) => (
           <button
             key={qs.label}
             onClick={() => !isStreaming && onQuickStart(qs.prompt)}
             disabled={isStreaming}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/6 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-all text-left group disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span className="text-base leading-none shrink-0">{qs.icon}</span>
+            <span className="shrink-0 font-mono text-[10px] text-zinc-600">{String(index + 1).padStart(2, "0")}</span>
             <span className="text-xs font-medium text-zinc-400 group-hover:text-zinc-200 transition-colors flex-1">{qs.label}</span>
           </button>
         ))}
@@ -958,10 +951,7 @@ function MessageBubble({ message, isStreaming }: { message: StudioMessage; isStr
 
   return (
     <div className="flex items-start gap-3">
-      {/* AI avatar */}
-      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/25 to-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 shadow-sm shadow-primary/10">
-        <Sparkles className="w-3.5 h-3.5 text-primary" />
-      </div>
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 font-mono text-[10px] font-semibold text-primary">K</span>
 
       <div className="flex-1 min-w-0 pt-0.5">
         {isEmpty && isStreaming ? (

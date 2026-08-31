@@ -337,23 +337,21 @@ export const saveGuestSupportContactEmail = createServerFn({ method: "POST" })
     }
   });
 
-async function closeSupportConversation(conversation: SupportConversation) {
-  const updatedAt = new Date().toISOString();
-  const { data, error } = await db
+async function deleteSupportConversation(conversationId: string) {
+  const { error } = await db
     .from("support_conversations")
-    .update({ status: "closed", updated_at: updatedAt })
-    .eq("id", conversation.id)
-    .select("*")
-    .single();
+    .delete()
+    .eq("id", conversationId);
   if (error) throw new Error(error.message);
-  return data as SupportConversation;
 }
 
 export const leaveSupportChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     try {
-      return { conversation: await closeSupportConversation(await getOrCreateConversation(context.userId)) } as const;
+      const conversation = await getOrCreateConversation(context.userId);
+      await deleteSupportConversation(conversation.id);
+      return { success: true } as const;
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Unable to end this chat." } as const;
     }
@@ -365,7 +363,8 @@ export const leaveGuestSupportChat = createServerFn({ method: "POST" })
     try {
       const conversation = await getGuestConversation(data.visitorToken);
       if (!conversation) return { error: "Guest conversation not found." } as const;
-      return { conversation: await closeSupportConversation(conversation) } as const;
+      await deleteSupportConversation(conversation.id);
+      return { success: true } as const;
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Unable to end this chat." } as const;
     }
@@ -420,6 +419,7 @@ export const getSupportInbox = createServerFn({ method: "GET" })
     const { data, error } = await db
       .from("support_conversations")
       .select("id,user_id,status,created_at,updated_at,human_requested_at,agent_replied_at,contact_email,profiles(full_name,email)")
+      .neq("status", "closed")
       .order("updated_at", { ascending: false });
     if (error) return { error: error.message, conversations: [] as SupportInboxConversation[] } as const;
 
@@ -489,5 +489,6 @@ export const closeSupportConversationByAdmin = createServerFn({ method: "POST" }
       .eq("id", data.conversationId)
       .maybeSingle();
     if (error || !conversation) return { error: error?.message || "Conversation not found." } as const;
-    return { conversation: await closeSupportConversation(conversation as SupportConversation) } as const;
+    await deleteSupportConversation((conversation as SupportConversation).id);
+    return { success: true } as const;
   });

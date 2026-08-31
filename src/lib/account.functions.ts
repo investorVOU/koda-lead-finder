@@ -15,7 +15,7 @@ export const processReferral = createServerFn({ method: "POST" })
     const admin = supabaseAdmin as any;
 
     // Look up referrer by their referral_code column
-    const { data: referrer } = await supabaseAdmin
+    const { data: referrer } = await admin
       .from("profiles")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .select("id" as any)
