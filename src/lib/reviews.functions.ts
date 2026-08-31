@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -238,7 +239,9 @@ export const analyzeReviews = createServerFn({
   .inputValidator((data) =>
     reviewInputSchema.parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     const googleKey =
       process.env.GOOGLE_PLACES_API_KEY;
 

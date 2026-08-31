@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
 
 const leadSchema = z.object({
   name: z.string().min(1).max(160),
@@ -200,7 +201,9 @@ function ensureWebsitePersonaOpener(text: string): string {
 export const generateContent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => typeSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     const { system, user } = buildPrompt(data.kind, data.lead);
     try {
       const raw = await groqChat([
@@ -251,7 +254,9 @@ const EMAIL_ANGLES = [
 export const generateEmailSequence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => seqSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     const location = data.lead.location || data.lead.address || "their area";
     const ctx = `Business: ${data.lead.name}
 Category: ${data.lead.category || "local business"}

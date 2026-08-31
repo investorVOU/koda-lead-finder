@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Radar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/lib/queries";
+import { processReferral } from "@/lib/account.functions";
 import { LEAD_CATEGORY_GROUPS } from "@/lib/constants";
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
@@ -30,6 +32,7 @@ function OnboardingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile(user?.id);
+  const runProcessReferral = useServerFn(processReferral);
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
   const [niche, setNiche] = useState("");
@@ -73,6 +76,12 @@ function OnboardingPage() {
     await queryClient.invalidateQueries({
       queryKey: ["profile", user.id],
     });
+    const referralCode = localStorage.getItem("kodarai_ref");
+    if (referralCode) {
+      void runProcessReferral({ data: { ref_code: referralCode } }).finally(() => {
+        localStorage.removeItem("kodarai_ref");
+      });
+    }
     toast.success(
       "You're all set! Choose the plan that fits you.",
     );

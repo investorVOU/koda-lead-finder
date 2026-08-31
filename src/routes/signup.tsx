@@ -14,7 +14,7 @@ const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string;
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
-    meta: [{ title: "Create your account — Kodarai" }],
+    meta: [{ title: "Create your account - Kodarai" }],
   }),
   component: SignupPage,
 });
@@ -29,15 +29,11 @@ function SignupPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
 
-  // Capture referral code from ?ref= param and persist through signup
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get("ref");
     if (ref) localStorage.setItem("kodarai_ref", ref);
   }, []);
 
-  // If a session already exists (e.g. user landed on /signup while logged in),
-  // send them to /dashboard — it's inside the authenticated layout, which
-  // will route them to /welcome, /choose-plan, or let them through as needed.
   useEffect(() => {
     if (!loading && user) navigate({ to: "/dashboard" });
   }, [user, loading, navigate]);
@@ -57,6 +53,7 @@ function SignupPage() {
       toast.error("Please complete the captcha");
       return;
     }
+
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -69,14 +66,13 @@ function SignupPage() {
     });
     setBusy(false);
     resetCaptcha();
+
     if (error) {
       toast.error(error.message);
       return;
     }
     if (data.session) {
-      // Genuinely a brand-new account with a session — send to /dashboard
-      // and let the authenticated layout route to /welcome for new users.
-      toast.success("Account created! Let's set you up.");
+      toast.success("Account created. Let's set you up.");
       navigate({ to: "/dashboard" });
     } else {
       toast.success("Check your email to confirm your account.");
@@ -87,10 +83,6 @@ function SignupPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      // Google OAuth is used for both new signups and returning logins, and
-      // we can't tell which it is until the session comes back. Send to
-      // /dashboard — the authenticated layout's routing will send new
-      // users (no profile/no plan) to /welcome, and existing users stay put.
       options: { redirectTo: window.location.origin + "/dashboard" },
     });
     if (error) {
@@ -102,7 +94,7 @@ function SignupPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Start free · find your first client today"
+      subtitle="Create your account, then choose the plan that fits your workflow."
       footer={
         <>
           Already have an account?{" "}
@@ -121,35 +113,15 @@ function SignupPage() {
       <form onSubmit={handleSignup} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="name">Full name</Label>
-          <Input
-            id="name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Jane Designer"
-            required
-          />
+          <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Designer" required />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-          />
+          <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 6 characters"
-            required
-          />
+          <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" required />
         </div>
 
         {HCAPTCHA_SITE_KEY && (

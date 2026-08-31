@@ -210,8 +210,8 @@ export function LiveNotification() {
   return (
     <div
       className={[
-        "pointer-events-none fixed inset-x-0 z-[60]",
-        "bottom-[calc(1rem+env(safe-area-inset-bottom))]",
+        "pointer-events-none fixed inset-x-0 z-30",
+        "top-[calc(4.5rem+env(safe-area-inset-top))] md:bottom-[calc(1rem+env(safe-area-inset-bottom))] md:top-auto",
         "flex justify-center px-4",
         "transition-all duration-300 ease-out",
         visible

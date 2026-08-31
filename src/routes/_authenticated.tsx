@@ -60,7 +60,6 @@ function AuthenticatedLayout() {
     const exemptPaths = [
       "/welcome",
       "/onboarding",
-      "/trial-welcome",
       "/choose-plan",
       "/billing",
     ];
@@ -74,8 +73,7 @@ function AuthenticatedLayout() {
       if (pathname === "/choose-plan") {
         const hasAccess =
           sub?.status === "active" ||
-          sub?.status === "canceling" ||
-          (sub?.topup_credits ?? 0) > 0;
+          sub?.status === "canceling";
 
         if (hasAccess) {
           navigate({ to: "/dashboard" });
@@ -85,33 +83,20 @@ function AuthenticatedLayout() {
       return;
     }
 
-    /*
-     * Existing users who have already completed onboarding
-     * can continue normally.
-     */
-    if (profile.onboarded) {
+    if (!profile.onboarded) {
+      navigate({ to: "/welcome" });
       return;
     }
 
-    /*
-     * New users:
-     *
-     * They have authenticated successfully but haven't
-     * completed onboarding yet.
-     *
-     * Send them through:
-     *
-     * Register
-     *    ↓
-     * Welcome
-     *    ↓
-     * Onboarding
-     *    ↓
-     * Choose Plan
-     *    ↓
-     * Dashboard
-     */
-    navigate({ to: "/welcome" });
+    const hasPaidAccess =
+      sub?.status === "active" || sub?.status === "canceling";
+
+    if (!hasPaidAccess) {
+      navigate({ to: "/choose-plan" });
+      return;
+    }
+
+    return;
   }, [
     user,
     profile,

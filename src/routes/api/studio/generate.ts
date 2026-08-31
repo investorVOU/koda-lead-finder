@@ -390,11 +390,9 @@ function extractSummary(content: string): string {
 // ============================================================================
 
 const PLAN_LIMITS: Record<string, number> = {
-  free: 5,
-  trial: 20,
   starter: 50,
   pro: 200,
-  max: 9999,
+  agency: 9999,
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -417,14 +415,18 @@ async function checkLimit(
 
   const { data: sub } = await supabaseAdmin
     .from("subscriptions")
-    .select("plan")
+    .select("plan,status")
     .eq("user_id", userId)
     .maybeSingle();
 
-  const plan =
-    (sub as { plan?: string } | null)?.plan ?? "free";
+  const subscription = sub as { plan?: string; status?: string } | null;
+  if (subscription?.status !== "active" && subscription?.status !== "canceling") {
+    return { allowed: false, used: 0, limit: 0 };
+  }
 
-  const limit = PLAN_LIMITS[plan] ?? 5;
+  const plan = subscription.plan ?? "";
+
+  const limit = PLAN_LIMITS[plan] ?? 0;
 
   const { data: projects } = await db
     .from("studio_projects")

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { hasPaidSubscription } from "@/lib/subscription.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseAdmin as any;
@@ -64,6 +65,10 @@ export const createStudioProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => createProjectSchema.parse(d))
   .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) {
+      return { error: "plan_required", message: "Choose a paid plan to use Studio." } as const;
+    }
+
     const { data: project, error } = await db
       .from("studio_projects")
       .insert({
@@ -274,14 +279,17 @@ export const getStudioUsage = createServerFn({ method: "GET" })
     // Plan limit
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
-      .select("plan")
+      .select("plan,status")
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    const LIMITS: Record<string, number> = {
-      free: 5, trial: 20, starter: 50, pro: 200, max: 9999,
-    };
-    const limit = LIMITS[(sub as { plan?: string } | null)?.plan ?? "free"] ?? 5;
+    const active = ["active", "canceling"].includes(
+      (sub as { status?: string } | null)?.status ?? "",
+    );
+    const LIMITS: Record<string, number> = { starter: 50, pro: 200, agency: 9999 };
+    const limit = active
+      ? (LIMITS[(sub as { plan?: string } | null)?.plan ?? ""] ?? 0)
+      : 0;
 
     return {
       projectCount: projectCount ?? 0,

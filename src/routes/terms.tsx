@@ -58,7 +58,7 @@ function TermsPage() {
 
           <h2>3. Subscriptions & Payments</h2>
           <p>
-            Kodarai offers both free trial and paid subscription plans. By purchasing a plan you
+            Kodarai offers paid subscription plans. By purchasing a plan you
             authorise us to charge the applicable fees to your chosen payment method. All fees are
             stated in USD unless otherwise specified. We also accept Naira payments via Paystack.
           </p>

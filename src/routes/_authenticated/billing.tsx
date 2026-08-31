@@ -84,7 +84,7 @@ function BillingPage() {
         <div>
           <h1 className="text-2xl font-bold">Billing & Plans</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Subscribe for monthly leads, or buy a one-time lead pack — pay via Paystack.
+            Subscribe for monthly leads, then add one-time lead packs whenever you need more.
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -192,7 +192,7 @@ function BillingPage() {
               <Zap className="size-5 text-primary" /> One-time lead packs
             </h2>
             <p className="mb-4 text-sm text-muted-foreground">
-              No subscription. Top-up leads never expire — perfect to test the waters.
+              Available to subscribers. Top-up leads never expire.
             </p>
             <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {PACKS.map((p) => (

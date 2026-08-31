@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
 import {
   getYouTubeChannelData,
   type YouTubeChannelData,
@@ -264,7 +265,9 @@ async function callGemini(prompt: string, tone: string): Promise<string> {
 export const generateContent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => inputSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     try {
       let channelData: YouTubeChannelData | null = null;
 

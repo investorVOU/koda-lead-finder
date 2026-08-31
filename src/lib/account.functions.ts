@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // ── Record referral on signup ──────────────────────────────────────────────
-// Called once from trial-welcome page after a user signs up via a referral link.
+// Called after onboarding when a user signs up via a referral link.
 // Creates the referrals row; credits are only awarded later on first purchase.
 export const processReferral = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

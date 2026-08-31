@@ -437,7 +437,7 @@ export const STATUS_LABELS: Record<LeadStatusValue, string> = {
 };
 
 export const PLAN_LABELS: Record<string, string> = {
-  trial: "Free Trial",
+  none: "No active plan",
   pro: "Pro",
   max: "Max",
 };

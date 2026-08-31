@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
 
 const socialContentSchema = z.object({
   business: z.string().min(2).max(160),
@@ -125,7 +126,9 @@ async function groqChat(
 export const generateSocialContent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => socialContentSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     const prompt = `Create a social media content plan for this business.
 
 Business:

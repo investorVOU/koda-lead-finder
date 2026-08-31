@@ -23,7 +23,7 @@ import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
 import { SupportChat } from "@/components/support/SupportChat";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { useSubscription, trialDaysLeft, isTrialExpired } from "@/lib/queries";
+import { useSubscription } from "@/lib/queries";
 
 interface NavItem {
   to: string;
@@ -52,8 +52,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: sub } = useSubscription(user?.id);
-  const daysLeft = trialDaysLeft(sub);
-  const trialExpired = isTrialExpired(sub);
   const [moreOpen, setMoreOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -133,22 +131,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-
-      {/* Trial banner */}
-      {sub?.plan === "trial" && (
-        <div className={`border-b px-4 py-2 text-center text-xs font-medium ${trialExpired ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-primary/20 bg-primary/5 text-primary"}`}>
-          {trialExpired ? (
-            <>Your free trial has expired.{" "}
-              <button className="underline underline-offset-2" onClick={() => navigate({ to: "/billing" })}>Upgrade to keep searching</button>
-            </>
-          ) : (
-            <>Free trial — <strong>{daysLeft} day{daysLeft !== 1 ? "s" : ""} left</strong>{" "}
-              <span className="text-primary/60">·</span>{" "}
-              <button className="underline underline-offset-2" onClick={() => navigate({ to: "/billing" })}>Upgrade now</button>
-            </>
-          )}
-        </div>
-      )}
 
       <main className="mx-auto max-w-7xl px-4 py-6 pb-20 sm:py-8 md:pb-8">
         <div key={location.pathname} className="animate-page-enter">

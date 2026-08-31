@@ -25,17 +25,6 @@ export interface Subscription {
   trial_ends_at: string | null;
 }
 
-export function trialDaysLeft(sub: Subscription | null | undefined): number {
-  if (!sub?.trial_ends_at || sub.plan !== "trial") return 0;
-  const ms = new Date(sub.trial_ends_at).getTime() - Date.now();
-  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
-}
-
-export function isTrialExpired(sub: Subscription | null | undefined): boolean {
-  if (!sub?.trial_ends_at || sub.plan !== "trial") return false;
-  return new Date(sub.trial_ends_at) < new Date();
-}
-
 export interface PaymentRecord {
   id: string;
   provider: string;
@@ -82,7 +71,7 @@ export function useSubscription(userId: string | undefined) {
 }
 
 export function isFreeTrial(sub: Subscription | null | undefined): boolean {
-  return !sub || sub.plan === "trial" || sub.status === "pending_plan" || sub.status === "trialing";
+  return !sub || (sub.status !== "active" && sub.status !== "canceling");
 }
 
 export function usePaymentHistory(userId: string | undefined) {
