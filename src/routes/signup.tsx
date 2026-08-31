@@ -117,6 +117,14 @@ function SignupPage() {
           <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Designer" required />
         </div>
 
+        <div className="space-y-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="password">Password</Label>
+          <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" required />
+        </div>
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
           <input
             type="checkbox"
@@ -129,14 +137,6 @@ function SignupPage() {
             <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">Optional. You can unsubscribe at any time from Settings or an email link.</span>
           </span>
         </label>
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" required />
-        </div>
 
         {HCAPTCHA_SITE_KEY && (
           <HCaptcha
