@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/lib/queries";
 import { processReferral } from "@/lib/account.functions";
+import { getMarketingEmailPreference } from "@/lib/marketing.functions";
 import { LEAD_CATEGORY_GROUPS } from "@/lib/constants";
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
@@ -33,11 +34,14 @@ function OnboardingPage() {
   const queryClient = useQueryClient();
   const { data: profile } = useProfile(user?.id);
   const runProcessReferral = useServerFn(processReferral);
+  const runGetMarketingPreference = useServerFn(getMarketingEmailPreference);
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
   const [niche, setNiche] = useState("");
   const [location, setLocation] = useState("");
   const [busy, setBusy] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [marketingPreferenceLoaded, setMarketingPreferenceLoaded] = useState(false);
   /*
    * Existing users who have already completed onboarding
    * should not go through this setup again.
@@ -50,6 +54,14 @@ function OnboardingPage() {
       navigate({ to: "/dashboard" });
     }
   }, [profile, navigate]);
+
+  useEffect(() => {
+    if (!user) return;
+    runGetMarketingPreference().then((result) => {
+      if (!("error" in result)) setMarketingOptIn(result.marketingOptIn);
+      setMarketingPreferenceLoaded(true);
+    });
+  }, [user?.id]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -62,6 +74,8 @@ function OnboardingPage() {
         primary_niche: niche,
         target_location: location,
         onboarded: true,
+        marketing_email_opt_in: marketingOptIn,
+        marketing_email_opted_in_at: marketingOptIn ? new Date().toISOString() : null,
       })
       .eq("id", user.id);
     setBusy(false);
@@ -193,13 +207,25 @@ function OnboardingPage() {
               placeholder="e.g. Lagos, Nigeria or Chicago, USA"
             />
           </div>
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={marketingOptIn}
+              onChange={(event) => setMarketingOptIn(event.target.checked)}
+              className="mt-0.5 size-4 accent-primary"
+            />
+            <span>
+              <span className="font-medium">Send me weekly lead ideas and KodarAI offers</span>
+              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">Optional. You can unsubscribe at any time.</span>
+            </span>
+          </label>
           {/* Continue */}
           <Button
             type="submit"
             variant="hero"
             size="lg"
             className="w-full"
-            disabled={busy}
+            disabled={busy || !marketingPreferenceLoaded}
           >
             {busy ? (
               <>
