@@ -1,0 +1,22 @@
+name: Weekly marketing email
+
+on:
+  schedule:
+    # 09:00 UTC every Monday (10:00 in Abuja).
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  send-weekly-campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send opted-in weekly lead campaign
+        env:
+          MARKETING_CRON_SECRET: ${{ secrets.MARKETING_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "https://kodarai.xyz/api/public/marketing/weekly" \
+            -H "Authorization: Bearer ${MARKETING_CRON_SECRET}"
