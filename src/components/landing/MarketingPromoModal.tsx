@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,7 +35,7 @@ export function MarketingPromoModal() {
       // Show the offer once when storage is unavailable.
     }
 
-    const timer = window.setTimeout(() => setOpen(true), 1800);
+    const timer = window.setTimeout(() => setOpen(true), 6000);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -42,49 +43,47 @@ export function MarketingPromoModal() {
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? setOpen(true) : dismiss())}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl gap-0 overflow-y-auto border-border p-0 sm:rounded-2xl">
-        <div className="bg-primary px-6 py-7 text-primary-foreground sm:px-9 sm:py-9">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-foreground/70">
-            Kodarai for web designers
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md gap-0 overflow-hidden rounded-2xl border-border p-0 shadow-2xl">
+        <div className="relative bg-primary px-5 pb-5 pt-6 text-primary-foreground sm:px-7 sm:pb-6 sm:pt-7">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground/15">
+            <Sparkles className="size-5" aria-hidden="true" />
+          </div>
+          <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">
+            For web designers
           </p>
-          <DialogTitle className="mt-3 max-w-xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-            Your next website client is already nearby.
+          <DialogTitle className="mt-2 pr-7 text-2xl font-bold leading-tight tracking-tight sm:text-[1.75rem]">
+            Find your next website client nearby.
           </DialogTitle>
-          <DialogDescription className="mt-3 max-w-lg text-base leading-relaxed text-primary-foreground/80">
-            Find strong local businesses without a website, prepare a sharper pitch, and move from research to a real project in one workflow.
+          <DialogDescription className="mt-2 text-sm leading-6 text-primary-foreground/80">
+            Spot local businesses with room to improve their online presence, then prepare outreach that feels personal.
           </DialogDescription>
         </div>
 
-        <div className="bg-background p-6 sm:p-9">
-          <p className="text-sm font-semibold text-foreground">A clearer path to your next client</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="bg-background px-5 py-5 sm:px-7 sm:py-6">
+          <ul className="space-y-2.5 text-sm text-muted-foreground">
             {[
-              ["01", "Spot the gap", "Search for businesses that need a better online presence."],
-              ["02", "Make it personal", "Use the business details to prepare a relevant outreach."],
-              ["03", "Build momentum", "Turn a good lead into a site project with Studio."],
-            ].map(([number, title, description]) => (
-              <div key={number} className="rounded-xl border border-border bg-muted/35 p-4">
-                <p className="text-xs font-bold tracking-wider text-primary">{number}</p>
-                <p className="mt-3 text-sm font-semibold text-foreground">{title}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
-              </div>
+              "Find businesses that need a better website",
+              "Get context for a more relevant pitch",
+              "Turn a promising lead into a project",
+            ].map((benefit) => (
+              <li key={benefit} className="flex items-start gap-2.5">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                <span>{benefit}</span>
+              </li>
             ))}
-          </div>
+          </ul>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button variant="hero" size="lg" className="flex-1" asChild>
-              <a href="/signup">Start finding leads</a>
-            </Button>
-            <Button variant="outline" size="lg" className="flex-1" asChild>
-              <a href="/#pricing">See plans and pricing</a>
-            </Button>
-          </div>
+          <Button variant="hero" size="lg" className="mt-5 w-full" asChild>
+            <a href="/signup">
+              Start finding leads <ArrowRight className="size-4" aria-hidden="true" />
+            </a>
+          </Button>
           <button
             type="button"
             onClick={dismiss}
-            className="mt-4 w-full text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="mt-3 w-full text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Continue exploring
+            No thanks, keep exploring
           </button>
         </div>
       </DialogContent>
