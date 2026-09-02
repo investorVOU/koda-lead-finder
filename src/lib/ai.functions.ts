@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
+import { hasPaidSubscription, hasPlanAtLeast, paidPlanRequired } from "@/lib/subscription.server";
 
 const leadSchema = z.object({
   name: z.string().min(1).max(160),
@@ -255,7 +255,12 @@ export const generateEmailSequence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => seqSchema.parse(data))
   .handler(async ({ data, context }) => {
-    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+    if (!(await hasPlanAtLeast(context.userId, "pro"))) {
+      return {
+        error: "plan_required",
+        message: "Email sequences are available on Pro and Agency plans.",
+      } as const;
+    }
 
     const location = data.lead.location || data.lead.address || "their area";
     const ctx = `Business: ${data.lead.name}

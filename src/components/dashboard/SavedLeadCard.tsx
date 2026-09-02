@@ -17,6 +17,7 @@ import {
   CalendarClock,
   Bell,
   Wrench,
+  Lock,
 } from "lucide-react";
 import {
   Select,
@@ -32,11 +33,14 @@ import { OutreachDialog } from "@/components/dashboard/OutreachDialog";
 import { ProposalDialog } from "@/components/dashboard/ProposalDialog";
 import { ReviewDialog } from "@/components/dashboard/ReviewDialog";
 import { EmailSequenceDialog } from "@/components/dashboard/EmailSequenceDialog";
+import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
 import { generateContent } from "@/lib/ai.functions";
 import { analyzeReviews } from "@/lib/reviews.functions";
 import type { ReviewAnalysis } from "@/lib/reviews.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useSubscription } from "@/lib/queries";
+import { hasPlanAccess } from "@/lib/billing";
 import { LEAD_STATUSES, STATUS_LABELS, type LeadStatusValue } from "@/lib/constants";
 
 export interface SavedLead {
@@ -82,6 +86,7 @@ function dueBadgeLabel(follow_up_at: string | null): string | null {
 
 export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const { user } = useAuth();
+  const { data: subscription } = useSubscription(user?.id);
   const queryClient = useQueryClient();
   const runGenerate = useServerFn(generateContent);
   const runAnalyzeReviews = useServerFn(analyzeReviews);
@@ -96,6 +101,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [proposalOpen, setProposalOpen] = useState(false);
   const [emailSeqOpen, setEmailSeqOpen] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -200,6 +206,8 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const showDealValue = lead.status === "closed" || lead.status === "paid";
   const waUrl = lead.phone ? buildWhatsAppUrl(lead.phone, lead.business_name) : null;
   const dueBadge = dueBadgeLabel(lead.follow_up_at ?? null);
+  const activeSubscription = subscription?.status === "active" || subscription?.status === "canceling";
+  const canUseProTools = activeSubscription && hasPlanAccess(subscription?.plan, "pro");
 
   return (
     <>
@@ -309,14 +317,14 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
           <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("call_script")} title="Cold call script">
             <PhoneCall className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => setEmailSeqOpen(true)} title="Email sequence">
-            <Mail className="size-4" />
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => (canUseProTools ? setEmailSeqOpen(true) : setUpgradeFeature("3-email outreach sequences"))} title={canUseProTools ? "Email sequence" : "Email sequence — Pro"}>
+            {canUseProTools ? <Mail className="size-4" /> : <Lock className="size-4" />}
           </Button>
           <Button variant="ghost" size="icon" className="size-8" onClick={() => setOutreachOpen(true)} title="Outreach templates">
             <MessageCircle className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => setProposalOpen(true)} title="Proposal">
-            <FileText className="size-4" />
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => (canUseProTools ? setProposalOpen(true) : setUpgradeFeature("Branded PDF proposals"))} title={canUseProTools ? "Proposal" : "Proposal — Pro"}>
+            {canUseProTools ? <FileText className="size-4" /> : <Lock className="size-4" />}
           </Button>
           <Button
             variant="ghost"
@@ -393,6 +401,13 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
       <EmailSequenceDialog open={emailSeqOpen} onOpenChange={setEmailSeqOpen} lead={lead} />
       <OutreachDialog open={outreachOpen} onOpenChange={setOutreachOpen} lead={lead} />
       <ProposalDialog open={proposalOpen} onOpenChange={setProposalOpen} lead={lead} />
+
+      <UpgradeDialog
+        open={upgradeFeature !== null}
+        onOpenChange={(open) => !open && setUpgradeFeature(null)}
+        feature={upgradeFeature ?? undefined}
+        requiredPlan="pro"
+      />
 
       <ReviewDialog
         open={reviewOpen}

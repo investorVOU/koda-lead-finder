@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Bookmark, Loader2, Download, Upload, Bell } from "lucide-react";
+import { Bookmark, Loader2, Download, Upload, Bell, Lock } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { SavedLeadCard, type SavedLead } from "@/components/dashboard/SavedLeadCard";
 import { LeadStats } from "@/components/dashboard/LeadStats";
@@ -10,7 +10,10 @@ import { CsvImportDialog } from "@/components/dashboard/CsvImportDialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useSubscription } from "@/lib/queries";
+import { hasPlanAccess, type PaidPlanId } from "@/lib/billing";
 import { LEAD_STATUSES, STATUS_LABELS } from "@/lib/constants";
+import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({ meta: [{ title: "Saved Leads — Kodarai" }] }),
@@ -19,8 +22,14 @@ export const Route = createFileRoute("/_authenticated/leads")({
 
 function LeadsPage() {
   const { user } = useAuth();
+  const { data: subscription } = useSubscription(user?.id);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [upgrade, setUpgrade] = useState<{ feature: string; plan: PaidPlanId } | null>(null);
+
+  const activeSubscription = subscription?.status === "active" || subscription?.status === "canceling";
+  const canExport = activeSubscription && hasPlanAccess(subscription?.plan, "pro");
+  const canImport = activeSubscription && hasPlanAccess(subscription?.plan, "agency");
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["saved-leads", user?.id],
@@ -48,12 +57,12 @@ function LeadsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-            <Upload className="size-4" /> Import CSV
+          <Button variant="outline" size="sm" onClick={() => (canImport ? setImportOpen(true) : setUpgrade({ feature: "Bulk CSV lead import", plan: "agency" }))}>
+            {canImport ? <Upload className="size-4" /> : <Lock className="size-4" />} Import CSV
           </Button>
           {hasLeads && (
-            <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-              <Download className="size-4" /> Export
+            <Button variant="outline" size="sm" onClick={() => (canExport ? setExportOpen(true) : setUpgrade({ feature: "Lead CSV exports", plan: "pro" }))}>
+              {canExport ? <Download className="size-4" /> : <Lock className="size-4" />} Export
             </Button>
           )}
         </div>
@@ -130,6 +139,12 @@ function LeadsPage() {
         <ExportDialog open={exportOpen} onOpenChange={setExportOpen} leads={leads!} />
       )}
       <CsvImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <UpgradeDialog
+        open={upgrade !== null}
+        onOpenChange={(open) => !open && setUpgrade(null)}
+        feature={upgrade?.feature}
+        requiredPlan={upgrade?.plan}
+      />
     </DashboardShell>
   );
 }

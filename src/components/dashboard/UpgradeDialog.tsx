@@ -8,15 +8,24 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PLAN_LABELS, type PaidPlanId } from "@/lib/billing";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   feature?: string;
+  requiredPlan?: PaidPlanId;
 }
 
-export function UpgradeDialog({ open, onOpenChange, feature = "This feature" }: Props) {
+export function UpgradeDialog({
+  open,
+  onOpenChange,
+  feature = "This feature",
+  requiredPlan,
+}: Props) {
   const navigate = useNavigate();
+  const planLabel = requiredPlan ? PLAN_LABELS[requiredPlan] : "a paid";
+  const requiredPlanLabel = requiredPlan === "agency" ? "Agency" : `${planLabel} or Agency`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -25,19 +34,25 @@ export function UpgradeDialog({ open, onOpenChange, feature = "This feature" }: 
           <Lock className="size-5 text-primary" />
         </div>
         <DialogHeader className="items-center">
-          <DialogTitle>{feature} requires a paid plan</DialogTitle>
+          <DialogTitle>
+            {feature} requires {requiredPlan ? requiredPlanLabel : "a paid plan"}
+          </DialogTitle>
           <DialogDescription>
-            Unlock saving leads, AI website prompts, and cold-call scripts.
-            Plans start from <strong className="text-foreground">$2</strong>.
+            {requiredPlan
+              ? `Upgrade to ${planLabel} to unlock this client-winning tool.`
+              : "Unlock saving leads, AI website prompts, and cold-call scripts."}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
           <Button
             variant="hero"
             className="w-full"
-            onClick={() => { onOpenChange(false); navigate({ to: "/billing" }); }}
+            onClick={() => {
+              onOpenChange(false);
+              navigate({ to: "/billing" });
+            }}
           >
-            See plans — from $2
+            View plans
           </Button>
           <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
             Maybe later

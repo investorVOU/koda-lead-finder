@@ -23,6 +23,10 @@ const faqs = [
     a: "For any lead you can instantly generate a detailed website-build prompt (tuned for Lovable, Framer AI, v0 and Claude) and a personalized cold-call script based on the business's details and reviews.",
   },
   {
+    q: "What do I get when I upgrade?",
+    a: "Starter gives you the core lead-finding workflow. Pro adds lead CSV exports, three-email outreach sequences, branded PDF proposals, and 200 Studio AI messages each month. Agency adds bulk CSV imports, unlimited Studio AI messages, priority support, and a larger lead allowance.",
+  },
+  {
     q: "Can I pay in my local currency?",
     a: "Yes. Global users can pay by card with Stripe, and customers in Nigeria and Africa can pay in Naira with Paystack.",
   },

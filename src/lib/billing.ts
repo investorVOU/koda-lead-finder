@@ -13,6 +13,21 @@ export interface Plan {
   highlight?: boolean;
 }
 
+export type PaidPlanId = Plan["id"];
+
+const PLAN_RANK: Record<PaidPlanId, number> = {
+  starter: 1,
+  pro: 2,
+  agency: 3,
+};
+
+export function hasPlanAccess(
+  plan: string | null | undefined,
+  minimumPlan: PaidPlanId,
+): boolean {
+  return (PLAN_RANK[plan as PaidPlanId] ?? 0) >= PLAN_RANK[minimumPlan];
+}
+
 export interface Pack {
   id: "pack_small" | "pack_popular" | "pack_power";
   name: string;
@@ -49,7 +64,12 @@ export const PLANS: Plan[] = [
     tagline: "Land your first clients",
     ngn: 6500,
     credits: 60,
-    features: ["60 leads / month", "AI website prompts", "Cold call scripts", "Save leads to pipeline"],
+    features: [
+      "60 lead searches each month",
+      "50 Studio AI messages each month",
+      "AI website prompts & cold-call scripts",
+      "Save leads and manage your pipeline",
+    ],
   },
   {
     id: "pro",
@@ -59,24 +79,24 @@ export const PLANS: Plan[] = [
     credits: 250,
     highlight: true,
     features: [
-      "250 leads / month",
-      "Everything in Starter",
-      "Export leads",
-      "Priority AI prompts",
-      "Cold email generator",
+      "250 lead searches each month",
+      "200 Studio AI messages each month",
+      "Export lead lists to CSV",
+      "3-email cold outreach sequences",
+      "Branded PDF proposal builder",
     ],
   },
   {
     id: "agency",
     name: "Agency",
-    tagline: "For teams & power users",
+    tagline: "For studios & high-volume freelancers",
     ngn: 46000,
     credits: 800,
     features: [
-      "800 leads / month",
+      "800 lead searches each month",
+      "Unlimited Studio AI messages",
+      "Bulk CSV lead import",
       "Everything in Pro",
-      "Bulk search & export",
-      "Advanced filtering",
       "Priority support",
     ],
   },
