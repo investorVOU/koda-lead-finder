@@ -16,6 +16,7 @@ import {
   Calculator,
   TrendingUp,
   X,
+  Lock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,8 @@ import { useAuth } from "@/lib/auth";
 import { useSubscription, isFreeTrial } from "@/lib/queries";
 import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
 import type { LeadResult } from "@/lib/constants";
+import { hasPlanAccess, type PaidPlanId } from "@/lib/billing";
+import { scoreLeadOpportunity } from "@/lib/lead-scoring";
 import {
   estimateWebsitePrice,
   formatNairaCompact,
@@ -39,10 +42,12 @@ export function LeadResultCard({
   lead,
   category,
   location,
+  isNew = false,
 }: {
   lead: LeadResult;
   category: string;
   location: string;
+  isNew?: boolean;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -52,9 +57,11 @@ export function LeadResultCard({
 
   const { data: subscription } = useSubscription(user?.id);
   const trialUser = isFreeTrial(subscription);
+  const proUser = !trialUser && hasPlanAccess(subscription?.plan, "pro");
 
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState("");
+  const [requiredPlan, setRequiredPlan] = useState<PaidPlanId | undefined>();
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,8 +83,9 @@ export function LeadResultCard({
   const [reviewAnalysis, setReviewAnalysis] =
     useState<ReviewAnalysis | null>(null);
 
-  const gate = (feature: string) => {
+  const gate = (feature: string, plan?: PaidPlanId) => {
     setUpgradeFeature(feature);
+    setRequiredPlan(plan);
     setUpgradeOpen(true);
   };
 
@@ -109,6 +117,8 @@ export function LeadResultCard({
   const clearEstimate = () => {
     setEstimate(null);
   };
+
+  const leadScore = scoreLeadOpportunity(lead);
 
   const saveLead = async () => {
     if (trialUser) {
@@ -255,15 +265,22 @@ export function LeadResultCard({
             </p>
           </div>
 
-          {!lead.hasWebsite ? (
-            <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
-              No Website
-            </span>
-          ) : (
-            <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              Has site
-            </span>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {isNew && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                New
+              </span>
+            )}
+            {!lead.hasWebsite ? (
+              <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                No Website
+              </span>
+            ) : (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                Has site
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Lead metadata */}
@@ -290,6 +307,31 @@ export function LeadResultCard({
             </a>
           )}
         </div>
+
+        {proUser ? (
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                <TrendingUp className="size-3.5" /> Opportunity score
+              </span>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                {leadScore.opportunity} · {leadScore.score}/100
+              </span>
+            </div>
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+              {leadScore.reasons[0] ?? "Review this lead before reaching out."}
+            </p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => gate("Pro opportunity scores", "pro")}
+            className="mt-4 flex w-full items-center justify-between rounded-xl border border-dashed border-border px-3.5 py-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/[0.03] hover:text-foreground"
+          >
+            <span className="inline-flex items-center gap-1.5"><Lock className="size-3.5" /> See which leads to contact first</span>
+            <span className="text-primary">Pro</span>
+          </button>
+        )}
 
         {/* Price estimate */}
         {estimate ? (
@@ -503,6 +545,7 @@ export function LeadResultCard({
         open={upgradeOpen}
         onOpenChange={setUpgradeOpen}
         feature={upgradeFeature}
+        requiredPlan={requiredPlan}
       />
     </>
   );

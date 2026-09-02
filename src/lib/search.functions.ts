@@ -3,10 +3,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { LeadResult } from "@/lib/constants";
+import { hasPlanAtLeast } from "@/lib/subscription.server";
 
 const inputSchema = z.object({
   category: z.string().min(1).max(80),
   location: z.string().min(1).max(120),
+  savedSearchId: z.string().uuid().optional(),
 });
 
 interface PlacesPlace {
@@ -19,6 +21,14 @@ interface PlacesPlace {
   userRatingCount?: number;
   websiteUri?: string;
   googleMapsUri?: string;
+}
+
+interface SavedSearchRecord {
+  id: string;
+  category: string;
+  location: string;
+  last_run_at: string | null;
+  last_result_place_ids: unknown;
 }
 
 function demoLeads(category: string, location: string): LeadResult[] {
@@ -48,6 +58,28 @@ export const findLeads = createServerFn({ method: "POST" })
   .inputValidator((data) => inputSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+
+    let savedSearch: SavedSearchRecord | null = null;
+
+    if (data.savedSearchId) {
+      if (!(await hasPlanAtLeast(userId, "agency"))) {
+        return { error: "plan_required", message: "Saved searches are available on the Agency plan." } as const;
+      }
+
+      const { data: search, error } = await supabaseAdmin
+        .from("saved_searches")
+        .select("id,category,location,last_run_at,last_result_place_ids")
+        .eq("id", data.savedSearchId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error || !search) {
+        return { error: "saved_search_not_found", message: "That saved search is no longer available." } as const;
+      }
+      savedSearch = search as SavedSearchRecord;
+    }
+
+    const category = savedSearch?.category ?? data.category;
+    const location = savedSearch?.location ?? data.location;
 
     // Basic rate limiting: max 12 searches per rolling minute
     const since = new Date(Date.now() - 60_000).toISOString();
@@ -83,7 +115,7 @@ export const findLeads = createServerFn({ method: "POST" })
 
     if (!apiKey) {
       demo = true;
-      results = demoLeads(data.category, data.location);
+      results = demoLeads(category, location);
     } else {
       try {
         const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -95,7 +127,7 @@ export const findLeads = createServerFn({ method: "POST" })
               "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.websiteUri,places.googleMapsUri",
           },
           body: JSON.stringify({
-            textQuery: `${data.category} in ${data.location}`,
+            textQuery: `${category} in ${location}`,
             maxResultCount: 20,
           }),
         });
@@ -119,7 +151,7 @@ export const findLeads = createServerFn({ method: "POST" })
           websiteUrl: p.websiteUri ?? null,
           mapsUrl:
             p.googleMapsUri ??
-            `https://www.google.com/maps/search/${encodeURIComponent((p.displayName?.text ?? "") + " " + data.location)}`,
+            `https://www.google.com/maps/search/${encodeURIComponent((p.displayName?.text ?? "") + " " + location)}`,
         }));
       } catch (e) {
         console.error("Places fetch failed", e);
@@ -133,10 +165,30 @@ export const findLeads = createServerFn({ method: "POST" })
       return (b.rating ?? 0) - (a.rating ?? 0);
     });
 
+    const priorPlaceIds = Array.isArray(savedSearch?.last_result_place_ids)
+      ? new Set(savedSearch!.last_result_place_ids.filter((id): id is string => typeof id === "string"))
+      : new Set<string>();
+    const hadPreviousRun = Boolean(savedSearch?.last_run_at);
+    const newPlaceIds = hadPreviousRun
+      ? results.filter((lead) => !priorPlaceIds.has(lead.placeId)).map((lead) => lead.placeId)
+      : [];
+
+    if (savedSearch) {
+      const { error } = await supabaseAdmin
+        .from("saved_searches")
+        .update({
+          last_run_at: new Date().toISOString(),
+          last_result_place_ids: results.map((lead) => lead.placeId),
+        })
+        .eq("id", savedSearch.id)
+        .eq("user_id", userId);
+      if (error) console.error("saved search update failed", error);
+    }
+
     await supabaseAdmin.from("search_logs").insert({
       user_id: userId,
-      category: data.category,
-      location: data.location,
+      category,
+      location,
       results_count: results.length,
     });
 
@@ -145,5 +197,8 @@ export const findLeads = createServerFn({ method: "POST" })
       remaining: credit.remaining,
       total: credit.total ?? null,
       demo,
+      savedSearchId: savedSearch?.id ?? null,
+      hadPreviousSavedSearchRun: hadPreviousRun,
+      newPlaceIds,
     } as const;
   });
