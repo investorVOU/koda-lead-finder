@@ -1,0 +1,22 @@
+name: Daily follow-up reminders
+
+on:
+  schedule:
+    # 08:00 UTC every day (09:00 in Lagos).
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  send-follow-up-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send due lead reminders
+        env:
+          FOLLOW_UP_REMINDER_CRON_SECRET: ${{ secrets.FOLLOW_UP_REMINDER_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "https://kodarai.xyz/api/public/follow-up-reminders/due" \
+            -H "Authorization: Bearer ${FOLLOW_UP_REMINDER_CRON_SECRET}"
