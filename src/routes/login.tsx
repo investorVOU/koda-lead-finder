@@ -4,10 +4,11 @@ import { toast } from "sonner";
 import { Loader2, KeyRound } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell, GoogleButton } from "@/components/auth/AuthShell";
-import { supabase } from "@/integrations/supabase/client";
+import { setRememberMe, supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string;
@@ -24,6 +25,9 @@ function LoginPage() {
   const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMeState] = useState(() =>
+    typeof window === "undefined" || window.localStorage.getItem("kodarai.remember-me") !== "false",
+  );
   const [busy, setBusy] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
@@ -43,6 +47,7 @@ function LoginPage() {
       toast.error("Please complete the captcha");
       return;
     }
+    setRememberMe(rememberMe);
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -83,6 +88,7 @@ function LoginPage() {
   };
 
   const handleGoogle = async () => {
+    setRememberMe(rememberMe);
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -135,6 +141,17 @@ function LoginPage() {
             placeholder="••••••••"
             required
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="remember-me"
+            checked={rememberMe}
+            onCheckedChange={(checked) => setRememberMeState(checked === true)}
+          />
+          <Label htmlFor="remember-me" className="cursor-pointer text-sm font-normal text-muted-foreground">
+            Keep me signed in on this device
+          </Label>
         </div>
 
         {HCAPTCHA_SITE_KEY && (

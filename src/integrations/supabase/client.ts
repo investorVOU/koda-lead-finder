@@ -2,6 +2,38 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+const REMEMBER_ME_STORAGE_KEY = "kodarai.remember-me";
+
+/**
+ * Store sessions in localStorage by default, but let someone explicitly opt
+ * out of "Remember me" and keep their session only for the current browser
+ * tab. Keeping this adapter here also makes the choice work for Google OAuth.
+ */
+function createBrowserSessionStorage() {
+  const usesPersistentStorage = () =>
+    window.localStorage.getItem(REMEMBER_ME_STORAGE_KEY) !== "false";
+
+  return {
+    getItem: (key: string) =>
+      (usesPersistentStorage() ? window.localStorage : window.sessionStorage).getItem(key),
+    setItem: (key: string, value: string) => {
+      const activeStorage = usesPersistentStorage() ? window.localStorage : window.sessionStorage;
+      const inactiveStorage = usesPersistentStorage() ? window.sessionStorage : window.localStorage;
+      activeStorage.setItem(key, value);
+      inactiveStorage.removeItem(key);
+    },
+    removeItem: (key: string) => {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
+    },
+  };
+}
+
+export function setRememberMe(rememberMe: boolean) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(REMEMBER_ME_STORAGE_KEY, String(rememberMe));
+}
+
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
@@ -20,10 +52,11 @@ function createSupabaseClient() {
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: typeof window !== 'undefined' ? localStorage : undefined,
+      storage: typeof window !== 'undefined' ? createBrowserSessionStorage() : undefined,
       persistSession: true,
       autoRefreshToken: true,
-    }
+      detectSessionInUrl: true,
+    },
   });
 }
 
@@ -37,4 +70,3 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
     return Reflect.get(_supabase, prop, receiver);
   },
 });
-

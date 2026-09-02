@@ -11,6 +11,7 @@ import { FAQ } from "@/components/landing/FAQ";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
+import { MarketingPromoModal } from "@/components/landing/MarketingPromoModal";
 import { LiveNotification } from "@/components/LiveNotification";
 import { SupportChat } from "@/components/support/SupportChat";
 
@@ -70,6 +71,7 @@ function Index() {
       <VirtualNumberModal
         storageKey="virtual_number_modal_shown_public"
       />
+      <MarketingPromoModal />
     </div>
   );
 }

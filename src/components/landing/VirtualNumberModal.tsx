@@ -14,7 +14,16 @@ interface VirtualNumberModalProps {
   storageKey?: string;
 }
 
+const VIRTUAL_NUMBER_MODAL_ENABLED =
+  import.meta.env.VITE_ENABLE_VIRTUAL_NUMBER_MODAL === "true";
+
 export function VirtualNumberModal({ storageKey = "virtual_number_modal_shown" }: VirtualNumberModalProps) {
+  if (!VIRTUAL_NUMBER_MODAL_ENABLED) return null;
+
+  return <VirtualNumberModalContent storageKey={storageKey} />;
+}
+
+function VirtualNumberModalContent({ storageKey }: Required<VirtualNumberModalProps>) {
   const [open, setOpen] = useState(false);
   const dismissalKey = `${storageKey}_dismissed_v2`;
 
