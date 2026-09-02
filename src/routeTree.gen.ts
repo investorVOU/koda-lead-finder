@@ -52,6 +52,7 @@ import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/p
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 import { Route as ApiPublicMarketingWeeklyRouteImport } from './routes/api/public/marketing/weekly'
 import { Route as ApiPublicMarketingUnsubscribeRouteImport } from './routes/api/public/marketing/unsubscribe'
+import { Route as ApiPublicFollowUpRemindersDueRouteImport } from './routes/api/public/follow-up-reminders/due'
 
 const TrialWelcomeRoute = TrialWelcomeRouteImport.update({
   id: '/trial-welcome',
@@ -281,6 +282,12 @@ const ApiPublicMarketingUnsubscribeRoute =
     path: '/api/public/marketing/unsubscribe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicFollowUpRemindersDueRoute =
+  ApiPublicFollowUpRemindersDueRouteImport.update({
+    id: '/api/public/follow-up-reminders/due',
+    path: '/api/public/follow-up-reminders/due',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio/': typeof AuthenticatedStudioIndexRoute
+  '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -362,6 +370,7 @@ export interface FileRoutesByTo {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio': typeof AuthenticatedStudioIndexRoute
+  '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -408,6 +417,7 @@ export interface FileRoutesById {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/_authenticated/studio/': typeof AuthenticatedStudioIndexRoute
+  '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -454,6 +464,7 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio/'
+    | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
     | '/api/public/webhooks/paystack'
@@ -497,6 +508,7 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio'
+    | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
     | '/api/public/webhooks/paystack'
@@ -542,6 +554,7 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/_authenticated/studio/'
+    | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
     | '/api/public/webhooks/paystack'
@@ -565,6 +578,7 @@ export interface RootRouteChildren {
   PreviewSlugRoute: typeof PreviewSlugRoute
   ApiStudioChannelReviewRoute: typeof ApiStudioChannelReviewRoute
   ApiStudioGenerateRoute: typeof ApiStudioGenerateRoute
+  ApiPublicFollowUpRemindersDueRoute: typeof ApiPublicFollowUpRemindersDueRoute
   ApiPublicMarketingUnsubscribeRoute: typeof ApiPublicMarketingUnsubscribeRoute
   ApiPublicMarketingWeeklyRoute: typeof ApiPublicMarketingWeeklyRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
@@ -876,6 +890,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMarketingUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/follow-up-reminders/due': {
+      id: '/api/public/follow-up-reminders/due'
+      path: '/api/public/follow-up-reminders/due'
+      fullPath: '/api/public/follow-up-reminders/due'
+      preLoaderRoute: typeof ApiPublicFollowUpRemindersDueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -959,6 +980,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewSlugRoute: PreviewSlugRoute,
   ApiStudioChannelReviewRoute: ApiStudioChannelReviewRoute,
   ApiStudioGenerateRoute: ApiStudioGenerateRoute,
+  ApiPublicFollowUpRemindersDueRoute: ApiPublicFollowUpRemindersDueRoute,
   ApiPublicMarketingUnsubscribeRoute: ApiPublicMarketingUnsubscribeRoute,
   ApiPublicMarketingWeeklyRoute: ApiPublicMarketingWeeklyRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,

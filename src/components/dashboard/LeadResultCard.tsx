@@ -130,6 +130,35 @@ export function LeadResultCard({
 
     setSaving(true);
 
+    const duplicateQuery = lead.placeId
+      ? supabase
+          .from("saved_leads")
+          .select("id,business_name")
+          .eq("place_id", lead.placeId)
+          .limit(1)
+          .maybeSingle()
+      : supabase
+          .from("saved_leads")
+          .select("id,business_name")
+          .eq("business_name", lead.name)
+          .eq("location", location)
+          .limit(1)
+          .maybeSingle();
+    const { data: existingLead, error: duplicateError } = await duplicateQuery;
+
+    if (duplicateError) {
+      setSaving(false);
+      toast.error("Could not check for an existing saved lead. Please try again.");
+      return;
+    }
+
+    if (existingLead) {
+      setSaving(false);
+      setSaved(true);
+      toast.warning(`${existingLead.business_name} is already in your pipeline.`);
+      return;
+    }
+
     const { error } = await supabase.from("saved_leads").insert({
       user_id: user.id,
       place_id: lead.placeId,

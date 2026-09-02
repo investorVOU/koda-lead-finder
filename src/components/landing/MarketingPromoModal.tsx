@@ -46,7 +46,7 @@ export function MarketingPromoModal() {
       <DialogContent className="w-[calc(100%-2rem)] max-w-md gap-0 overflow-hidden rounded-2xl border-border p-0 shadow-2xl">
         <div className="relative bg-primary px-5 pb-5 pt-6 text-primary-foreground sm:px-7 sm:pb-6 sm:pt-7">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">
-            For web designers
+            For freelancers, agencies & digital service providers
           </p>
           <DialogTitle className="mt-2 pr-7 text-2xl font-bold leading-tight tracking-tight sm:text-[1.75rem]">
             Find businesses that need a new or better website.

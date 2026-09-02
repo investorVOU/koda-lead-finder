@@ -30,6 +30,11 @@ import {
 import { useAuth } from "@/lib/auth";
 import { deleteAccount, updateProfileName, changePassword } from "@/lib/account.functions";
 import { getMarketingEmailPreference, updateMarketingEmailPreference } from "@/lib/marketing.functions";
+import {
+  getFollowUpPushConfig,
+  getFollowUpPushStatus,
+  saveFollowUpPushSubscription,
+} from "@/lib/follow-up-notifications.server";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — Kodarai" }] }),
@@ -58,6 +63,12 @@ function Section({ title, description, icon: Icon, children }: {
   );
 }
 
+function urlBase64ToUint8Array(value: string) {
+  const padding = "=".repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+}
+
 function SettingsPage() {
   const { user, profile, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -66,6 +77,9 @@ function SettingsPage() {
   const runDeleteAccount = useServerFn(deleteAccount);
   const runGetMarketingPreference = useServerFn(getMarketingEmailPreference);
   const runUpdateMarketingPreference = useServerFn(updateMarketingEmailPreference);
+  const runGetFollowUpPushConfig = useServerFn(getFollowUpPushConfig);
+  const runGetFollowUpPushStatus = useServerFn(getFollowUpPushStatus);
+  const runSaveFollowUpPushSubscription = useServerFn(saveFollowUpPushSubscription);
 
   // Profile
   const [name, setName] = useState(profile?.full_name ?? user?.user_metadata?.full_name ?? "");
@@ -83,11 +97,16 @@ function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [savingMarketingOptIn, setSavingMarketingOptIn] = useState(false);
+  const [followUpAlertsEnabled, setFollowUpAlertsEnabled] = useState(false);
+  const [enablingFollowUpAlerts, setEnablingFollowUpAlerts] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     runGetMarketingPreference().then((result) => {
       if (!("error" in result)) setMarketingOptIn(result.marketingOptIn);
+    });
+    runGetFollowUpPushStatus().then((result) => {
+      if (!("error" in result)) setFollowUpAlertsEnabled(result.enabled);
     });
   }, [user?.id]);
 
@@ -103,6 +122,45 @@ function SettingsPage() {
     }
     setMarketingOptIn(nextValue);
     toast.success(nextValue ? "Weekly lead emails enabled." : "Marketing emails disabled.");
+  };
+
+  const enableFollowUpAlerts = async () => {
+    if (!window.isSecureContext) {
+      toast.error("Browser notifications require the secure https:// version of this site.");
+      return;
+    }
+    if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+      toast.error("Open KodarAI in a regular Chrome browser tab to enable notifications.");
+      return;
+    }
+
+    setEnablingFollowUpAlerts(true);
+    try {
+      const config = await runGetFollowUpPushConfig();
+      if ("error" in config) throw new Error(config.error);
+      await navigator.serviceWorker.register("/support-push-sw.js", { scope: "/" });
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration.pushManager) throw new Error("This browser is blocking push notifications.");
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") throw new Error("Notification permission was not granted.");
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.publicKey),
+      });
+      const payload = subscription.toJSON();
+      const result = await runSaveFollowUpPushSubscription({
+        data: { endpoint: subscription.endpoint, p256dh: payload.keys?.p256dh ?? "", auth: payload.keys?.auth ?? "" },
+      });
+      if ("error" in result) throw new Error(result.error);
+      setFollowUpAlertsEnabled(true);
+      toast.success("Follow-up reminders enabled on this device.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not enable follow-up reminders.");
+    } finally {
+      setEnablingFollowUpAlerts(false);
+    }
   };
 
   const handleSaveName = async (e: FormEvent) => {
@@ -263,6 +321,26 @@ function SettingsPage() {
             >
               <span className={`inline-block size-4 rounded-full bg-background shadow transition-transform ${marketingOptIn ? "translate-x-4" : "translate-x-0.5"}`} />
             </button>
+          </div>
+        </Section>
+
+        <Section icon={Bell} title="Follow-up reminders" description="Get a browser alert when a lead is due tomorrow, today, or overdue.">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Browser reminders</p>
+              <p className="text-xs text-muted-foreground">Reminders are sent once a day to this device for leads with a follow-up date.</p>
+            </div>
+            <Button
+              type="button"
+              variant={followUpAlertsEnabled ? "soft" : "outline"}
+              size="sm"
+              className="shrink-0"
+              disabled={enablingFollowUpAlerts || followUpAlertsEnabled}
+              onClick={enableFollowUpAlerts}
+            >
+              {enablingFollowUpAlerts ? <Loader2 className="size-3.5 animate-spin" /> : <Bell className="size-3.5" />}
+              {followUpAlertsEnabled ? "Enabled" : "Enable"}
+            </Button>
           </div>
         </Section>
 
