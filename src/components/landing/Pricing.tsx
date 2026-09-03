@@ -19,10 +19,13 @@ export function Pricing() {
             </p>
           </div>
         </FadeUp>
-        <div className="mx-auto mt-8 grid max-w-4xl gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4 text-left sm:grid-cols-3">
-          <div><p className="text-xs font-semibold uppercase tracking-wider text-primary">01 Find</p><p className="mt-1 text-sm font-medium">Spot businesses that need a website.</p></div>
-          <div><p className="text-xs font-semibold uppercase tracking-wider text-primary">02 Prove</p><p className="mt-1 text-sm font-medium">Build a preview that makes the opportunity real.</p></div>
-          <div><p className="text-xs font-semibold uppercase tracking-wider text-primary">03 Sell</p><p className="mt-1 text-sm font-medium">Reach out with a stronger reason to start the conversation.</p></div>
+        <div className="mx-auto mt-8 max-w-4xl rounded-2xl border border-primary/15 bg-primary/5 p-3 text-left sm:p-4">
+          <p className="px-1 text-xs font-semibold text-primary sm:text-sm">How Kodarai helps you get clients</p>
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">1. Find</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">A business without a website</p></div>
+            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">2. Build</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">A website sample for them</p></div>
+            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">3. Send</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">The link and start talking</p></div>
+          </div>
         </div>
         {/* Monthly plans */}
         <div className="mt-14 grid items-start gap-6 lg:grid-cols-3">

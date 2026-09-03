@@ -34,10 +34,10 @@ export function HowItWorks() {
           </div>
         </FadeUp>
 
-        <div className="mt-10 grid grid-cols-2 gap-3 sm:mt-14 sm:gap-5 lg:grid-cols-4">
+        <div className="mt-10 grid auto-rows-fr grid-cols-2 gap-3 sm:mt-14 sm:gap-5 lg:grid-cols-4">
           {steps.map((s, i) => (
-            <FadeUp key={s.n} delay={i * 100}>
-              <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <FadeUp key={s.n} delay={i * 100} className="h-full">
+              <div className="h-full rounded-2xl border border-border bg-card p-5 sm:p-6">
                 <span className="font-display text-2xl font-bold text-primary/30 sm:text-3xl">{s.n}</span>
                 <h3 className="mt-2 text-base font-semibold sm:mt-3 sm:text-lg">{s.title}</h3>
                 <p className="mt-1.5 text-sm text-muted-foreground sm:mt-2">{s.desc}</p>

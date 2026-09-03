@@ -61,9 +61,9 @@ function Index() {
         <LogosCarousel />
         <Features />
         <HowItWorks />
-        <LearnPreview />
-        <Testimonials />
         <Pricing />
+        <Testimonials />
+        <LearnPreview />
         <FAQ />
         <FinalCta />
       </main>
