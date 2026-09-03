@@ -1,4 +1,4 @@
-import { Code2, FileText, MapPinned, Phone, ShieldCheck, Workflow, Smartphone } from "lucide-react";
+import { Code2, FileText, MapPinned, Phone, ShieldCheck, Workflow, Smartphone, Youtube } from "lucide-react";
 import { FadeUp } from "./FadeUp";
 
 const features = [
@@ -37,6 +37,11 @@ const features = [
     title: "Virtual Phone Numbers",
     desc: "Get a real US, UK, Canadian, or Australian number from anywhere. Use it for WhatsApp, SMS verifications, and client callbacks — billed monthly.",
   },
+  {
+    icon: Youtube,
+    title: "YouTube Channel Review",
+    desc: "Research channels, discover stronger video ideas, and create practical content plans from one Studio.",
+  },
 ];
 
 export function Features() {
@@ -44,7 +49,7 @@ export function Features() {
     <section id="features" className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
       <FadeUp>
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold sm:text-4xl">Everything you need to land clients</h2>
+          <h2 className="text-2xl font-bold sm:text-4xl">Everything you need to win clients and create better content</h2>
           <p className="mt-3 text-muted-foreground sm:mt-4">
             From finding the right prospect to closing the deal — Kodarai handles the busywork so you
             can focus on building websites.

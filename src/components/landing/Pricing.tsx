@@ -10,15 +10,20 @@ export function Pricing() {
         <FadeUp>
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold sm:text-4xl">
-              Pricing that fits your hustle
+              Plans built to help you win paying work
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Start with the plan that fits you, find more opportunities, and
-              scale when you need more. Every paid plan includes Kodarai Studio
+              Use Kodarai to find prospects, make a stronger pitch, and deliver
+              a website worth paying for. Every paid plan includes Kodarai Studio
               and Website Builder access. Pay securely in Naira with Paystack.
             </p>
           </div>
         </FadeUp>
+        <div className="mx-auto mt-8 grid max-w-4xl gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4 text-left sm:grid-cols-3">
+          <div><p className="text-xs font-semibold uppercase tracking-wider text-primary">01 Find</p><p className="mt-1 text-sm font-medium">Spot businesses that need a website.</p></div>
+          <div><p className="text-xs font-semibold uppercase tracking-wider text-primary">02 Prove</p><p className="mt-1 text-sm font-medium">Build a preview that makes the opportunity real.</p></div>
+          <div><p className="text-xs font-semibold uppercase tracking-wider text-primary">03 Sell</p><p className="mt-1 text-sm font-medium">Reach out with a stronger reason to start the conversation.</p></div>
+        </div>
         {/* Monthly plans */}
         <div className="mt-14 grid items-start gap-6 lg:grid-cols-3">
           {PLANS.map((p) => (

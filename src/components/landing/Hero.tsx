@@ -21,29 +21,29 @@ import { DEMO_VIDEO } from "@/lib/videos";
 
 const HERO_PHRASES = [
   {
-    line1: "Find high-rated businesses",
-    highlight: "without websites",
-    line2: "& close them fast",
+    line1: "Find businesses that need websites,",
+    highlight: "turn them into clients",
+    line2: "and get paid for your skill",
   },
   {
-    line1: "Turn no-website leads into",
-    highlight: "paying clients",
-    line2: "with the right outreach",
+    line1: "Turn one good lead into",
+    highlight: "a paid website project",
+    line2: "with a better pitch",
   },
   {
-    line1: "Find your next web design client",
-    highlight: "before they find an agency",
-    line2: "",
+    line1: "Stop waiting for referrals and",
+    highlight: "go find your next client",
+    line2: "yourself",
   },
   {
     line1: "Find leads, build websites,",
-    highlight: "reach clients",
-    line2: "and get paid",
+    highlight: "send the link",
+    line2: "then sell the work",
   },
   {
-    line1: "Build faster with AI,",
-    highlight: "reach more businesses",
-    line2: "and grow your income",
+    line1: "Use YouTube content to build",
+    highlight: "authority that brings opportunities",
+    line2: "to your business",
   },
 ];
 
@@ -90,7 +90,7 @@ export function Hero() {
           <div className="text-center lg:text-left">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
               <span className="size-1.5 rounded-full bg-primary" />
-              Find clients. Build. Reach. Get paid.
+              Built for freelancers ready to turn skills into income.
             </span>
 
             <h1
@@ -112,11 +112,10 @@ export function Hero() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg lg:mx-0">
-              Kodarai helps you find businesses that need a website,
-              research the opportunity, generate what you need to build
-              it, reach the owner, and turn leads into paying clients.
-              You can also research YouTube channels, create content,
-              and get virtual numbers for outreach.
+              Kodarai helps you create your own opportunities: find businesses
+              that need a website, build a convincing sample, reach the owner,
+              and turn the conversation into paid work. Use YouTube Studio to
+              build the authority that brings even more opportunities.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
@@ -143,7 +142,25 @@ export function Hero() {
               </Button>
             </div>
 
+            <div className="mx-auto mt-6 grid max-w-xl gap-3 text-left sm:grid-cols-2 lg:mx-0">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Globe className="size-3.5" /></span>
+                  Find work worth pitching
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">Find a real prospect, build the sample, and turn it into a paid project.</p>
+              </div>
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3.5">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-red-500 text-white"><Youtube className="size-3.5" /></span>
+                  Build authority on YouTube
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">Research channels and make content that earns attention and opportunities.</p>
+              </div>
+            </div>
+
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground lg:justify-start">
+              <span className="font-semibold text-foreground">The goal: more conversations, proposals, and paid work.</span>
               <span className="inline-flex items-center gap-1.5">
                 <Star className="size-3.5 fill-warning text-warning" />
                 Lead packs from ₦3,200
@@ -230,7 +247,7 @@ export function Hero() {
               {/* Additional products */}
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2">
-                  <Youtube className="size-3.5 shrink-0 text-primary" />
+                  <Youtube className="size-3.5 shrink-0 text-red-500" />
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold">
                       YouTube Studio
