@@ -36,6 +36,13 @@ services:
       - key: GROQ_API_KEY
         sync: false          # console.groq.com → API keys
 
+      # Kodarai-managed Vercel deployments. Keep server-side only.
+      - key: VERCEL_TOKEN
+        sync: false
+      # Set only when deployments are owned by a Vercel team.
+      - key: VERCEL_TEAM_ID
+        sync: false
+
       # ── Google Places ────────────────────────────────────────────────
       - key: GOOGLE_PLACES_API_KEY
         sync: false          # Google Cloud Console → Places API

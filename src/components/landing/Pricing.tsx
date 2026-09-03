@@ -14,7 +14,8 @@ export function Pricing() {
             </h2>
             <p className="mt-4 text-muted-foreground">
               Start with the plan that fits you, find more opportunities, and
-              scale when you need more. Pay securely in Naira with Paystack.
+              scale when you need more. Every paid plan includes Kodarai Studio
+              and Website Builder access. Pay securely in Naira with Paystack.
             </p>
           </div>
         </FadeUp>

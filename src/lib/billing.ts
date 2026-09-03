@@ -66,6 +66,7 @@ export const PLANS: Plan[] = [
     credits: 60,
     features: [
       "60 lead searches each month",
+      "Kodarai Studio & Website Builder access",
       "50 Studio AI messages each month",
       "AI website prompts & cold-call scripts",
       "Save leads and manage your pipeline",
@@ -80,6 +81,7 @@ export const PLANS: Plan[] = [
     highlight: true,
     features: [
       "250 lead searches each month",
+      "Kodarai Studio & Website Builder access",
       "200 Studio AI messages each month",
       "Export lead lists to CSV",
       "3-email cold outreach sequences",
@@ -94,6 +96,7 @@ export const PLANS: Plan[] = [
     credits: 800,
     features: [
       "800 lead searches each month",
+      "Kodarai Studio & Website Builder access",
       "Unlimited Studio AI messages",
       "Bulk CSV lead import",
       "Everything in Pro",

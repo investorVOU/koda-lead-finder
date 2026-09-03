@@ -87,7 +87,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Kodarai — Lead Gen for Web Designers" },
       { property: "og:description", content: "Kodarai helps web designers find high-rated local businesses with no website and close them fast." },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Kodarai" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Kodarai — Find Businesses Without Websites" },
+      { name: "twitter:description", content: "Find local businesses without websites, build their site, and send a live link." },
       { name: "twitter:site", content: "@kodarai" },
     ],
     links: [

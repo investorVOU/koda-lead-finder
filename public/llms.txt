@@ -1,0 +1,23 @@
+# Kodarai
+
+> Kodarai is a sales-to-website workflow for freelancers and agencies that sell websites to local businesses.
+
+Kodarai helps users find local businesses without websites, generate a professional business website from verified lead information, preview and edit that website, and publish a live URL to share with the business owner.
+
+## Core workflow
+
+1. Find a lead in Lead Finder.
+2. Select **Build Website** for a business without a website.
+3. Generate controlled, responsive website files in Kodarai Builder.
+4. Preview the real files at desktop, tablet, and mobile sizes.
+5. Edit with AI or Monaco, save changes, then publish through Kodarai's managed Vercel deployment.
+
+## Product areas
+
+- [Homepage](https://kodarai.xyz/): Product overview and plans.
+- [Sales Academy](https://kodarai.xyz/learn): Free lessons on cold calling and selling web design services.
+- [Contact](https://kodarai.xyz/contact): Contact the Kodarai team.
+
+## Audience
+
+Freelance web designers, agencies, and local-business service providers who want a focused workflow for finding prospects and selling websites. Kodarai is not a general-purpose AI coding platform.

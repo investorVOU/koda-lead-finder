@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Star,
@@ -17,6 +18,7 @@ import {
   TrendingUp,
   X,
   Lock,
+  Wrench,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
 import type { LeadResult } from "@/lib/constants";
 import { hasPlanAccess, type PaidPlanId } from "@/lib/billing";
 import { scoreLeadOpportunity } from "@/lib/lead-scoring";
+import { createWebsiteProjectFromLead } from "@/lib/studio.functions";
 import {
   estimateWebsitePrice,
   formatNairaCompact,
@@ -50,10 +53,12 @@ export function LeadResultCard({
   isNew?: boolean;
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const runGenerate = useServerFn(generateContent);
   const runAnalyzeReviews = useServerFn(analyzeReviews);
+  const runCreateWebsiteProject = useServerFn(createWebsiteProjectFromLead);
 
   const { data: subscription } = useSubscription(user?.id);
   const trialUser = isFreeTrial(subscription);
@@ -65,6 +70,7 @@ export function LeadResultCard({
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [buildingWebsite, setBuildingWebsite] = useState(false);
 
   const [estimate, setEstimate] = useState<WebsiteEstimate | null>(null);
   const [estimating, setEstimating] = useState(false);
@@ -275,6 +281,36 @@ export function LeadResultCard({
     setReviewAnalysis(res.analysis);
   };
 
+  const buildWebsite = async () => {
+    if (trialUser) { gate("Kodarai Builder"); return; }
+    if (lead.hasWebsite || buildingWebsite) return;
+    setBuildingWebsite(true);
+    try {
+      const result = await runCreateWebsiteProject({
+        data: {
+          placeId: lead.placeId,
+          name: lead.name,
+          category,
+          location,
+          address: lead.address,
+          phone: lead.phone,
+          rating: lead.rating,
+          reviewCount: lead.reviewCount,
+          hasWebsite: lead.hasWebsite,
+          websiteUrl: lead.websiteUrl,
+          mapsUrl: lead.mapsUrl,
+        },
+      });
+      if ("error" in result) { toast.error(result.message); return; }
+      toast.success("Creating your website…");
+      navigate({ to: "/studio/$projectId", params: { projectId: result.project.id }, search: { generate: "1" } });
+    } catch {
+      toast.error("Could not create the website project. Please try again.");
+    } finally {
+      setBuildingWebsite(false);
+    }
+  };
+
   return (
     <>
       <div className="min-w-0 rounded-2xl border border-border bg-card p-5 transition-shadow hover:shadow-[var(--shadow-md)]">
@@ -481,14 +517,25 @@ export function LeadResultCard({
 
         {/* Actions */}
         <div className="mt-4 space-y-2">
+          {!lead.hasWebsite && (
+            <Button
+              size="sm"
+              className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={buildWebsite}
+              disabled={buildingWebsite}
+            >
+              {buildingWebsite ? <Loader2 className="size-4 animate-spin" /> : <Wrench className="size-4" />}
+              {buildingWebsite ? "Creating website…" : "Build Website"}
+            </Button>
+          )}
           <Button
-            variant="hero"
+            variant="outline"
             size="sm"
             className="w-full"
             onClick={() => generate("website_prompt")}
           >
             <Code2 className="size-4" />
-            Build Website Prompt
+            Generate Website Prompt
           </Button>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

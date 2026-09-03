@@ -40,7 +40,12 @@ export const Route = createFileRoute("/")({
         property: "og:type",
         content: "website",
       },
+      { property: "og:url", content: "https://kodarai.xyz/" },
+      { property: "og:site_name", content: "Kodarai" },
+      { name: "twitter:title", content: "Kodarai — Lead Gen for Web Designers" },
+      { name: "twitter:description", content: "Find high-rated businesses without websites, build a website, and close clients faster." },
     ],
+    links: [{ rel: "canonical", href: "https://kodarai.xyz/" }],
   }),
 
   component: Index,

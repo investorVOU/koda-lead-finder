@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Star,
   Trash2,
@@ -18,6 +18,7 @@ import {
   Bell,
   Wrench,
   Lock,
+  Loader2,
 } from "lucide-react";
 import {
   Select,
@@ -42,6 +43,7 @@ import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
 import { hasPlanAccess } from "@/lib/billing";
 import { LEAD_STATUSES, STATUS_LABELS, type LeadStatusValue } from "@/lib/constants";
+import { createWebsiteProjectFromLead } from "@/lib/studio.functions";
 
 export interface SavedLead {
   id: string;
@@ -85,11 +87,13 @@ function dueBadgeLabel(follow_up_at: string | null): string | null {
 }
 
 export function SavedLeadCard({ lead }: { lead: SavedLead }) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data: subscription } = useSubscription(user?.id);
   const queryClient = useQueryClient();
   const runGenerate = useServerFn(generateContent);
   const runAnalyzeReviews = useServerFn(analyzeReviews);
+  const runCreateWebsiteProject = useServerFn(createWebsiteProjectFromLead);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
@@ -106,6 +110,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewAnalysis, setReviewAnalysis] = useState<ReviewAnalysis | null>(null);
+  const [buildingWebsite, setBuildingWebsite] = useState(false);
 
   const [dealInput, setDealInput] = useState(String(lead.deal_value || ""));
 
@@ -201,6 +206,34 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
       return;
     }
     setReviewAnalysis(res.analysis);
+  };
+
+  const buildWebsite = async () => {
+    if (lead.has_website || buildingWebsite) return;
+    setBuildingWebsite(true);
+    try {
+      const result = await runCreateWebsiteProject({
+        data: {
+          placeId: lead.place_id,
+          name: lead.business_name,
+          category: lead.category,
+          location: lead.location,
+          address: lead.address,
+          phone: lead.phone,
+          rating: lead.rating,
+          reviewCount: lead.review_count,
+          hasWebsite: lead.has_website,
+          mapsUrl: lead.maps_url,
+        },
+      });
+      if ("error" in result) { toast.error(result.message); return; }
+      toast.success("Creating your website…");
+      navigate({ to: "/studio/$projectId", params: { projectId: result.project.id }, search: { generate: "1" } });
+    } catch {
+      toast.error("Could not create the website project.");
+    } finally {
+      setBuildingWebsite(false);
+    }
   };
 
   const showDealValue = lead.status === "closed" || lead.status === "paid";
@@ -375,15 +408,16 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
         </div>
 
         {/* Build site shortcut — shown for contacted / closed / paid leads */}
-        {(lead.status === "contacted" || lead.status === "closed" || lead.status === "paid") && (
-          <Link
-            to="/studio/new"
-            search={{ leadId: lead.id }}
-            className="mt-2 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+        {!lead.has_website && (
+          <button
+            type="button"
+            onClick={buildWebsite}
+            disabled={buildingWebsite}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
           >
             <Wrench className="size-3.5 shrink-0" />
-            Build their site in Studio →
-          </Link>
+            Build Website
+          </button>
         )}
       </div>
 

@@ -34,7 +34,7 @@ import {
   getFollowUpPushConfig,
   getFollowUpPushStatus,
   saveFollowUpPushSubscription,
-} from "@/lib/follow-up-notifications.server";
+} from "@/lib/follow-up-notifications.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — Kodarai" }] }),

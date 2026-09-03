@@ -12,7 +12,14 @@ export const Route = createFileRoute("/contact")({
     meta: [
       { title: "Contact Us — Kodarai" },
       { name: "description", content: "Get in touch with the Kodarai team. We're here to help." },
+      { property: "og:title", content: "Contact Kodarai" },
+      { property: "og:description", content: "Get in touch with the Kodarai team." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://kodarai.xyz/contact" },
+      { name: "twitter:title", content: "Contact Kodarai" },
+      { name: "twitter:description", content: "Get in touch with the Kodarai team." },
     ],
+    links: [{ rel: "canonical", href: "https://kodarai.xyz/contact" }],
   }),
   component: ContactPage,
 });

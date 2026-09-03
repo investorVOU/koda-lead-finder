@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,14 +24,22 @@ import {
   listStudioSnapshots,
   updateStudioProject,
   createStudioSnapshot,
+  generateBusinessWebsite,
+  applyBusinessWebsiteEdit,
+  saveStudioFiles,
+  undoLastBusinessWebsiteEdit,
+  deployBusinessWebsite,
+  getBusinessWebsiteDeploymentStatus,
   type StudioMessage,
   type StudioSnapshot,
 } from "@/lib/studio.functions";
+import { fromStudioFileMap, isSafeStudioPath, parseStudioFiles, toStudioFileMap } from "@/lib/studio-files";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 export const Route = createFileRoute("/_authenticated/studio/$projectId")({
   head: () => ({ meta: [{ title: "Studio Builder — Kodarai" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({ generate: search.generate === "1" ? "1" : undefined }),
   component: Builder,
 });
 
@@ -129,6 +137,7 @@ function LivePreview({
   fileCount: number;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const previewDoc = buildPreviewDoc(files);
 
   const filesJson = JSON.stringify(files);
@@ -177,14 +186,23 @@ function LivePreview({
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-hidden bg-white">
-          <iframe
-            key={refreshKey}
-            srcDoc={previewDoc}
-            className="w-full h-full border-0"
-            sandbox="allow-scripts allow-same-origin allow-forms"
-            title="Site preview"
-          />
+        <div className="flex h-9 items-center justify-center gap-1 border-b border-white/5 bg-[#15151b] px-2">
+          {(["desktop", "tablet", "mobile"] as const).map((mode) => (
+            <button key={mode} onClick={() => setPreviewMode(mode)} className={`rounded px-2 py-1 text-[10px] font-medium capitalize transition-colors ${previewMode === mode ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
+              {mode}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 overflow-auto bg-[#202025] p-3">
+          <div className="mx-auto h-full overflow-hidden bg-white shadow-2xl transition-[width] duration-200" style={{ width: previewMode === "desktop" ? "100%" : previewMode === "tablet" ? "768px" : "390px", maxWidth: "100%" }}>
+            <iframe
+              key={refreshKey}
+              srcDoc={previewDoc}
+              className="h-full w-full border-0"
+              sandbox="allow-scripts allow-same-origin allow-forms"
+              title="Site preview"
+            />
+          </div>
         </div>
       </div>
     );
@@ -257,6 +275,7 @@ function LivePreview({
 
 function Builder() {
   const { projectId } = useParams({ from: "/_authenticated/studio/$projectId" });
+  const { generate } = useSearch({ from: "/_authenticated/studio/$projectId" });
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -268,6 +287,10 @@ function Builder() {
   const runListSnapshots  = useServerFn(listStudioSnapshots);
   const runUpdateProject  = useServerFn(updateStudioProject);
   const runCreateSnapshot = useServerFn(createStudioSnapshot);
+  const runGenerateWebsite = useServerFn(generateBusinessWebsite);
+  const runApplyWebsiteEdit = useServerFn(applyBusinessWebsiteEdit);
+  const runSaveFiles = useServerFn(saveStudioFiles);
+  const runUndoEdit = useServerFn(undoLastBusinessWebsiteEdit);
 
   // ── Data ─────────────────────────────────────────────────────────────────────
   const { data: projectRes } = useQuery({
@@ -302,6 +325,7 @@ function Builder() {
   const [mobileTab, setMobileTab]         = useState<"chat" | "code" | "preview">("chat");
   const [mounted, setMounted]             = useState(false);
   const [isStreaming, setIsStreaming]     = useState(false);
+  const [isSaving, setIsSaving]           = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<StudioMessage[]>([]);
   const allMessages = [...messages, ...optimisticMessages];
 
@@ -313,7 +337,7 @@ function Builder() {
     if (!isEditingName) setProjectName(project.name);
     if (project.deployment_url) setDeploymentUrl(project.deployment_url);
     try {
-      const parsed = JSON.parse(project.files_json || "{}") as Record<string, string>;
+      const parsed = toStudioFileMap(parseStudioFiles(project.files_json));
       setFiles(parsed);
       const paths = Object.keys(parsed);
       if (paths.length > 0 && !currentFile) {
@@ -335,6 +359,27 @@ function Builder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, user, messages.length]);
 
+  useEffect(() => {
+    if ((generate !== "1" && project?.generation_status !== "idle") || !project || project.template !== "business-website" || project.generation_status === "ready" || isStreaming) return;
+    let cancelled = false;
+    setIsStreaming(true);
+    runGenerateWebsite({ data: { project_id: projectId } })
+      .then((result) => {
+        if (cancelled) return;
+        if ("error" in result) { toast.error(result.message); return; }
+        setFiles(toStudioFileMap(result.files));
+        const first = result.files[0]?.path;
+        if (first) handleFileSelect(first);
+        toast.success("Website generated — it is ready to preview.");
+        queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
+        queryClient.invalidateQueries({ queryKey: ["studio-messages", projectId] });
+      })
+      .catch(() => !cancelled && toast.error("Website generation failed. Please try again."))
+      .finally(() => !cancelled && setIsStreaming(false));
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generate, project?.id, project?.generation_status]);
+
   // ── Name editing ──────────────────────────────────────────────────────────────
   const handleNameBlur = async () => {
     setIsEditingName(false);
@@ -342,6 +387,70 @@ function Builder() {
     await runUpdateProject({ data: { id: projectId, name: projectName.trim() } });
     queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
     queryClient.invalidateQueries({ queryKey: ["studio-projects"] });
+  };
+
+  const handleManualFileChange = (path: string, content: string) => {
+    setFiles((current) => ({ ...current, [path]: content }));
+  };
+
+  const handleCreateFile = () => {
+    const path = window.prompt("New file path (for example: notes.txt)")?.trim();
+    if (!path) return;
+    if (!isSafeStudioPath(path) || files[path] !== undefined) { toast.error("Use a new, relative file path without .. or backslashes."); return; }
+    setFiles((current) => ({ ...current, [path]: "" }));
+    handleFileSelect(path);
+  };
+
+  const handleDeleteFile = (path: string) => {
+    if (path === "index.html") { toast.error("index.html is required for preview and publishing."); return; }
+    if (!window.confirm(`Delete ${path}?`)) return;
+    setFiles((current) => {
+      const next = { ...current };
+      delete next[path];
+      return next;
+    });
+    setOpenFiles((current) => current.filter((file) => file !== path));
+    if (currentFile === path) setCurrentFile(null);
+  };
+
+  const handleRenameFile = (path: string) => {
+    const nextPath = window.prompt("Rename file", path)?.trim();
+    if (!nextPath || nextPath === path) return;
+    if (!isSafeStudioPath(nextPath) || files[nextPath] !== undefined) { toast.error("Use a new, relative file path without .. or backslashes."); return; }
+    setFiles((current) => {
+      const next = { ...current, [nextPath]: current[path] };
+      delete next[path];
+      return next;
+    });
+    setOpenFiles((current) => current.map((file) => file === path ? nextPath : file));
+    if (currentFile === path) setCurrentFile(nextPath);
+  };
+
+  const handleSaveFiles = async () => {
+    setIsSaving(true);
+    try {
+      const result = await runSaveFiles({ data: { project_id: projectId, files: fromStudioFileMap(files) } });
+      if ("error" in result) { toast.error(result.message); return; }
+      toast.success("Website saved.");
+      queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
+    } catch {
+      toast.error("Could not save the website.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUndo = async () => {
+    try {
+      const result = await runUndoEdit({ data: { project_id: projectId } });
+      if ("error" in result) { toast.error(result.message); return; }
+      setFiles(toStudioFileMap(result.files));
+      toast.success("Last AI edit undone.");
+      queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
+      refetchSnapshots();
+    } catch {
+      toast.error("Could not undo the last edit.");
+    }
   };
 
   // ── File management ───────────────────────────────────────────────────────────
@@ -361,6 +470,37 @@ function Builder() {
   // ── AI generation ─────────────────────────────────────────────────────────────
   const handleSend = async (promptText: string) => {
     if (!promptText.trim() || isStreaming || !user) return;
+
+    // Business websites use the controlled server-side generator. This is the
+    // critical path that persists actual project files instead of merely
+    // displaying AI code in the chat transcript.
+    if (project?.template === "business-website") {
+      setIsStreaming(true);
+      try {
+        if (Object.keys(files).length === 0) {
+          const result = await runGenerateWebsite({ data: { project_id: projectId } });
+          if ("error" in result) { toast.error(result.message); return; }
+          setFiles(toStudioFileMap(result.files));
+          const first = result.files[0]?.path;
+          if (first) handleFileSelect(first);
+          toast.success("Website generated — it is ready to preview.");
+        } else {
+          const result = await runApplyWebsiteEdit({ data: { project_id: projectId, request: promptText } });
+          if ("error" in result) { toast.error(result.message); return; }
+          setFiles(toStudioFileMap(result.files));
+          toast.success("Website updated.");
+        }
+        queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
+        queryClient.invalidateQueries({ queryKey: ["studio-messages", projectId] });
+        refetchMessages();
+        refetchSnapshots();
+      } catch {
+        toast.error("Could not update this website. Please try again.");
+      } finally {
+        setIsStreaming(false);
+      }
+      return;
+    }
 
     const tempUserMsg: StudioMessage = {
       id: `temp_${Date.now()}`,
@@ -584,6 +724,20 @@ function Builder() {
 
         {/* Right: status + deploy */}
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSaveFiles}
+            disabled={isSaving || fileCount === 0}
+            className="h-8 border-white/10 bg-transparent px-2 text-xs text-zinc-200 hover:bg-white/5 sm:px-3"
+          >
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+          </Button>
+          {project?.template === "business-website" && (
+            <Button size="sm" variant="ghost" onClick={handleUndo} className="hidden h-8 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-100 sm:inline-flex">
+              Undo AI edit
+            </Button>
+          )}
           {deploymentUrl ? (
             <a
               href={deploymentUrl}
@@ -611,7 +765,7 @@ function Builder() {
             className="h-8 bg-primary hover:bg-primary/90 text-white text-xs px-3 gap-1.5 shadow-md shadow-primary/20 transition-all"
           >
             <Rocket className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline font-medium">Deploy</span>
+            <span className="hidden sm:inline font-medium">Publish</span>
           </Button>
         </div>
       </header>
@@ -631,6 +785,10 @@ function Builder() {
           mounted={mounted}
           onFileSelect={handleFileSelect}
           onCloseFile={closeFile}
+          onFileChange={handleManualFileChange}
+          onCreateFile={handleCreateFile}
+          onDeleteFile={handleDeleteFile}
+          onRenameFile={handleRenameFile}
           onSend={handleSend}
           onDeploy={() => setShowDeploy(true)}
         />
@@ -647,6 +805,10 @@ function Builder() {
           mounted={mounted}
           onFileSelect={handleFileSelect}
           onCloseFile={closeFile}
+          onFileChange={handleManualFileChange}
+          onCreateFile={handleCreateFile}
+          onDeleteFile={handleDeleteFile}
+          onRenameFile={handleRenameFile}
           onSend={handleSend}
           onDeploy={() => setShowDeploy(true)}
         />
@@ -694,7 +856,7 @@ function Builder() {
 function DesktopLayout({
   files, currentFile, openFiles, deploymentUrl,
   allMessages, snapshots, isStreaming, fileCount, mounted,
-  onFileSelect, onCloseFile, onSend, onDeploy,
+  onFileSelect, onCloseFile, onFileChange, onCreateFile, onDeleteFile, onRenameFile, onSend, onDeploy,
 }: {
   files: Record<string, string>;
   currentFile: string | null;
@@ -707,6 +869,10 @@ function DesktopLayout({
   mounted: boolean;
   onFileSelect: (p: string) => void;
   onCloseFile: (e: React.MouseEvent, p: string) => void;
+  onFileChange: (path: string, content: string) => void;
+  onCreateFile: () => void;
+  onDeleteFile: (path: string) => void;
+  onRenameFile: (path: string) => void;
   onSend: (prompt: string) => void;
   onDeploy: () => void;
 }) {
@@ -732,6 +898,10 @@ function DesktopLayout({
             mounted={mounted}
             onFileSelect={onFileSelect}
             onCloseFile={onCloseFile}
+            onFileChange={onFileChange}
+            onCreateFile={onCreateFile}
+            onDeleteFile={onDeleteFile}
+            onRenameFile={onRenameFile}
             onDeploy={onDeploy}
           />
         </ResizablePanel>
@@ -745,7 +915,7 @@ function DesktopLayout({
 function MobileLayout({
   files, currentFile, openFiles, tab, deploymentUrl,
   allMessages, snapshots, isStreaming, mounted,
-  onFileSelect, onCloseFile, onSend, onDeploy,
+  onFileSelect, onCloseFile, onFileChange, onCreateFile, onDeleteFile, onRenameFile, onSend, onDeploy,
 }: {
   projectId: string;
   files: Record<string, string>;
@@ -759,6 +929,10 @@ function MobileLayout({
   mounted: boolean;
   onFileSelect: (p: string) => void;
   onCloseFile: (e: React.MouseEvent, p: string) => void;
+  onFileChange: (path: string, content: string) => void;
+  onCreateFile: () => void;
+  onDeleteFile: (path: string) => void;
+  onRenameFile: (path: string) => void;
   onSend: (prompt: string) => void;
   onDeploy: () => void;
 }) {
@@ -802,7 +976,8 @@ function MobileLayout({
                   key={currentFile}
                   height="100%"
                   path={currentFile}
-                  defaultValue={files[currentFile] || ""}
+                  value={files[currentFile] || ""}
+                  onChange={(value) => onFileChange(currentFile, value ?? "")}
                   theme="vs-dark"
                   options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: "monospace", padding: { top: 12 }, scrollBeyondLastLine: false }}
                 />
@@ -810,7 +985,7 @@ function MobileLayout({
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto">
-              <FilesTab files={files} onFileSelect={onFileSelect} />
+              <FilesTab files={files} onFileSelect={onFileSelect} onCreateFile={onCreateFile} onDeleteFile={onDeleteFile} onRenameFile={onRenameFile} />
             </div>
           )}
         </div>
@@ -981,6 +1156,7 @@ function MessageBubble({ message, isStreaming }: { message: StudioMessage; isStr
 function WorkspacePanel({
   files, currentFile, openFiles, deploymentUrl, snapshots,
   fileCount, mounted, onFileSelect, onCloseFile, onDeploy,
+  onFileChange, onCreateFile, onDeleteFile, onRenameFile,
 }: {
   files: Record<string, string>;
   currentFile: string | null;
@@ -991,6 +1167,10 @@ function WorkspacePanel({
   mounted: boolean;
   onFileSelect: (p: string) => void;
   onCloseFile: (e: React.MouseEvent, p: string) => void;
+  onFileChange: (path: string, content: string) => void;
+  onCreateFile: () => void;
+  onDeleteFile: (path: string) => void;
+  onRenameFile: (path: string) => void;
   onDeploy: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<"preview" | "code" | "files" | "history">("preview");
@@ -1082,7 +1262,8 @@ function WorkspacePanel({
                     key={currentFile}
                     height="100%"
                     path={currentFile}
-                    defaultValue={files[currentFile] || ""}
+                    value={files[currentFile] || ""}
+                    onChange={(value) => onFileChange(currentFile, value ?? "")}
                     theme="vs-dark"
                     options={{
                       minimap: { enabled: false },
@@ -1107,7 +1288,7 @@ function WorkspacePanel({
         )}
 
         {activeTab === "files" && (
-          <FilesTab files={files} onFileSelect={(p) => { onFileSelect(p); setActiveTab("code"); }} />
+          <FilesTab files={files} onFileSelect={(p) => { onFileSelect(p); setActiveTab("code"); }} onCreateFile={onCreateFile} onDeleteFile={onDeleteFile} onRenameFile={onRenameFile} />
         )}
 
         {activeTab === "history" && <HistoryTab snapshots={snapshots} />}
@@ -1118,15 +1299,24 @@ function WorkspacePanel({
 
 // ─── Files Tab ────────────────────────────────────────────────────────────────
 
-function FilesTab({ files, onFileSelect }: { files: Record<string, string>; onFileSelect: (p: string) => void }) {
+function FilesTab({
+  files, onFileSelect, onCreateFile, onDeleteFile, onRenameFile,
+}: {
+  files: Record<string, string>;
+  onFileSelect: (p: string) => void;
+  onCreateFile: () => void;
+  onDeleteFile: (path: string) => void;
+  onRenameFile: (path: string) => void;
+}) {
   const paths = Object.keys(files).sort();
   return (
     <div
       className="h-full overflow-y-auto bg-[#0f0f12]"
       style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.07) transparent" }}
     >
-      <div className="px-3 pt-3 pb-1">
+      <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Project files</span>
+        <button type="button" onClick={onCreateFile} className="rounded px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/10">New file</button>
       </div>
       {paths.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -1147,6 +1337,10 @@ function FilesTab({ files, onFileSelect }: { files: Record<string, string>; onFi
               >
                 <FileIcon path={path} className="w-3.5 h-3.5 mr-2 shrink-0" />
                 <span className="text-[12px] font-mono text-zinc-500 group-hover:text-zinc-200 truncate transition-colors">{name}</span>
+                <div className="ml-auto hidden items-center gap-1 group-hover:flex">
+                  <button type="button" onClick={(event) => { event.stopPropagation(); onRenameFile(path); }} className="rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:bg-white/10 hover:text-zinc-200">Rename</button>
+                  {path !== "index.html" && <button type="button" onClick={(event) => { event.stopPropagation(); onDeleteFile(path); }} className="rounded px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-red-500/10">Delete</button>}
+                </div>
               </div>
             );
           })}
@@ -1201,22 +1395,63 @@ function DeploySheet({
   onDeployed: (url: string) => void;
 }) {
   const [deploying, setDeploying] = useState(false);
+  const [waitingForDeployment, setWaitingForDeployment] = useState(false);
   const [error, setError]         = useState<string | null>(null);
-  const vercelConnected = false;
+  const runDeploy = useServerFn(deployBusinessWebsite);
+  const runDeploymentStatus = useServerFn(getBusinessWebsiteDeploymentStatus);
+
+  useEffect(() => {
+    if (!waitingForDeployment) return;
+    let cancelled = false;
+    const checkStatus = async () => {
+      try {
+        const result = await runDeploymentStatus({ data: { project_id: projectId } });
+        if (cancelled) return;
+        if ("error" in result) {
+          setWaitingForDeployment(false);
+          setError(result.message || "Could not check the website status.");
+          return;
+        }
+        const url = (result as { url?: unknown }).url;
+        if (result.status === "ready" && typeof url === "string") {
+          setWaitingForDeployment(false);
+          toast.success("Your website is live!");
+          onDeployed(url);
+          return;
+        }
+        if (result.status === "error") {
+          setWaitingForDeployment(false);
+          const detail = (result as { detail?: unknown }).detail;
+          setError(typeof detail === "string" ? detail : "Vercel could not build this website.");
+        }
+      } catch {
+        if (!cancelled) {
+          setWaitingForDeployment(false);
+          setError("Could not check the website status. Try again shortly.");
+        }
+      }
+    };
+    void checkStatus();
+    const interval = window.setInterval(() => void checkStatus(), 5_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [onDeployed, projectId, runDeploymentStatus, waitingForDeployment]);
 
   const handleDeploy = async () => {
     setDeploying(true); setError(null);
     try {
-      const res = await fetch(`/api/deploy/${projectId}`, { method: "POST", credentials: "include" });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error === "no_vercel_token"
-          ? "Connect Vercel in Settings › Integrations first."
+      const data = await runDeploy({ data: { project_id: projectId } });
+      if ("error" in data) {
+        setError(data.error === "vercel_not_configured"
+          ? "Kodarai's managed publishing service has not been configured yet."
           : data.message || "Deployment failed.");
         return;
       }
-      toast.success("Deployed successfully!");
-      onDeployed(data.deploymentUrl);
+      if (data.status === "ready" && data.url) {
+        toast.success("Your website is live!");
+        onDeployed(data.url);
+      } else {
+        setWaitingForDeployment(true);
+      }
     } catch { setError("Network error. Try again."); }
     finally { setDeploying(false); }
   };
@@ -1234,7 +1469,7 @@ function DeploySheet({
               </svg>
             </div>
             <div>
-              <h2 className="text-zinc-100 font-semibold text-sm">Deploy to Vercel</h2>
+              <h2 className="text-zinc-100 font-semibold text-sm">Publish Website</h2>
               <p className="text-zinc-500 text-xs mt-0.5 truncate max-w-[200px]">{projectName}</p>
             </div>
           </div>
@@ -1253,14 +1488,8 @@ function DeploySheet({
             <span className="text-sm font-mono font-medium text-zinc-100">{fileCount}</span>
           </div>
           <div className="bg-white/3 border border-white/6 rounded-xl p-3.5 flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Vercel account</span>
-            {vercelConnected ? (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /> Connected
-              </span>
-            ) : (
-              <span className="text-xs text-zinc-600">Coming soon</span>
-            )}
+            <span className="text-sm text-zinc-400">Publishing service</span>
+            <span className="text-xs text-zinc-500">Managed by Kodarai</span>
           </div>
         </div>
 
@@ -1272,17 +1501,15 @@ function DeploySheet({
 
         <Button
           onClick={handleDeploy}
-          disabled={deploying || !vercelConnected || fileCount === 0}
+          disabled={deploying || waitingForDeployment || fileCount === 0}
           className="w-full bg-zinc-50 text-zinc-950 hover:bg-white font-semibold h-10 gap-2 shadow-lg shadow-black/30 transition-all"
         >
-          {deploying
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Deploying…</>
-            : <><Rocket className="w-4 h-4" /> Deploy now</>}
+          {deploying || waitingForDeployment
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> {waitingForDeployment ? "Building website…" : "Publishing…"}</>
+            : <><Rocket className="w-4 h-4" /> Publish Website</>}
         </Button>
 
-        {!vercelConnected && (
-          <p className="text-center text-xs text-zinc-700 mt-3">Vercel integration coming soon — stay tuned.</p>
-        )}
+        <p className="text-center text-xs text-zinc-600 mt-3">No GitHub or Vercel account is needed. Kodarai publishes through its managed deployment service.</p>
       </div>
     </div>
   );

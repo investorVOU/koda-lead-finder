@@ -141,7 +141,7 @@ function NewStudioProjectPage() {
           phone: leadContext.phone ?? undefined,
         }));
       }
-      navigate({ to: "/studio/$projectId", params: { projectId } });
+      navigate({ to: "/studio/$projectId", params: { projectId }, search: { generate: undefined } });
     },
     onError: (err) => {
       toast.error("Failed to create project — " + String(err));

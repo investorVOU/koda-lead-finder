@@ -22,7 +22,12 @@ export const Route = createFileRoute("/learn")({
         property: "og:description",
         content: "Learn cold calling and sales to land more web design clients — free video lessons.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://kodarai.xyz/learn" },
+      { name: "twitter:title", content: "Kodarai Sales Academy" },
+      { name: "twitter:description", content: "Free video lessons on cold calling, sales, and closing web design clients." },
     ],
+    links: [{ rel: "canonical", href: "https://kodarai.xyz/learn" }],
   }),
   component: LearnPage,
 });
