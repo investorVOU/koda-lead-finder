@@ -94,8 +94,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@kodarai" },
     ],
     links: [
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
-      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg?v=2" },
+      { rel: "shortcut icon", type: "image/svg+xml", href: "/favicon.svg?v=2" },
+      { rel: "manifest", href: "/manifest.webmanifest?v=2" },
       {
         rel: "preconnect",
         href: "https://fonts.googleapis.com",

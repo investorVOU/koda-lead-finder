@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="8" fill="url(#g)"/>
-  <path d="M9 8v16M9 16l7-8M9 16l8 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="22" cy="16" r="3" fill="white" fill-opacity="0.9"/>
-  <circle cx="22" cy="16" r="1.5" fill="url(#g)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#2a9d6f"/>
-      <stop offset="100%" stop-color="#1ec98a"/>
+    <linearGradient id="kodarai-gradient" x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#36b47e"/>
+      <stop offset="1" stop-color="#147a55"/>
     </linearGradient>
   </defs>
+  <rect width="64" height="64" rx="17" fill="url(#kodarai-gradient)"/>
+  <path d="M19 15v34M19 32l18-17M19 32l19 17" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="44" cy="32" r="7" fill="white"/>
+  <circle cx="44" cy="32" r="3" fill="#1f9568"/>
 </svg>
