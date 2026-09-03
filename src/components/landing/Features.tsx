@@ -1,77 +1,103 @@
-import { Code2, FileText, MapPinned, Phone, ShieldCheck, Workflow, Smartphone, Youtube } from "lucide-react";
+import { useState } from "react";
+import {
+  Code2,
+  FileText,
+  MapPinned,
+  Phone,
+  ShieldCheck,
+  Smartphone,
+  Workflow,
+  Youtube,
+} from "lucide-react";
 import { FadeUp } from "./FadeUp";
 
 const features = [
   {
     icon: MapPinned,
     title: "No-Website Lead Finder",
-    desc: "Search any category and city worldwide. We surface high-rated businesses that have no website yet.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Ratings & Reviews Built In",
-    desc: "Every lead shows its Google rating and review count, so you target businesses worth your time.",
+    desc: "Search a city and business type. Find businesses that do not have a website yet.",
   },
   {
     icon: Code2,
-    title: "AI Website Prompts",
-    desc: "Generate detailed prompts tuned for Lovable, Framer AI, v0 and Claude — built from real business data.",
-  },
-  {
-    icon: Phone,
-    title: "Cold Call Scripts",
-    desc: "Get a personalized, ready-to-read sales script for each lead to start the conversation with confidence.",
-  },
-  {
-    icon: Workflow,
-    title: "Lead Pipeline",
-    desc: "Move leads through New → Contacted → Proposal → Closed and never lose track of an opportunity.",
-  },
-  {
-    icon: FileText,
-    title: "Save & Export Leads",
-    desc: "Bookmark your best prospects, add notes, and keep a clean, organized list of who to reach next.",
-  },
-  {
-    icon: Smartphone,
-    title: "Virtual Phone Numbers",
-    desc: "Get a real US, UK, Canadian, or Australian number from anywhere. Use it for WhatsApp, SMS verifications, and client callbacks — billed monthly.",
+    title: "Website Builder",
+    desc: "Create a website sample from a real lead, edit it, and publish a link you can send to them.",
   },
   {
     icon: Youtube,
     title: "YouTube Channel Review",
-    desc: "Research channels, discover stronger video ideas, and create practical content plans from one Studio.",
+    desc: "See what content is working, find better video ideas, and grow an audience that trusts you.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Ratings & Reviews Built In",
+    desc: "See each lead's Google rating and review count, so you spend time on stronger businesses.",
+  },
+  {
+    icon: Phone,
+    title: "Cold Call Scripts",
+    desc: "Get a simple script for each lead, so you know what to say when you call or message them.",
+  },
+  {
+    icon: Workflow,
+    title: "Lead Pipeline",
+    desc: "Keep track of who is new, contacted, ready for a proposal, or already closed.",
+  },
+  {
+    icon: FileText,
+    title: "Save & Export Leads",
+    desc: "Save your best leads, add notes, and keep a clean list of who to contact next.",
+  },
+  {
+    icon: Smartphone,
+    title: "Virtual Phone Numbers",
+    desc: "Get a US, UK, Canadian, or Australian number for WhatsApp, SMS, and client callbacks.",
   },
 ];
 
 export function Features() {
+  const [showAllMobile, setShowAllMobile] = useState(false);
+
   return (
-    <section id="features" className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
+    <section id="features" className="mx-auto max-w-6xl px-4 py-12 sm:py-28">
       <FadeUp>
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold sm:text-4xl">Everything you need to win clients and create better content</h2>
+          <h2 className="text-2xl font-bold sm:text-4xl">
+            Tools that help you find clients and make more money
+          </h2>
           <p className="mt-3 text-muted-foreground sm:mt-4">
-            From finding the right prospect to closing the deal — Kodarai handles the busywork so you
-            can focus on building websites.
+            Find the right business, show them your work, and turn more conversations into paid jobs.
           </p>
         </div>
       </FadeUp>
 
-      <div className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-        {features.map((f, i) => (
-          <FadeUp key={f.title} delay={i * 80}>
-            <div className="group flex h-full gap-4 rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-[var(--shadow-md)] sm:block sm:p-6 sm:hover:-translate-y-1">
+      <div className="mt-7 grid gap-3 sm:mt-14 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+        {features.map((feature, index) => (
+          <FadeUp
+            key={feature.title}
+            delay={index * 80}
+            className={index >= 3 && !showAllMobile ? "hidden sm:block" : undefined}
+          >
+            <div className="group flex h-full gap-3 rounded-2xl border border-border bg-card p-4 transition-all hover:shadow-[var(--shadow-md)] sm:block sm:gap-4 sm:p-6 sm:hover:-translate-y-1">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors group-hover:bg-[image:var(--gradient-primary)] group-hover:text-primary-foreground">
-                <f.icon className="size-5" />
+                <feature.icon className="size-5" />
               </span>
               <div>
-                <h3 className="text-base font-semibold sm:mt-4 sm:text-lg">{f.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground sm:mt-2">{f.desc}</p>
+                <h3 className="text-base font-semibold sm:mt-4 sm:text-lg">{feature.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground sm:mt-2">{feature.desc}</p>
               </div>
             </div>
           </FadeUp>
         ))}
       </div>
+
+      <button
+        type="button"
+        className="mx-auto mt-5 flex items-center gap-2 text-sm font-semibold text-primary sm:hidden"
+        onClick={() => setShowAllMobile((showing) => !showing)}
+      >
+        {showAllMobile ? "Show fewer tools" : `See all ${features.length} tools`}
+        <span aria-hidden="true">{showAllMobile ? "↑" : "↓"}</span>
+      </button>
     </section>
   );
 }

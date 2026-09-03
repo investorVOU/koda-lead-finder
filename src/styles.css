@@ -190,3 +190,73 @@
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
+@keyframes lead-finder-search {
+  0%, 100% { border-color: color-mix(in oklab, var(--primary) 20%, transparent); }
+  50% { border-color: color-mix(in oklab, var(--primary) 65%, transparent); }
+}
+
+@keyframes lead-finder-dot {
+  0%, 100% { transform: scale(0.7); opacity: 0.4; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes lead-finder-card-enter {
+  from { opacity: 0; transform: translateX(28px) translateY(6px); }
+  to { opacity: 1; transform: translateX(0) translateY(0); }
+}
+
+@keyframes lead-finder-status-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lead-finder-search-text-enter {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes hero-news-flash {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lead-finder-cta {
+  0%, 70%, 100% { box-shadow: none; transform: scale(1); }
+  80% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--primary) 18%, transparent); transform: scale(1.025); }
+}
+
+@media (min-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .lead-finder-search {
+    animation: lead-finder-search 1.8s ease-in-out infinite;
+  }
+
+  .lead-finder-search-dot {
+    animation: lead-finder-dot 1.1s ease-in-out infinite;
+  }
+
+  .lead-finder-card {
+    animation: lead-finder-card-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .lead-finder-card-1 { animation-delay: 0.55s; }
+  .lead-finder-card-2 { animation-delay: 1.1s; }
+  .lead-finder-card-3 { animation-delay: 1.65s; }
+
+  .lead-finder-status {
+    opacity: 0;
+    animation: lead-finder-status-enter 0.35s ease-out 2.15s both;
+  }
+
+  .lead-finder-search-text {
+    animation: lead-finder-search-text-enter 0.32s ease-out both;
+  }
+
+  .lead-finder-build-cta {
+    animation: lead-finder-cta 3.2s ease-in-out 2.35s infinite;
+  }
+
+  .hero-news-message {
+    animation: hero-news-flash 0.35s ease-out both;
+  }
+}

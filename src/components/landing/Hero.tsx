@@ -47,10 +47,38 @@ const HERO_PHRASES = [
   },
 ];
 
+const HERO_TICKERS = [
+  "Find a business that needs a website.",
+  "Build a quick website sample for them.",
+  "Send the sample and start the conversation.",
+  "Use YouTube tools to plan content and grow your audience.",
+  "Turn more conversations into paid work.",
+];
+
+const LEAD_FINDER_SEARCHES = [
+  {
+    query: "Restaurants in Lagos",
+    leads: [
+      { name: "The Orchid Bistro", location: "Victoria Island, Lagos", rating: "4.8", reviews: "214" },
+      { name: "Prime Cuts Kitchen", location: "Lekki, Lagos", rating: "4.6", reviews: "96" },
+      { name: "Bloom Events & Decor", location: "Ikeja, Lagos", rating: "4.9", reviews: "173" },
+    ],
+  },
+  {
+    query: "Salons in Abuja",
+    leads: [
+      { name: "Velvet Hair Lounge", location: "Wuse 2, Abuja", rating: "4.8", reviews: "189" },
+      { name: "The Grooming Room", location: "Garki, Abuja", rating: "4.7", reviews: "128" },
+      { name: "Luxe Beauty House", location: "Maitama, Abuja", rating: "4.9", reviews: "205" },
+    ],
+  },
+] as const;
+
 export function Hero() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
+  const [leadSearchIndex, setLeadSearchIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -64,6 +92,15 @@ export function Hero() {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLeadSearchIndex((current) => (current + 1) % LEAD_FINDER_SEARCHES.length);
+    }, 4_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const activeLeadSearch = LEAD_FINDER_SEARCHES[leadSearchIndex];
 
   return (
     <section className="relative overflow-hidden border-b border-border bg-background">
@@ -111,11 +148,9 @@ export function Hero() {
               {HERO_PHRASES[index].line2}
             </h1>
 
-            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg lg:mx-0">
-              Kodarai helps you create your own opportunities: find businesses
-              that need a website, build a convincing sample, reach the owner,
-              and turn the conversation into paid work. Use YouTube Studio to
-              build the authority that brings even more opportunities.
+            <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground sm:mt-5 sm:text-lg lg:mx-0">
+              Find businesses that need websites, show them what you can build,
+              and turn the conversation into paid work.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
@@ -142,25 +177,12 @@ export function Hero() {
               </Button>
             </div>
 
-            <div className="mx-auto mt-6 grid max-w-xl gap-3 text-left sm:grid-cols-2 lg:mx-0">
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Globe className="size-3.5" /></span>
-                  Find work worth pitching
-                </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">Find a real prospect, build the sample, and turn it into a paid project.</p>
-              </div>
-              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3.5">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-red-500 text-white"><Youtube className="size-3.5" /></span>
-                  Build authority on YouTube
-                </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">Research channels and make content that earns attention and opportunities.</p>
-              </div>
+            <div className="hero-news mt-5 flex items-center gap-2 overflow-hidden rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-left">
+              <span className="hero-news-live shrink-0 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary-foreground">How it works</span>
+              <p key={index} className="hero-news-message truncate text-xs font-medium text-foreground">{HERO_TICKERS[index]}</p>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground lg:justify-start">
-              <span className="font-semibold text-foreground">The goal: more conversations, proposals, and paid work.</span>
               <span className="inline-flex items-center gap-1.5">
                 <Star className="size-3.5 fill-warning text-warning" />
                 Lead packs from ₦3,200
@@ -183,7 +205,7 @@ export function Hero() {
           </div>
 
           {/* Right: Product preview */}
-          <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+          <div className="lead-finder-demo relative mx-auto w-full max-w-md lg:max-w-none">
             <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-[image:var(--gradient-primary)] opacity-15 blur-3xl" />
 
             <div className="rounded-2xl border border-border bg-card/80 p-4 shadow-[var(--shadow-lg)] backdrop-blur">
@@ -195,33 +217,26 @@ export function Hero() {
                   Lead Finder
                 </div>
 
-                <span className="text-xs text-muted-foreground">
-                  Restaurants · Lagos
+                <span key={leadSearchIndex} className="lead-finder-status text-xs font-medium text-primary">
+                  {activeLeadSearch.leads.length} opportunities found
                 </span>
               </div>
 
+              <div className="lead-finder-search mb-3 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+                <Search className="size-3.5 text-primary" />
+                <span key={leadSearchIndex} className="lead-finder-search-text flex-1">{activeLeadSearch.query}</span>
+                <span className="lead-finder-search-dot size-1.5 rounded-full bg-primary" />
+              </div>
+
               <div className="space-y-3">
-                <LeadCard
-                  name="The Orchid Bistro"
-                  location="Victoria Island, Lagos"
-                  rating="4.8"
-                  reviews="214"
-                  highlight
-                />
-
-                <LeadCard
-                  name="Prime Cuts Kitchen"
-                  location="Lekki, Lagos"
-                  rating="4.6"
-                  reviews="96"
-                />
-
-                <LeadCard
-                  name="Bloom Events & Décor"
-                  location="Ikeja, Lagos"
-                  rating="4.9"
-                  reviews="173"
-                />
+                {activeLeadSearch.leads.map((lead, leadIndex) => (
+                  <LeadCard
+                    key={`${leadSearchIndex}-${lead.name}`}
+                    {...lead}
+                    highlight={leadIndex === 0}
+                    animationOrder={(leadIndex + 1) as 1 | 2 | 3}
+                  />
+                ))}
               </div>
 
               {/* Product capability row */}
@@ -294,16 +309,18 @@ function LeadCard({
   rating,
   reviews,
   highlight = false,
+  animationOrder,
 }: {
   name: string;
   location: string;
   rating: string;
   reviews: string;
   highlight?: boolean;
+  animationOrder?: 1 | 2 | 3;
 }) {
   return (
     <div
-      className={`rounded-xl border bg-card p-4 transition-shadow ${
+      className={`lead-finder-card lead-finder-card-${animationOrder} rounded-xl border bg-card p-4 transition-shadow ${
         highlight
           ? "border-primary/40 shadow-[var(--shadow-md)]"
           : "border-border"
@@ -340,7 +357,7 @@ function LeadCard({
       </div>
 
       <div className="mt-3 flex gap-2">
-        <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 py-1.5 text-[11px] font-semibold text-primary">
+        <span className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 py-1.5 text-[11px] font-semibold text-primary ${highlight ? "lead-finder-build-cta" : ""}`}>
           <Globe className="size-3" />
           Build
         </span>
