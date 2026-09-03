@@ -226,7 +226,7 @@
   80% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--primary) 18%, transparent); transform: scale(1.025); }
 }
 
-@media (min-width: 640px) and (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) {
   .lead-finder-search {
     animation: lead-finder-search 1.8s ease-in-out infinite;
   }

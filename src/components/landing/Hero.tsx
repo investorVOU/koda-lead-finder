@@ -51,7 +51,7 @@ const HERO_TICKERS = [
   "Find a business that needs a website.",
   "Build a quick website sample for them.",
   "Send the sample and start the conversation.",
-  "Use YouTube tools to plan content and grow your audience.",
+  "Use YouTube to grow your audience.",
   "Turn more conversations into paid work.",
 ];
 
@@ -179,7 +179,7 @@ export function Hero() {
 
             <div className="hero-news mt-5 flex items-center gap-2 overflow-hidden rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-left">
               <span className="hero-news-live shrink-0 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary-foreground">How it works</span>
-              <p key={index} className="hero-news-message truncate text-xs font-medium text-foreground">{HERO_TICKERS[index]}</p>
+              <p key={index} className="hero-news-message min-w-0 truncate text-xs font-medium text-foreground">{HERO_TICKERS[index]}</p>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground lg:justify-start">
@@ -224,7 +224,7 @@ export function Hero() {
 
               <div className="lead-finder-search mb-3 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
                 <Search className="size-3.5 text-primary" />
-                <span key={leadSearchIndex} className="lead-finder-search-text flex-1">{activeLeadSearch.query}</span>
+                <span key={leadSearchIndex} className="lead-finder-search-text min-w-0 flex-1 truncate">{activeLeadSearch.query}</span>
                 <span className="lead-finder-search-dot size-1.5 rounded-full bg-primary" />
               </div>
 
