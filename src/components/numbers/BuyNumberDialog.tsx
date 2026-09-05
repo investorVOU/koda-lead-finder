@@ -523,6 +523,26 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     }
   };
 
+  const manualPoll = async () => {
+    if (!tempResult || tempSms || tempExpired) return;
+    try {
+      const res = await runPollTemp({ data: { numberId: tempResult.numberId } });
+      if (res && "status" in res) {
+        if (res.status === "received" && "sms" in res) {
+          const txt = String(res.sms);
+          smsRef.current = txt;
+          setTempSms(txt);
+        } else if (res.status === "expired") {
+          expiredRef.current = true;
+          setTempExpired(true);
+          setTimeLeft(0);
+        }
+      }
+    } catch (err) {
+      // noop; user can try again
+    }
+  };
+
   const buyRentalPool = async () => {
     if (!smsPoolRentalId || !selectedRentalTier) {
       console.warn("[short-term rental] missing rental selection", { smsPoolRentalId, selectedRentalTier });
@@ -1160,16 +1180,23 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 <MessageSquare className="size-3.5 shrink-0" />
                 All received SMS are saved in your inbox under the Numbers page.
               </div>
-
               <div className="grid grid-cols-2 gap-2">
                 {(tempExpired && !tempSms) && (
                   <Button variant="outline" className="col-span-2" onClick={autoRetry}>
                     <Zap className="size-4" /> Try again with new number
                   </Button>
                 )}
+
+                {/* While waiting, offer a manual refresh */}
+                {!tempSms && !tempExpired && (
+                  <Button variant="outline" className="" onClick={manualPoll}>
+                    Refresh
+                  </Button>
+                )}
+
                 <Button
                   variant={tempSms ? "hero" : "outline"}
-                  className={tempExpired && !tempSms ? "col-span-1" : "col-span-2"}
+                  className={tempExpired && !tempSms ? "col-span-1" : "col-span-1"}
                   onClick={() => onOpenChange(false)}
                 >
                   {tempSms ? "Done" : "Close — check inbox later"}
