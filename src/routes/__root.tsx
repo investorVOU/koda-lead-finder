@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { InstallPwaPrompt } from "@/components/InstallPwaPrompt";
 
 function NotFoundComponent() {
   return (
@@ -101,7 +102,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg?v=2" },
       { rel: "shortcut icon", type: "image/svg+xml", href: "/favicon.svg?v=2" },
-      { rel: "manifest", href: "/manifest.webmanifest?v=2" },
+      { rel: "manifest", href: "/manifest.webmanifest?v=3" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png?v=3" },
       {
         rel: "preconnect",
         href: "https://fonts.googleapis.com",
@@ -165,6 +167,7 @@ function RootComponent() {
         <AuthInvalidator />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <InstallPwaPrompt />
         <Toaster position="top-center" richColors />
       </AuthProvider>
     </QueryClientProvider>
