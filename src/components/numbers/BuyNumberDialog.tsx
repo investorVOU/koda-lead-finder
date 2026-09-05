@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { toast } from "sonner";
@@ -13,7 +13,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { NUMBER_COUNTRIES, SMSPOOL_APPROX_PRICE_NGN, SMSPOOL_APPROX_PRICE_USD } from "@/lib/numbers";
+import {
+  NUMBER_COUNTRIES,
+} from "@/lib/numbers";
 import {
   searchAvailableNumbers,
   buyNumberFromWallet,
@@ -22,10 +24,12 @@ import {
   pollTempNumber,
   listSMSPoolCountries,
   listSMSPoolServices,
+  getSmsPoolQuote,
 } from "@/lib/numbers.functions";
-import { buyRentalSMSPool } from "@/lib/numbers-extra.functions";
+import { buyRentalSMSPool, getSmsPoolRentalOptions } from "@/lib/numbers-extra.functions";
 import { getWalletData, initiateWalletTopUp } from "@/lib/wallet.functions";
 import { extractOTP } from "@/lib/sms-utils";
+import { calculateCustomerPrice } from "@/lib/pricing";
 
 interface Props {
   open: boolean;
@@ -33,6 +37,18 @@ interface Props {
 }
 
 type AvailableNumber = { phoneNumber: string; friendlyName: string; region?: string; locality?: string; monthlyCostUsd?: number };
+type SmsPoolRentalTierPrice = {
+  customerNgn: number;
+  customerUsd: number;
+};
+
+type SmsPoolRentalOption = {
+  rentalId: string;
+  country: string;
+  countryName?: string;
+  pricing?: Record<string, SmsPoolRentalTierPrice>;
+};
+type SmsPoolRentalServerResult = { error?: boolean; message?: string; rentals?: SmsPoolRentalOption[]; phoneNumber?: string };
 type Step = "type" | "search" | "pay" | "temp" | "temp-wait" | "rental-smspool";
 type NumberType = "rental" | "temp" | "rental-smspool";
 
@@ -95,6 +111,107 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
   );
 }
 
+function SearchableServicePicker({
+  services,
+  value,
+  onChange,
+}: {
+  services: Array<{ id: string | number; name: string }>;
+  value: string;
+  onChange: (service: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const selected = services.find((service) => String(service.id ?? "") === value);
+
+  const filteredServices = services.filter((service) => {
+    const idText = String(service.id ?? "");
+    const nameText = String(service.name ?? "");
+
+    return (
+      nameText.toLowerCase().includes(normalizedQuery) ||
+      idText.toLowerCase().includes(normalizedQuery)
+    );
+  });
+
+  const handleOpen = () => {
+    setQuery("");
+    setOpen(true);
+  };
+
+  return (
+    <div className="relative">
+      <div className="rounded-xl border border-border bg-background px-3 py-3 transition focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20">
+        <div className="flex items-center gap-2">
+          <Search className="size-4 shrink-0 text-primary" />
+
+          <input
+            value={open ? query : (selected?.name ?? "")}
+            onFocus={handleOpen}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setOpen(true);
+            }}
+            placeholder="Search services (e.g. Survey Pop, WhatsApp...)"
+            aria-label="Search for a service"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+
+          <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </div>
+
+        <p className="mt-2 pl-6 text-[11px] leading-4 text-muted-foreground">
+          Search for the exact service you need instead of scrolling through the full list.
+        </p>
+      </div>
+
+      {open && (
+        <div className="absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-xl">
+          {normalizedQuery && filteredServices.length > 0 && (
+            <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {filteredServices.length} service{filteredServices.length !== 1 ? "s" : ""} found
+            </div>
+          )}
+
+          {filteredServices.length > 0 ? (
+            filteredServices.map((service) => (
+              <button
+                key={String(service.id ?? "")}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(String(service.id ?? ""));
+                  setQuery("");
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent ${
+                  String(service.id ?? "") === value ? "bg-primary/10 text-primary" : ""
+                }`}
+              >
+                <span className="truncate">{service.name}</span>
+
+                {String(service.id ?? "") === value && (
+                  <Check className="ml-2 size-3.5 shrink-0" />
+                )}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-5">
+              <div className="text-center text-sm font-medium">No service found</div>
+              <p className="mt-1 text-center text-xs leading-5 text-muted-foreground">
+                Try the service&apos;s name, such as <span className="font-medium">Survey Pop</span>, WhatsApp or Telegram.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const runSearch           = useServerFn(searchAvailableNumbers);
   const runWalletBuy        = useServerFn(buyNumberFromWallet);
@@ -105,6 +222,8 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const runPollTemp         = useServerFn(pollTempNumber);
   const runSMSPoolCountries = useServerFn(listSMSPoolCountries);
   const runSMSPoolServices  = useServerFn(listSMSPoolServices);
+  const runGetTempQuote     = useServerFn(getSmsPoolQuote);
+  const runGetRentalOptions = useServerFn(getSmsPoolRentalOptions);
   const runRentalSMSPool    = useServerFn(buyRentalSMSPool);
 
   const [step,         setStep]         = useState<Step>("type");
@@ -124,12 +243,16 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const [tempCountry,  setTempCountry]  = useState("US");
   const [tempService,  setTempService]  = useState("any");
   const [tempBuying,   setTempBuying]   = useState(false);
+  const [tempQuote,    setTempQuote]    = useState<{ providerUsd: number; quoteNgn: number; quoteUsd: number } | null>(null);
+  const [tempQuoteLoading, setTempQuoteLoading] = useState(false);
   // Pre-seeded with fallbacks so the dropdowns are usable immediately
   const [smsCountries, setSmsCountries] = useState<Array<{ id: string; name: string }>>(FALLBACK_SMS_COUNTRIES);
   const [smsServices,  setSmsServices]  = useState<Array<{ id: string; name: string }>>(FALLBACK_SMS_SERVICES);
   const [loadingSMS,   setLoadingSMS]   = useState(false);
 
   const [smsPoolDays,    setSmsPoolDays]    = useState(7);
+  const [smsPoolRentalId, setSmsPoolRentalId] = useState<string>("");
+  const [smsPoolRentalOptions, setSmsPoolRentalOptions] = useState<SmsPoolRentalOption[]>([]);
   const [rentalBuying,   setRentalBuying]   = useState(false);
 
   // SMSPool temp state — post-purchase (polling)
@@ -152,24 +275,46 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const [fxRate,       setFxRate]       = useState(1600);
 
   // Derived
-  const filteredCountries = NUMBER_COUNTRIES.filter((c) =>
-    countrySearch === "" ||
-    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
-    c.code.toLowerCase().includes(countrySearch.toLowerCase()),
-  );
+  const filteredCountries = NUMBER_COUNTRIES.filter((c) => {
+    const query = String(countrySearch ?? "").trim().toLowerCase();
+    if (!query) return true;
+    return String(c.name).toLowerCase().includes(query) || String(c.code).toLowerCase().includes(query);
+  });
   const selectedCountry = NUMBER_COUNTRIES.find((c) => c.code === country) ?? NUMBER_COUNTRIES[0];
-
   // Use actual price from Telnyx search result when a number is selected;
   // fall back to the static country table estimate before search.
-  const actualUsd  = selected?.monthlyCostUsd ?? selectedCountry.usd;
-  const ngnPrice   = Math.round(actualUsd * fxRate);
-  const usdPrice   = actualUsd.toFixed(2);
+  const actualUsd = selected?.monthlyCostUsd ?? selectedCountry.usd;
+  const telnyxPrice = calculateCustomerPrice(actualUsd, fxRate);
+  const ngnPrice = telnyxPrice.customerNgn;
+  const usdPrice = telnyxPrice.customerUsd.toFixed(2);
   const usdEquiv   = (topUpAmount / fxRate).toFixed(2);
-  // "from" estimate shown before search (uses static list)
   const fromNgn    = Math.round(selectedCountry.usd * fxRate);
   const hasEnough       = balance !== null && balance >= ngnPrice;
-  const hasTempBalance  = balance !== null && balance >= SMSPOOL_APPROX_PRICE_NGN;
-  const tempUsdPrice    = SMSPOOL_APPROX_PRICE_USD.toFixed(2);
+  const tempQuoteNgn = tempQuote?.quoteNgn ?? 0;
+  const tempQuoteUsd = tempQuote?.quoteUsd ?? 0;
+  const hasTempBalance = balance !== null && tempQuote !== null && balance >= tempQuoteNgn;
+  const hasTempQuote = Boolean(tempQuote);
+
+  const rentalTierOptions = smsPoolRentalOptions
+    .flatMap((rental) =>
+      Object.entries(rental.pricing ?? {}).map(([daysStr, quote]) => ({
+        rentalId: rental.rentalId,
+        country: rental.country,
+        countryName: rental.countryName,
+        days: Number(daysStr),
+        customerNgn: Number(quote.customerNgn ?? 0),
+        customerUsd: Number(quote.customerUsd ?? 0),
+      }))
+    )
+    .filter(
+      (option) =>
+        Number.isFinite(option.days) &&
+        option.days > 0 &&
+        Number.isFinite(option.customerNgn) &&
+        option.customerNgn > 0
+    )
+    .sort((a, b) => a.days - b.days);
+  const selectedRentalTier = rentalTierOptions.find((option) => option.rentalId === smsPoolRentalId && option.days === smsPoolDays) ?? rentalTierOptions[0];
 
   // Reset on open/close; load wallet + SMSPool lists
   useEffect(() => {
@@ -192,7 +337,6 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   }, [open]);
 
   // Refresh SMSPool lists + balance when the temp/rental-smspool step first opens.
-  // Dropdowns are already usable from the pre-seeded fallbacks above.
   const [smsFetched, setSmsFetched] = useState(false);
   useEffect(() => {
     if ((step !== "temp" && step !== "rental-smspool") || smsFetched) return;
@@ -203,12 +347,66 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
       runSMSPoolServices(),
     ])
       .then(([c, s]) => {
-        if (c.countries.length > FALLBACK_SMS_COUNTRIES.length) setSmsCountries(c.countries);
-        if (s.services.length  > FALLBACK_SMS_SERVICES.length)  setSmsServices(s.services);
+        if (c.countries.length > FALLBACK_SMS_COUNTRIES.length) setSmsCountries(c.countries.map((item) => ({ id: String(item.id), name: String(item.name) })));
+        if (s.services.length  > FALLBACK_SMS_SERVICES.length)  setSmsServices(s.services.map((item) => ({ id: String(item.id), name: String(item.name) })));
       })
       .catch(() => { /* keep fallbacks */ })
       .finally(() => setLoadingSMS(false));
   }, [step, smsFetched]);
+
+  useEffect(() => {
+    if (step !== "temp") return;
+    setTempQuoteLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await runGetTempQuote({ data: { country: tempCountry, service: tempService } });
+        if ("error" in res) {
+          setTempQuote(null);
+          return;
+        }
+        setTempQuote({ providerUsd: res.providerUsd, quoteNgn: res.quoteNgn, quoteUsd: res.quoteUsd });
+      } catch {
+        setTempQuote(null);
+      } finally {
+        setTempQuoteLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [step, tempCountry, tempService]);
+
+  useEffect(() => {
+    if (step !== "rental-smspool") return;
+    setSmsPoolRentalOptions([]);
+    setSmsPoolRentalId("");
+    setSmsPoolDays(7);
+    const loadRentalOptions = async () => {
+      try {
+        console.info("[short-term rental] loading options", { country: tempCountry, step });
+        const res = (await runGetRentalOptions({ data: { country: tempCountry, type: 0 } })) as SmsPoolRentalServerResult;
+        console.info("[short-term rental] options response", res);
+        if (res?.error || !Array.isArray(res?.rentals)) {
+          console.warn("[short-term rental] options rejected by server", res);
+          setSmsPoolRentalOptions([]);
+          return;
+        }
+
+        const rentals = res.rentals as SmsPoolRentalOption[];
+        console.info("[short-term rental] all available options", { count: rentals.length });
+        setSmsPoolRentalOptions(rentals);
+        const first = rentals[0];
+        if (first) {
+          const firstKey = Object.keys(first.pricing ?? {})[0] ?? "7";
+          const firstDays = Number(firstKey.replace(/\D/g, "")) || 7;
+          setSmsPoolRentalId(first.rentalId);
+          setSmsPoolDays(firstDays);
+        }
+      } catch (error) {
+        console.error("[short-term rental] options load failed", error);
+        setSmsPoolRentalOptions([]);
+      }
+    };
+    void loadRentalOptions();
+  }, [step, tempCountry]);
 
   // ── SMS polling + countdown when waiting for temp number ──────────────────────
   useEffect(() => {
@@ -296,11 +494,11 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   };
 
   const buyTemp = async () => {
+    if (!tempQuote) return;
     setTempBuying(true);
     const res = await runTempBuy({ data: { country: tempCountry, service: tempService } });
     setTempBuying(false);
     if ("error" in res) { toast.error(res.message); return; }
-    // Transition to the live polling view instead of closing
     setTempResult({
       numberId:    res.numberId,
       phoneNumber: res.phoneNumber,
@@ -308,7 +506,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     });
     setStep("temp-wait");
     setTimeLeft(20 * 60);
-    setBalance((b) => b !== null ? b - SMSPOOL_APPROX_PRICE_NGN : b);
+    setBalance((b) => b !== null ? b - tempQuote.quoteNgn : b);
   };
 
   const autoRetry = async () => {
@@ -326,10 +524,33 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   };
 
   const buyRentalPool = async () => {
+    if (!smsPoolRentalId || !selectedRentalTier) {
+      console.warn("[short-term rental] missing rental selection", { smsPoolRentalId, selectedRentalTier });
+      return;
+    }
     setRentalBuying(true);
-    const res = await runRentalSMSPool({ data: { country: tempCountry, service: tempService, days: smsPoolDays } });
+    console.info("[short-term rental] purchase attempt", {
+      rentalId: smsPoolRentalId,
+      country: tempCountry,
+      service: tempService,
+      days: smsPoolDays,
+      selectedRentalTier,
+    });
+    const res = (await runRentalSMSPool({
+      data: {
+        rentalId: smsPoolRentalId,
+        country: tempCountry,
+        service: tempService,
+        days: smsPoolDays,
+      },
+    })) as SmsPoolRentalServerResult;
+    console.info("[short-term rental] purchase response", res);
     setRentalBuying(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if (res?.error || !res?.phoneNumber) {
+      console.error("[short-term rental] purchase failed", res);
+      toast.error(res?.message ?? "SMSPool rental is currently unavailable.");
+      return;
+    }
     toast.success(`Rental number ready: ${res.phoneNumber} — valid for ${smsPoolDays} days!`);
     onOpenChange(false);
   };
@@ -346,7 +567,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg sm:max-w-xl">
         <DialogHeader>
           {(step === "pay" || step === "temp" || step === "rental-smspool") && (
             <button
@@ -361,15 +582,15 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
              step === "search"         ? "Find a rental number" :
              step === "pay"            ? "Complete your purchase" :
              step === "temp-wait"      ? "Number ready — waiting for SMS" :
-             step === "rental-smspool" ? "SMSPool rental number" :
-                                         "Get a temp OTP number"}
+             step === "rental-smspool" ? "Short-term rental" :
+                                         "Get a temporary number"}
           </DialogTitle>
           <DialogDescription>
-            {step === "type"           ? "Choose between a monthly rental, one-time OTP, or a multi-day rental." :
-             step === "search"         ? "Monthly rental via Telnyx — receive unlimited SMS." :
+            {step === "type"           ? "Choose between a monthly rental, quick verification number, or a short-term rental." :
+             step === "search"         ? "Choose a monthly number and receive messages in your Kodarai inbox." :
              step === "pay"            ? `Activate ${selected?.phoneNumber} — ₦${ngnPrice.toLocaleString()}/month` :
              step === "temp-wait"      ? "Use the number below for your verification. SMS will appear automatically." :
-             step === "rental-smspool" ? "Rent a number for 1–30 days. Cheaper than Telnyx for short-term use." :
+             step === "rental-smspool" ? "Rent a number for a short window when you only need it temporarily." :
                                          "One-time use. Expires after 20 min or first SMS received."}
           </DialogDescription>
         </DialogHeader>
@@ -385,31 +606,31 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 <Phone className="size-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold">Rental Number <span className="text-[10px] text-muted-foreground font-normal ml-1">via Telnyx</span></p>
+                <p className="font-semibold">Monthly number</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Monthly rental — unlimited SMS, 50+ countries.
                 </p>
               </div>
               <div className="shrink-0 text-right text-xs font-bold text-primary">
-                from ₦{Math.round(1.00 * fxRate).toLocaleString()}/mo
+                live price
               </div>
             </button>
 
             <button
               onClick={() => { setNumType("rental-smspool"); setStep("rental-smspool"); }}
-              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
+              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10"
             >
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
                 <Clock className="size-5 text-emerald-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold">Short-term Rental <span className="text-[10px] text-muted-foreground font-normal ml-1">via SMSPool</span></p>
+                <p className="font-semibold">Short-term rental</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  1–30 day rental — ideal for short campaigns.
+                  Ideal for short campaigns, tests, or temporary sign-up windows.
                 </p>
               </div>
               <div className="shrink-0 text-right text-xs font-bold text-emerald-600">
-                from ₦{Math.round(0.50 * fxRate).toLocaleString()}/day
+                available
               </div>
             </button>
 
@@ -421,13 +642,13 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 <Zap className="size-5 text-amber-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold">Temp / OTP Number <span className="text-[10px] text-muted-foreground font-normal ml-1">via SMSPool</span></p>
+                <p className="font-semibold">Temporary number</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Single use. Expires after 20 min or first SMS.
                 </p>
               </div>
               <div className="shrink-0 text-right text-xs font-bold text-amber-500">
-                ~₦{SMSPOOL_APPROX_PRICE_NGN}/use
+                live quote
               </div>
             </button>
           </div>
@@ -528,10 +749,22 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-primary">
-                        ₦{Math.round((n.monthlyCostUsd ?? selectedCountry.usd) * fxRate).toLocaleString()}
+                        {new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  maximumFractionDigits: 0,
+}).format(
+  calculateCustomerPrice(
+    n.monthlyCostUsd ?? selectedCountry.usd,
+    fxRate
+  ).customerNgn
+)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        ~${(n.monthlyCostUsd ?? selectedCountry.usd).toFixed(2)}/mo
+                        ~${calculateCustomerPrice(
+  n.monthlyCostUsd ?? selectedCountry.usd,
+  fxRate
+).customerUsd.toFixed(2)}/mo
                       </p>
                     </div>
                   </button>
@@ -602,14 +835,10 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                   ))}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-1 gap-2">
                   <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
                     {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
                     Paystack (₦)
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => topUp("stripe")} disabled={toppingUp}>
-                    {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-                    Card (USD)
                   </Button>
                 </div>
               </div>
@@ -658,10 +887,17 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
           <div className="space-y-4">
             <div className="rounded-xl border border-amber-200/60 bg-amber-50/60 px-4 py-3 text-sm dark:border-amber-900/30 dark:bg-amber-900/10">
               <p className="font-medium text-amber-800 dark:text-amber-400">
-                One-time use · Expires in 20 minutes
+                Quick verification number · Expires in 20 minutes
               </p>
               <p className="mt-0.5 text-xs text-amber-700/80 dark:text-amber-500">
-                Perfect for WhatsApp, Telegram, Instagram, or any verification code.
+                Perfect for sign-up checks, app verifications, and short one-time access flows.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-muted/40 px-3 py-3">
+              <p className="text-sm font-medium text-foreground">Find the service first</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Search for the website, app, or platform you want to receive an SMS from. If you don&apos;t see it immediately, type its name in the search box.
               </p>
             </div>
 
@@ -682,14 +918,11 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Service</label>
-              <Select value={tempService} onValueChange={setTempService}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {smsServices.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableServicePicker
+                services={smsServices}
+                value={tempService}
+                onChange={setTempService}
+              />
             </div>
 
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
@@ -701,26 +934,24 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
               </span>
             </div>
 
-            {!hasTempBalance && (
+            {!hasTempBalance && hasTempQuote && tempQuote && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                  Need ₦{SMSPOOL_APPROX_PRICE_NGN} — top up wallet first
+                  Need ₦{tempQuote.quoteNgn.toLocaleString()} — top up wallet first
                 </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-1 gap-2">
                   <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
                     {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
                     Paystack (₦)
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => topUp("stripe")} disabled={toppingUp}>
-                    {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-                    Card (USD)
                   </Button>
                 </div>
               </div>
             )}
 
             <div className="flex items-center text-xs text-muted-foreground">
-              <span>Cost: ₦{SMSPOOL_APPROX_PRICE_NGN} (~${tempUsdPrice})</span>
+              <span>
+                {tempQuoteLoading ? "Loading live quote…" : tempQuote ? `Cost: ₦${tempQuote.quoteNgn.toLocaleString()} (~$${tempQuote.quoteUsd.toFixed(2)})` : "Unable to load a live quote for this country/service"}
+              </span>
             </div>
 
             {HCAPTCHA_SITE_KEY && (
@@ -738,13 +969,13 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
             <Button
               variant="hero"
               className="w-full"
-              disabled={tempBuying || !hasTempBalance || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
+              disabled={tempBuying || tempQuoteLoading || !tempQuote || !hasTempBalance || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
               onClick={buyTemp}
             >
               {tempBuying ? (
                 <><Loader2 className="size-4 animate-spin" /> Getting number…</>
               ) : (
-                <><Zap className="size-4" /> Get temp number — ₦{SMSPOOL_APPROX_PRICE_NGN}</>
+                <><Zap className="size-4" /> {tempQuote ? `Get temp number — ₦${tempQuote.quoteNgn.toLocaleString()}` : "Loading quote…"}</>
               )}
             </Button>
           </div>
@@ -755,10 +986,10 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
           <div className="space-y-4">
             <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 px-4 py-3 text-sm dark:border-emerald-900/30 dark:bg-emerald-900/10">
               <p className="font-medium text-emerald-800 dark:text-emerald-400">
-                Short-term rental via SMSPool
+                Short-term rental
               </p>
               <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-500">
-                Cheaper than Telnyx for short use. Ideal for 1–30 day campaigns.
+                Perfect for short campaigns, testing windows, and time-based verification needs.
               </p>
             </div>
 
@@ -779,32 +1010,43 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Service</label>
-              <Select value={tempService} onValueChange={setTempService}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {smsServices.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableServicePicker
+                services={smsServices}
+                value={tempService}
+                onChange={setTempService}
+              />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Duration: <span className="font-bold text-foreground">{smsPoolDays} day{smsPoolDays !== 1 ? "s" : ""}</span>
-              </label>
-              <input
-                type="range"
-                min={1}
-                max={30}
-                step={1}
-                value={smsPoolDays}
-                onChange={(e) => setSmsPoolDays(Number(e.target.value))}
-                className="w-full accent-primary"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>1 day</span>
-                <span>30 days</span>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Rental tier</label>
+              <div className="grid grid-cols-1 gap-2">
+                {rentalTierOptions.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
+                    No short-term rental options are available for this country right now.
+                  </div>
+                ) : (
+                  rentalTierOptions.map((option) => (
+                    <button
+                      key={`${option.rentalId}-${option.days}`}
+                      type="button"
+                      onClick={() => {
+                        setTempCountry(option.country);
+                        setSmsPoolRentalId(option.rentalId);
+                        setSmsPoolDays(option.days);
+                      }}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors ${smsPoolRentalId === option.rentalId && smsPoolDays === option.days ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-border hover:border-emerald-400/50"}`}
+                    >
+                      <div>
+                        <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{option.countryName ?? option.country}</div>
+                        <div className="text-sm font-semibold">{option.days} day{option.days !== 1 ? "s" : ""}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold">₦{option.customerNgn.toLocaleString()}</div>
+                        <div className="text-[11px] text-muted-foreground">~${Number(option.customerUsd ?? 0).toFixed(2)}</div>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -819,21 +1061,20 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
             <div className="flex items-center text-xs text-muted-foreground">
               <span>
-                Est. cost: ₦{Math.round(smsPoolDays * 1.0 * fxRate).toLocaleString()}
-                {" "}(~${(smsPoolDays * 1.0).toFixed(2)})
+                {selectedRentalTier ? `Cost: ₦${selectedRentalTier.customerNgn.toLocaleString()} (~$${Number(selectedRentalTier.customerUsd ?? 0).toFixed(2)})` : "No quote available"}
               </span>
             </div>
 
             <Button
               variant="hero"
               className="w-full"
-              disabled={rentalBuying || balance === null || balance < Math.round(smsPoolDays * 1.0 * fxRate)}
+              disabled={rentalBuying || !selectedRentalTier || balance === null || balance < selectedRentalTier.customerNgn}
               onClick={buyRentalPool}
             >
               {rentalBuying ? (
                 <><Loader2 className="size-4 animate-spin" /> Renting…</>
               ) : (
-                <><Clock className="size-4" /> Rent for {smsPoolDays} day{smsPoolDays !== 1 ? "s" : ""} — ₦{Math.round(smsPoolDays * 1.0 * fxRate).toLocaleString()}</>
+                <><Clock className="size-4" /> Rent for {smsPoolDays} day{smsPoolDays !== 1 ? "s" : ""} — ₦{selectedRentalTier?.customerNgn.toLocaleString() ?? 0}</>
               )}
             </Button>
           </div>
@@ -939,3 +1180,8 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     </Dialog>
   );
 }
+
+
+
+
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Extended server functions for the Numbers page features:
  *   Outbound SMS, auto-renew toggle, renewal, call forwarding,
  *   SMS templates, analytics, number labels, SMSPool ops, search, CSV export.
@@ -8,9 +8,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { NUMBER_COUNTRIES, SMSPOOL_APPROX_PRICE_NGN } from "@/lib/numbers";
+import { NUMBER_COUNTRIES } from "@/lib/numbers";
+import { calculateCustomerPrice } from "@/lib/pricing";
+import { getSMSPoolRentals, purchaseSMSPoolRental, smsPoolKey } from "@/lib/services/phone-numbers";
 
-// ── Outbound SMS (Telnyx only) ────────────────────────────────────────────────
+// â”€â”€ Outbound SMS (Telnyx only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const sendOutboundSMS = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -59,7 +61,7 @@ export const sendOutboundSMS = createServerFn({ method: "POST" })
     }
   });
 
-// ── Toggle auto-renew ─────────────────────────────────────────────────────────
+// â”€â”€ Toggle auto-renew â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const toggleAutoRenew = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -80,7 +82,7 @@ export const toggleAutoRenew = createServerFn({ method: "POST" })
     return { success: true, autoRenew: data.autoRenew } as const;
   });
 
-// ── Extend number by 1 month (wallet debit + Telnyx renewal) ─────────────────
+// â”€â”€ Extend number by 1 month (wallet debit + Telnyx renewal) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const extendNumber = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -118,7 +120,7 @@ export const extendNumber = createServerFn({ method: "POST" })
     return { success: true, expiresAt: newExpiry.toISOString() } as const;
   });
 
-// ── Configure call forwarding ─────────────────────────────────────────────────
+// â”€â”€ Configure call forwarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // E.164 phone format: +<country_code><number>, e.g. +14155552671
 const e164Regex = /^\+[1-9]\d{6,14}$/;
@@ -155,7 +157,7 @@ export const setCallForward = createServerFn({ method: "POST" })
       .eq("id", data.numberId)
       .eq("user_id", userId);
 
-    // Tell Telnyx (best-effort — may fail if number not in Call Control mode)
+    // Tell Telnyx (best-effort â€” may fail if number not in Call Control mode)
     if (num.provider === "telnyx" && num.provider_sid) {
       try {
         const { configureTelnyxCallForward } = await import("@/lib/services/phone-numbers");
@@ -168,7 +170,7 @@ export const setCallForward = createServerFn({ method: "POST" })
     return { success: true } as const;
   });
 
-// ── Update number label ───────────────────────────────────────────────────────
+// â”€â”€ Update number label â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const updateNumberLabel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -189,7 +191,7 @@ export const updateNumberLabel = createServerFn({ method: "POST" })
     return { success: true } as const;
   });
 
-// ── SMS Templates ─────────────────────────────────────────────────────────────
+// â”€â”€ SMS Templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const getTemplates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -236,7 +238,7 @@ export const deleteTemplate = createServerFn({ method: "POST" })
     return { success: true } as const;
   });
 
-// ── Number analytics ──────────────────────────────────────────────────────────
+// â”€â”€ Number analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const getNumberAnalytics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -278,7 +280,7 @@ export const getNumberAnalytics = createServerFn({ method: "POST" })
     } as const;
   });
 
-// ── Mark messages as read ─────────────────────────────────────────────────────
+// â”€â”€ Mark messages as read â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const markMessagesRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -294,7 +296,7 @@ export const markMessagesRead = createServerFn({ method: "POST" })
     return { success: true } as const;
   });
 
-// ── Search messages ───────────────────────────────────────────────────────────
+// â”€â”€ Search messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const searchMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -322,7 +324,7 @@ export const searchMessages = createServerFn({ method: "POST" })
     return { messages: msgs ?? [] } as const;
   });
 
-// ── Export all messages for a number as CSV data ──────────────────────────────
+// â”€â”€ Export all messages for a number as CSV data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const exportMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -361,13 +363,13 @@ export const exportMessages = createServerFn({ method: "POST" })
     return { csv: header + body } as const;
   });
 
-// ── SMSPool: List active temp orders ─────────────────────────────────────────
+// â”€â”€ SMSPool: List active temp orders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const listSMSPoolOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId } = context;
-    // Pull active SMSPool numbers from our own DB (not SMSPool API — more reliable)
+    // Pull active SMSPool numbers from our own DB (not SMSPool API â€” more reliable)
     const { data, error } = await supabaseAdmin
       .from("virtual_numbers")
       .select("id, phone_number, country_code, provider_sid, twilio_sid, status, expires_at, created_at")
@@ -380,7 +382,7 @@ export const listSMSPoolOrders = createServerFn({ method: "GET" })
     return { orders: data ?? [] } as const;
   });
 
-// ── SMSPool: Cancel temp order + refund wallet ────────────────────────────────
+// â”€â”€ SMSPool: Cancel temp order + refund wallet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const cancelSMSPoolTempOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -402,25 +404,25 @@ export const cancelSMSPoolTempOrder = createServerFn({ method: "POST" })
 
     const orderId = num.provider_sid ?? num.twilio_sid;
 
-    // Try to cancel on SMSPool (best-effort — may already be expired)
+    // Try to cancel on SMSPool (best-effort â€” may already be expired)
     if (orderId && !orderId.startsWith("smspool_pending_")) {
       try {
         const { cancelSMSPoolOrder } = await import("@/lib/services/phone-numbers");
         await cancelSMSPoolOrder(orderId);
-      } catch { /* SMSPool may reject if already expired — still mark released */ }
+      } catch { /* SMSPool may reject if already expired â€” still mark released */ }
     }
 
-    // Refund the actual amount debited — not a hardcoded constant
-    const refundNgn = (num.monthly_ngn && num.monthly_ngn > 0)
-      ? num.monthly_ngn
-      : SMSPOOL_APPROX_PRICE_NGN;
-    const { creditWallet } = await import("@/lib/wallet.server");
-    await creditWallet({
-      userId,
-      amountNgn:   refundNgn,
-      type:        "refund",
-      description: `Refund: cancelled SMSPool order`,
-    });
+    // Refund the actual amount debited. If the row has no recorded amount, do not invent a static price.
+    const refundNgn = Number(num.monthly_ngn ?? 0);
+    if (refundNgn > 0) {
+      const { creditWallet } = await import("@/lib/wallet.server");
+      await creditWallet({
+        userId,
+        amountNgn:   refundNgn,
+        type:        "refund",
+        description: "Refund: cancelled SMSPool order",
+      });
+    }
 
     await supabaseAdmin
       .from("virtual_numbers")
@@ -431,7 +433,7 @@ export const cancelSMSPoolTempOrder = createServerFn({ method: "POST" })
     return { success: true } as const;
   });
 
-// ── SMSPool: Resend SMS request ───────────────────────────────────────────────
+// â”€â”€ SMSPool: Resend SMS request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const resendSMSPoolOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -462,84 +464,466 @@ export const resendSMSPoolOrder = createServerFn({ method: "POST" })
     }
   });
 
-// ── SMSPool: Buy rental number (multi-day) ────────────────────────────────────
+// SMSPool: Buy rental number (multi-day)
 
 const smsPoolRentalSchema = z.object({
-  country: z.string().min(1).max(10),
+  rentalId: z.string().min(1),
+  country: z.string().min(1).max(50),
   service: z.string().min(1).max(50).default("any"),
-  days:    z.number().int().min(1).max(30).default(7),
+  days: z.number().int().min(1).max(30),
 });
 
-export const buyRentalSMSPool = createServerFn({ method: "POST" })
+type SMSPoolRentalApiItem = {
+  ID?: number | string;
+  name?: string;
+  tag?: string;
+  region?: string;
+  country_short?: string;
+  pricing?: Record<string, number | string>;
+  priority?: number;
+  pool?: number;
+  single_service?: string | null;
+  single_service_extend?: string | null;
+  is_refundable?: number;
+  refund_within?: number;
+  refund_min_days?: number;
+};
+
+type SMSPoolRentalListResponse = {
+  success?: number;
+  message?: string;
+  data?: SMSPoolRentalApiItem[];
+};
+
+type SMSPoolRentalPurchaseResponse = {
+  success?: number;
+  message?: string;
+  phonenumber?: string;
+  days?: number;
+  rental_code?: string;
+  expiry?: number;
+};
+
+function getSMSPoolApiKey(): string {
+  const key =
+    process.env.SMSPOOL_API_KEY ??
+    process.env.SMSPOOL_KEY;
+
+  if (!key) {
+    throw new Error(
+      "SMSPool API key is missing. Set SMSPOOL_API_KEY or SMSPOOL_KEY."
+    );
+  }
+
+  return key;
+}
+
+function smsPoolRentalCountryMatches(
+  requestedCountry: string,
+  rental: SMSPoolRentalApiItem
+): boolean {
+  const requested = requestedCountry
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+
+  const shortCountry = String(rental.country_short ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+
+  if (shortCountry === requested) {
+    return true;
+  }
+
+  const name = String(rental.name ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+
+  const tag = String(rental.tag ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+
+  const aliases: Record<string, string[]> = {
+    US: ["US", "USA", "UNITEDSTATES", "UNITEDSTATESOFAMERICA"],
+    USA: ["US", "USA", "UNITEDSTATES", "UNITEDSTATESOFAMERICA"],
+    GB: ["GB", "UK", "UNITEDKINGDOM", "GREATBRITAIN"],
+    UK: ["GB", "UK", "UNITEDKINGDOM", "GREATBRITAIN"],
+    CA: ["CA", "CANADA"],
+    AU: ["AU", "AUSTRALIA"],
+    NZ: ["NZ", "NEWZEALAND"],
+    RU: ["RU", "RUSSIA"],
+    FR: ["FR", "FRANCE"],
+    DE: ["DE", "GERMANY"],
+    ES: ["ES", "SPAIN"],
+    IT: ["IT", "ITALY"],
+    IE: ["IE", "IRELAND"],
+    NL: ["NL", "NETHERLANDS"],
+    BE: ["BE", "BELGIUM"],
+    CH: ["CH", "SWITZERLAND"],
+    AT: ["AT", "AUSTRIA"],
+    SE: ["SE", "SWEDEN"],
+    NO: ["NO", "NORWAY"],
+    DK: ["DK", "DENMARK"],
+    FI: ["FI", "FINLAND"],
+    PL: ["PL", "POLAND"],
+    CZ: ["CZ", "CZECHREPUBLIC"],
+    PT: ["PT", "PORTUGAL"],
+    NG: ["NG", "NIGERIA"],
+    ZA: ["ZA", "SOUTHAFRICA"],
+    GH: ["GH", "GHANA"],
+    KE: ["KE", "KENYA"],
+    MX: ["MX", "MEXICO"],
+    BR: ["BR", "BRAZIL"],
+    AR: ["AR", "ARGENTINA"],
+    IN: ["IN", "INDIA"],
+    PK: ["PK", "PAKISTAN"],
+    ID: ["ID", "INDONESIA"],
+    MY: ["MY", "MALAYSIA"],
+    SG: ["SG", "SINGAPORE"],
+    TH: ["TH", "THAILAND"],
+    PH: ["PH", "PHILIPPINES"],
+    JP: ["JP", "JAPAN"],
+    KR: ["KR", "SOUTHKOREA", "KOREA"],
+    IL: ["IL", "ISRAEL"],
+    TR: ["TR", "TURKEY"],
+    AE: ["AE", "UNITEDARABEMIRATES", "UAE"],
+    SA: ["SA", "SAUDIARABIA"],
+    KZ: ["KZ", "KAZAKHSTAN"],
+    KG: ["KG", "KYRGYZSTAN"],
+    CY: ["CY", "CYPRUS"],
+  };
+
+  const accepted = aliases[requested] ?? [requested];
+
+  return accepted.some((alias) =>
+    name === alias ||
+    tag === alias ||
+    name.includes(alias) ||
+    tag.includes(alias)
+  );
+}
+
+export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => smsPoolRentalSchema.parse(d))
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
+  .inputValidator((d) =>
+    z.object({
+      country: z.string().min(1).max(50),
+      type: z.union([z.literal(0), z.literal(1)]).default(0),
+    }).parse(d)
+  )
+  .handler(async ({ data }) => {
+    const { country } = data;
 
-    // Price: approximately $0.50-3/day; use $1/day as safe estimate.
-    // Use live FX rate (not hardcoded) so the debit is accurate.
-    const approxUsd = data.days * 1.0;
-    const { getCachedFxRate } = await import("@/lib/wallet.server");
-    const fxRate    = await getCachedFxRate();
-    const approxNgn = Math.round(approxUsd * fxRate);
+    const baseUrl =
+      process.env.SMSPOOL_BASE ??
+      "https://api.smspool.net";
 
-    const { debitWallet }           = await import("@/lib/wallet.server");
-    const ok = await debitWallet({
-      userId,
-      amountNgn:   approxNgn,
-      phoneNumber: `SMSPool-rental/${data.country}/${data.service}/${data.days}d`,
-    });
-    if (!ok) return { error: true, message: "Insufficient wallet balance" } as const;
-
-    const pendingSid = `smspool_rental_${Date.now()}`;
-    const { data: numRow, error: dbErr } = await supabaseAdmin
-      .from("virtual_numbers")
-      .insert({
-        user_id:      userId,
-        twilio_sid:   pendingSid,
-        phone_number: "pending",
-        country_code: data.country.toUpperCase().slice(0, 2),
-        provider:     "smspool",
-        status:       "pending_payment",
-        monthly_usd:  approxUsd / data.days * 30,
-        monthly_ngn:  approxNgn / data.days * 30,
-      })
-      .select("id")
-      .single();
-
-    if (dbErr || !numRow) {
-      const { creditWallet } = await import("@/lib/wallet.server");
-      await creditWallet({ userId, amountNgn: approxNgn, type: "refund", description: "Refund: SMSPool rental DB error" });
-      return { error: true, message: "Database error" } as const;
-    }
+    const endpoint = `${baseUrl}/rental/retrieve_all`;
 
     try {
-      const { purchaseSMSPoolRentalNumber } = await import("@/lib/services/phone-numbers");
-      const result = await purchaseSMSPoolRentalNumber(data.country, data.service, data.days);
+      const fetchRentalType = async (type: 0 | 1) => {
+        const body = new FormData();
 
-      await supabaseAdmin
-        .from("virtual_numbers")
-        .update({
-          phone_number:  result.phoneNumber,
-          provider_sid:  result.orderId,
-          twilio_sid:    result.orderId,
-          status:        "active",
-          friendly_name: result.phoneNumber,
-          expires_at:    new Date(Date.now() + result.expiresIn * 1000).toISOString(),
+        body.append("key", getSMSPoolApiKey());
+        body.append("type", String(type));
+
+        console.info("[smspool] requesting rental type", {
+          country,
+          type,
+          endpoint,
+        });
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          body,
+        });
+
+        const rawText = await response.text();
+
+        let json: SMSPoolRentalListResponse | null = null;
+
+        try {
+          json = rawText
+            ? JSON.parse(rawText) as SMSPoolRentalListResponse
+            : null;
+        } catch {
+          console.error("[smspool] invalid JSON response", {
+            type,
+            status: response.status,
+            rawText,
+          });
+
+          return [];
+        }
+
+        console.info("[smspool] rental type response", {
+          type,
+          status: response.status,
+          success: json?.success,
+          message: json?.message,
+          count: Array.isArray(json?.data)
+            ? json.data.length
+            : 0,
+        });
+
+        /*
+         * SMSPool may return an error/no-rentals response for
+         * one type while the other type still has inventory.
+         * Do not fail the entire request because of that.
+         */
+        if (
+          !response.ok ||
+          !json ||
+          json.success !== 1 ||
+          !Array.isArray(json.data)
+        ) {
+          return [];
+        }
+
+        return json.data;
+      };
+
+      const [type0Rentals, type1Rentals] = await Promise.all([
+        fetchRentalType(0),
+        fetchRentalType(1),
+      ]);
+
+      const allRentals = [
+        ...type0Rentals,
+        ...type1Rentals,
+      ];
+
+      console.info("[smspool] combined rental products", {
+        country,
+        type0Count: type0Rentals.length,
+        type1Count: type1Rentals.length,
+        total: allRentals.length,
+        products: allRentals.map((rental) => ({
+          ID: rental.ID,
+          name: rental.name,
+          tag: rental.tag,
+          pricing: rental.pricing,
+        })),
+      });
+
+      /*
+       * Remove duplicate products.
+       */
+      const uniqueRentals = Array.from(
+        new Map(
+          allRentals.map((rental) => [
+            String(rental.ID ?? "") +
+              "|" +
+              String(rental.tag ?? rental.name ?? ""),
+            rental,
+          ])
+        ).values()
+      );
+
+      const matchingProducts = uniqueRentals.filter((rental) =>
+        smsPoolRentalCountryMatches(country, rental)
+      );
+
+      console.info("[smspool] country rental matches", {
+        requestedCountry: country,
+        totalProducts: uniqueRentals.length,
+        matchingProducts: matchingProducts.length,
+        availableCountries: uniqueRentals.map((rental) => ({
+          id: rental.ID,
+          name: rental.name,
+          tag: rental.tag,
+        })),
+      });
+
+      const { getCachedFxRate } = await import("@/lib/wallet.server");
+      const fxRate = await getCachedFxRate();
+
+      const rentals = matchingProducts
+        .map((item) => {
+          const pricing: Record<
+            string,
+            {
+              providerUsd: number;
+              providerNgn: number;
+              platformFeeNgn: number;
+              customerNgn: number;
+              customerUsd: number;
+              fxRate: number;
+            }
+          > = {};
+
+          for (const [days, rawPrice] of Object.entries(item.pricing ?? {})) {
+            const parsedDays = Number(days);
+            const parsedPrice = Number(rawPrice);
+
+            if (
+              Number.isInteger(parsedDays) &&
+              parsedDays >= 1 &&
+              parsedDays <= 30 &&
+              Number.isFinite(parsedPrice) &&
+              parsedPrice >= 0
+            ) {
+              pricing[String(parsedDays)] = calculateCustomerPrice(
+                parsedPrice,
+                fxRate
+              );
+            }
+          }
+
+          return {
+            rentalId: String(item.ID ?? ""),
+            country,
+
+            name:
+              item.name ??
+              item.tag ??
+              country,
+
+            tag:
+              item.tag ??
+              item.name ??
+              country,
+
+            region:
+              item.region ??
+              null,
+
+            pricing,
+
+            priority:
+              item.priority ??
+              0,
+
+            pool:
+              item.pool ??
+              null,
+
+            singleService:
+              item.single_service ??
+              null,
+
+            singleServiceExtend:
+              item.single_service_extend ??
+              null,
+
+            isRefundable:
+              item.is_refundable === 1,
+
+            refundWithin:
+              item.refund_within ??
+              0,
+
+            refundMinDays:
+              item.refund_min_days ??
+              0,
+          };
         })
-        .eq("id", numRow.id);
+        .filter(
+          (item) =>
+            item.rentalId.length > 0 &&
+            Object.keys(item.pricing).length > 0
+        );
+
+      console.info("[smspool] normalized rentals", {
+        country,
+        count: rentals.length,
+        rentals,
+      });
+
+      if (rentals.length === 0) {
+        return {
+          error: true,
+          message:
+            `No SMSPool rental products are currently available for ${country}.`,
+          provider: "smspool",
+          endpoint,
+          status: 404,
+          country,
+          service: "any",
+          operation: "list_rental_tiers",
+          rentals: [],
+          availableCountries: uniqueRentals.map((rental) => ({
+            id: String(rental.ID ?? ""),
+            name: rental.name ?? "",
+            tag: rental.tag ?? "",
+          })),
+        } as const;
+      }
 
       return {
         success: true,
-        numberId:    numRow.id,
-        phoneNumber: result.phoneNumber,
-        orderId:     result.orderId,
-        expiresAt:   new Date(Date.now() + result.expiresIn * 1000).toISOString(),
+        provider: "smspool",
+        status: 200,
+        country,
+        rentals,
       } as const;
-    } catch (e: unknown) {
-      const { creditWallet } = await import("@/lib/wallet.server");
-      await creditWallet({ userId, amountNgn: approxNgn, type: "refund", description: "Refund: SMSPool rental failed" });
-      await supabaseAdmin.from("virtual_numbers").delete().eq("id", numRow.id);
-      return { error: true, message: e instanceof Error ? e.message : "SMSPool rental failed" } as const;
+    } catch (error) {
+      console.error("[smspool] rental option lookup failed", {
+        country,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+
+      return {
+        error: true,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to retrieve SMSPool rental numbers.",
+        provider: "smspool",
+        endpoint,
+        status: 500,
+        country,
+        service: "any",
+        operation: "list_rental_tiers",
+        rentals: [],
+      } as const;
     }
   });
+
+export const buyRentalSMSPool = createServerFn({ method: "POST" })
+
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => smsPoolRentalSchema.parse(d))
+  .handler(async ({ data }) => {
+    const endpoint = `${process.env.SMSPOOL_BASE ?? "https://api.smspool.net"}/purchase/rental`;
+
+    try {
+      const result = await purchaseSMSPoolRental(data.rentalId, data.days, data.service);
+      const formattedPhone = result.phoneNumber || "";
+
+      return {
+        success: true,
+        provider: "smspool",
+        endpoint,
+        country: data.country,
+        service: data.service,
+        operation: "purchase_rental",
+        phoneNumber: formattedPhone,
+        orderId: result.orderId,
+        rentalCode: result.orderId,
+        expiresIn: result.expiresIn,
+        message: formattedPhone ? `Rental ready: ${formattedPhone}` : "Rental purchased successfully",
+      } as const;
+    } catch (error) {
+      console.error("[smspool] rental purchase failed", error);
+      return {
+        error: true,
+        message: error instanceof Error ? error.message : "SMSPool rental purchase failed",
+        provider: "smspool",
+        endpoint,
+        status: 500,
+        country: data.country,
+        service: data.service,
+        operation: "purchase_rental",
+      } as const;
+    }
+  });
+
+
+

@@ -6,6 +6,9 @@ export interface NumberCountry {
   ngn: number;
 }
 
+export const PRICING_MARKUP_PERCENT = 40;
+export const PRICING_MARKUP_MIN_NGN = 200;
+
 // All Telnyx-supported countries for rental (local) numbers with SMS.
 // NGN ≈ USD × 1600 (standard reference rate; actual charge uses live fxRate in UI).
 export const NUMBER_COUNTRIES: NumberCountry[] = [
@@ -129,6 +132,3 @@ export interface SmsTemplate {
   created_at: string;
 }
 
-// SMSPool temp number pricing (approx USD, varies by country/service)
-export const SMSPOOL_APPROX_PRICE_NGN = 150; // ~$0.10 USD
-export const SMSPOOL_APPROX_PRICE_USD = 0.10;
