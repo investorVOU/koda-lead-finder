@@ -560,8 +560,7 @@ export function formatNairaCompact(value: number): string {
 }
 
 import {
-  PRICING_MARKUP_MIN_NGN,
-  PRICING_MARKUP_PERCENT,
+  PRICING_PLATFORM_FEE_NGN,
 } from "@/lib/numbers";
 
 export type CustomerPrice = {
@@ -593,15 +592,7 @@ export function calculateCustomerPrice(
     safeProviderUsd * safeFxRate
   );
 
-  const percentageFeeNgn = Math.round(
-    providerNgn *
-      (PRICING_MARKUP_PERCENT / 100)
-  );
-
-  const platformFeeNgn = Math.max(
-    percentageFeeNgn,
-    PRICING_MARKUP_MIN_NGN
-  );
+  const platformFeeNgn = PRICING_PLATFORM_FEE_NGN;
 
   const customerNgn =
     providerNgn + platformFeeNgn;
@@ -626,3 +617,8 @@ export function formatNgn(
     maximumFractionDigits: 0,
   }).format(amount);
 }
+
+
+
+
+

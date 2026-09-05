@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+﻿import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 export async function creditWallet({
@@ -30,8 +30,8 @@ export async function creditWallet({
     await sendUserTransactionalEmail(userId, {
       subject: type === "topup" ? "Your KodarAI wallet was topped up" : "Your KodarAI wallet was refunded",
       title: type === "topup" ? "Wallet funds added" : "Wallet refund added",
-      preview: `₦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.`,
-      body: `₦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.${description ? `\n\n${description}` : ""}`,
+      preview: `â‚¦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.`,
+      body: `â‚¦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.${description ? `\n\n${description}` : ""}`,
       ctaLabel: "Open virtual numbers",
       ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/numbers`,
     });
@@ -70,28 +70,67 @@ export async function getWalletBalance(userId: string): Promise<number> {
 }
 
 export async function getCachedFxRate(): Promise<number> {
+  const FALLBACK_RATE = 1320;
+  const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
   const { data } = await supabaseAdmin
     .from("fx_rates")
     .select("rate, fetched_at")
     .eq("currency_pair", "USD_NGN")
-    .single();
-  if (!data) return 1600;
+    .maybeSingle();
 
-  const ageMs = Date.now() - new Date(data.fetched_at).getTime();
-  if (ageMs < 60 * 60 * 1000) return Number(data.rate); // < 1 hour, use cache
+  // Use cached rate if it is still fresh
+  if (data?.rate && data?.fetched_at) {
+    const ageMs =
+      Date.now() - new Date(data.fetched_at).getTime();
 
-  // Attempt live fetch
+    if (
+      ageMs < CACHE_DURATION_MS &&
+      Number(data.rate) > 0
+    ) {
+      return Number(data.rate);
+    }
+  }
+
+  // Cache missing or expired: fetch current USD/NGN rate
   try {
-    const res = await fetch("https://open.er-api.com/v6/latest/USD");
+    const res = await fetch(
+      "https://open.er-api.com/v6/latest/USD"
+    );
+
+    if (!res.ok) {
+      throw new Error(`FX API returned HTTP ${res.status}`);
+    }
+
     const json = await res.json();
-    const rate = json?.rates?.NGN as number;
-    if (rate && rate > 0) {
+    const rate = Number(json?.rates?.NGN);
+
+    if (Number.isFinite(rate) && rate > 0) {
       await supabaseAdmin
         .from("fx_rates")
-        .upsert({ currency_pair: "USD_NGN", rate, fetched_at: new Date().toISOString() });
+        .upsert(
+          {
+            currency_pair: "USD_NGN",
+            rate,
+            fetched_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "currency_pair",
+          }
+        );
+
       return rate;
     }
-  } catch { /* fall through to cached */ }
+  } catch (error) {
+    console.error("Failed to refresh USD/NGN FX rate:", error);
+  }
 
-  return Number(data.rate);
+  // Live API failed: use previous cached rate if available
+  if (data?.rate && Number(data.rate) > 0) {
+    return Number(data.rate);
+  }
+
+  // Emergency fallback only
+  return FALLBACK_RATE;
 }
+
