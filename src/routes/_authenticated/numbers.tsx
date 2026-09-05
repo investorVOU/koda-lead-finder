@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -83,9 +83,6 @@ function NumbersPage() {
   const [searching,    setSearching]    = useState(false);
   const [searchResults,setSearchResults]= useState<any[] | null>(null);
   const [exporting,    setExporting]    = useState(false);
-
-  // Horizontal tab scroll ref
-  const tabsRef = useRef<HTMLDivElement>(null);
 
   // URL params
   const { status, wallet: walletParam } = Route.useSearch() as { status?: string; wallet?: string };
@@ -173,6 +170,11 @@ function NumbersPage() {
   };
 
   const selectedNumber = numbers.find((n) => n.id === selectedTab) ?? null;
+  const activeNumberCount = numbers.filter((number) => {
+    const expired = number.expires_at ? new Date(number.expires_at) < new Date() : false;
+    return number.status === "active" && !expired;
+  }).length;
+  const temporaryNumberCount = numbers.filter((number) => number.provider === "smspool").length;
 
   const allSubTabs: Array<{ id: SubTab; label: string; icon: React.ReactNode; hide?: boolean }> = [
     { id: "inbox"     as SubTab, label: "Inbox",     icon: <MessageSquare className="size-3.5" /> },
@@ -188,26 +190,57 @@ function NumbersPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <DashboardShell>
-      <div className="flex h-full flex-col gap-4">
+      <div className="flex h-full flex-col gap-5">
 
         {/* ── Page header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Virtual Numbers</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Real phone numbers for SMS, WhatsApp, and client calls.
-            </p>
+        <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/30">
+                <Phone className="size-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Numbers</p>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Manage your numbers</h1>
+                <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
+                  Use numbers for SMS verification, app sign-ups, surveys, and other one-time checks. Each saved number gets its own workspace tab, while temporary orders stay separate and expire on their own.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
+              <WalletWidget balance={balance} fxRate={fxRate} />
+              <Button variant="hero" className="gap-2 shadow-sm" onClick={() => setBuyOpen(true)}>
+                <Plus className="size-4" /> Get a number
+              </Button>
+            </div>
           </div>
-          <WalletWidget balance={balance} fxRate={fxRate} />
+          <div className="mt-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-border bg-muted/35">
+            <div className="border-r border-border px-3 py-3.5 sm:px-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Active</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{activeNumberCount}</p>
+            </div>
+            <div className="border-r border-border px-3 py-3.5 sm:px-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Saved numbers</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{numbers.length}</p>
+            </div>
+            <div className="px-3 py-3.5 sm:px-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Temporary</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{temporaryNumberCount}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="flex items-end justify-between gap-4 px-1">
+          <div>
+            <p className="text-sm font-semibold">Your workspace</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Each saved number has its own tab. Temporary orders and shared inboxes are tracked separately.</p>
+          </div>
+          {numbers.length > 0 && <span className="text-xs font-medium text-muted-foreground">{numbers.length} saved</span>}
         </div>
 
         {/* ── Number tab bar ───────────────────────────────────────────────────── */}
-        <div className="relative">
-          <div
-            ref={tabsRef}
-            className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide"
-            style={{ scrollbarWidth: "none" }}
-          >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          <div className="contents">
             {/* Individual number tabs */}
             {numbers.map((num) => {
               const country   = NUMBER_COUNTRIES.find((c) => c.code === num.country_code);
@@ -224,10 +257,10 @@ function NumbersPage() {
                     setSelectedTab(num.id);
                     setSubTab("inbox");
                   }}
-                  className={`group flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-left transition-all ${
+                  className={`group flex min-w-0 items-center gap-2 rounded-2xl border p-4 text-left transition-all ${
                     isActive
-                      ? "border-primary bg-primary/5 text-foreground shadow-sm"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      ? "border-primary bg-primary/10 text-foreground shadow-md shadow-primary/10"
+                      : "border-border bg-card text-muted-foreground shadow-sm hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground hover:shadow-md"
                   }`}
                 >
                   {/* Status dot */}
@@ -256,19 +289,19 @@ function NumbersPage() {
 
             {/* Divider */}
             {numbers.length > 0 && (
-              <div className="mx-1 h-8 w-px shrink-0 bg-border" />
+              <div className="hidden" />
             )}
 
             {/* All SMS tab */}
             <button
               onClick={() => setSelectedTab(TAB_ALL_SMS)}
-              className={`flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium transition-all ${
+              className={`flex min-w-0 items-center gap-2 rounded-2xl border p-4 text-left text-xs font-semibold transition-all ${
                 selectedTab === TAB_ALL_SMS
-                  ? "border-primary bg-primary/5 text-foreground shadow-sm"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  ? "border-primary bg-primary/10 text-foreground shadow-md shadow-primary/10"
+                  : "border-border bg-card text-muted-foreground shadow-sm hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground hover:shadow-md"
               }`}
             >
-              <MessageSquare className="size-3.5" /> All SMS
+              <MessageSquare className="size-3.5" /> All messages
               {messages.length > 0 && (
                 <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
                   {messages.length}
@@ -279,24 +312,15 @@ function NumbersPage() {
             {/* Temp orders tab */}
             <button
               onClick={() => setSelectedTab(TAB_TEMP)}
-              className={`flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium transition-all ${
+              className={`flex min-w-0 items-center gap-2 rounded-2xl border p-4 text-left text-xs font-semibold transition-all ${
                 selectedTab === TAB_TEMP
-                  ? "border-amber-400 bg-amber-50/60 text-amber-800 shadow-sm dark:bg-amber-900/20 dark:text-amber-300"
-                  : "border-border bg-card text-muted-foreground hover:border-amber-300 hover:text-foreground"
+                  ? "border-amber-400 bg-amber-50/60 text-amber-800 shadow-md shadow-amber-500/10 dark:bg-amber-900/20 dark:text-amber-300"
+                  : "border-border bg-card text-muted-foreground shadow-sm hover:-translate-y-0.5 hover:border-amber-300 hover:text-foreground hover:shadow-md"
               }`}
             >
-              <Zap className="size-3.5" /> Temp
+              <Zap className="size-3.5" /> Temporary orders
             </button>
 
-            {/* Buy button */}
-            <Button
-              variant="hero"
-              size="sm"
-              className="ml-1 shrink-0 gap-1.5"
-              onClick={() => setBuyOpen(true)}
-            >
-              <Plus className="size-3.5" /> Buy number
-            </Button>
           </div>
         </div>
 
@@ -317,9 +341,9 @@ function NumbersPage() {
               <Phone className="size-8 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">No numbers yet</h2>
+              <h2 className="text-lg font-semibold">Your workspace is ready</h2>
               <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                Get a virtual number in 50+ countries — receive SMS, WhatsApp OTPs, and client calls.
+                Add a number or start a temporary order. Messages and controls will appear here when you need them.
               </p>
             </div>
             <div className="flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
@@ -339,7 +363,7 @@ function NumbersPage() {
         {!loading && selectedNumber && (
           <div className="flex flex-col gap-3">
             {/* Number header */}
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4">
+            <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-3xl">
                   {NUMBER_COUNTRIES.find((c) => c.code === selectedNumber.country_code)?.flag ?? "🌐"}
@@ -382,17 +406,17 @@ function NumbersPage() {
 
               <div className="text-right">
                 <p className="font-bold text-primary">{priceLabel(selectedNumber)}</p>
-                <p className="text-xs text-muted-foreground capitalize">{selectedNumber.provider}</p>
+                <p className="text-xs text-muted-foreground capitalize">{selectedNumber.number_type ?? "Number"}</p>
               </div>
             </div>
 
             {/* Sub-tabs */}
-            <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-muted/40 p-1">
+            <div className="grid grid-cols-3 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:flex">
               {subTabs.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setSubTab(t.id)}
-                  className={`flex flex-1 shrink-0 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-colors ${
+                  className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors sm:flex-1 ${
                     subTab === t.id
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
