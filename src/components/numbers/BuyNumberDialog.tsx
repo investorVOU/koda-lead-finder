@@ -55,6 +55,23 @@ type NumberType = "rental" | "temp" | "rental-smspool";
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string | undefined;
 const TOP_UP_PRESETS = [500, 1000, 2500, 5000, 10000];
 
+function countryFlag(countryCode: string): string {
+  const code = String(countryCode ?? "").trim().toUpperCase();
+
+  if (!/^[A-Z]{2}$/.test(code)) return "🌐";
+
+  return String.fromCodePoint(
+    ...[...code].map((char) => 127397 + char.charCodeAt(0))
+  );
+}
+
+function cleanCountryName(name: string): string {
+  return String(name ?? "")
+    .replace(/[\u{1F1E6}-\u{1F1FF}]{2}/gu, "")
+    .trim();
+}
+
+
 // Fallback lists shown immediately while the API loads
 const FALLBACK_SMS_COUNTRIES = [
   { id: "US", name: "🇺🇸 United States" },
@@ -948,7 +965,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {smsCountries.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{countryFlag(c.id)} {cleanCountryName(c.name)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1059,7 +1076,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {smsCountries.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{countryFlag(c.id)} {cleanCountryName(c.name)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

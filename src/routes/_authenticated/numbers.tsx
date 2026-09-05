@@ -43,11 +43,65 @@ function shortNumber(phone: string): string {
   return digits.length > 7 ? `…${digits.slice(-7)}` : phone;
 }
 
+function formatPhoneNumber(phone: string, countryCode?: string): string {
+  const raw = String(phone ?? "").trim();
+
+  if (!raw || raw === "pending") return raw;
+
+  const digits = raw.replace(/\D/g, "");
+
+  if (
+    (countryCode === "US" || countryCode === "CA") &&
+    digits.length === 11 &&
+    digits.startsWith("1")
+  ) {
+    return `+1 ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+
+  if (
+    (countryCode === "US" || countryCode === "CA") &&
+    digits.length === 10
+  ) {
+    return `+1 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  }
+
+  return raw.startsWith("+") ? raw : `+${digits}`;
+}
+
 function statusDot(status: string, expiresAt: string | null) {
   const expired = expiresAt ? new Date(expiresAt) < new Date() : false;
   if (status === "active" && !expired) return "bg-emerald-500";
   if (status === "pending_payment")    return "bg-amber-400";
   return "bg-zinc-400";
+}
+
+function expiryCountdown(expiresAt: string | null, nowMs: number): string {
+  if (!expiresAt) return "";
+
+  const expiryMs = new Date(expiresAt).getTime();
+
+  if (!Number.isFinite(expiryMs)) return "";
+
+  const diff = expiryMs - nowMs;
+
+  if (diff <= 0) return "";
+
+  const totalSeconds = Math.ceil(diff / 1000);
+
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function priceLabel(num: VirtualNumber): string {
@@ -71,6 +125,7 @@ function NumbersPage() {
   const [selectedTab,  setSelectedTab]  = useState<string | null>(null);
   const [subTab,       setSubTab]       = useState<SubTab>("inbox");
   const [buyOpen,      setBuyOpen]      = useState(false);
+  const [nowMs,        setNowMs]        = useState(() => Date.now());
 
   // Wallet
   const [balance,      setBalance]      = useState<number | null>(null);
@@ -100,6 +155,15 @@ function NumbersPage() {
       runGetWallet().then((r) => { setBalance(r.balance); setFxRate(r.fxRate); });
     }
   }, [status, walletParam]);
+
+  // Keep expiration countdowns live across My Numbers
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Load wallet + numbers on mount
   useEffect(() => {
@@ -447,14 +511,36 @@ function NumbersPage() {
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-2xl">
                     {NUMBER_COUNTRIES.find(
-                      (c) => c.code === selectedNumber.country_code
-                    )?.flag ?? String.fromCodePoint(0x1f310)}
+                      (c) =>
+                        c.code.toUpperCase() ===
+                        String(selectedNumber.country_code ?? "")
+                          .trim()
+                          .toUpperCase()
+                    )?.flag ??
+                      (() => {
+                        const code = String(
+                          selectedNumber.country_code ?? ""
+                        )
+                          .trim()
+                          .toUpperCase();
+
+                        return /^[A-Z]{2}$/.test(code)
+                          ? String.fromCodePoint(
+                              ...[...code].map(
+                                (char) => 127397 + char.charCodeAt(0)
+                              )
+                            )
+                          : String.fromCodePoint(0x1f310);
+                      })()}
                   </div>
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate font-mono text-lg font-bold">
-                        {selectedNumber.phone_number}
+                        {formatPhoneNumber(
+                          selectedNumber.phone_number,
+                          selectedNumber.country_code
+                        )}
                       </p>
 
                       {selectedNumber.label && (
@@ -466,42 +552,53 @@ function NumbersPage() {
 
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
 
-                      {selectedNumber.status === "active" ? (
-                        <span className="flex items-center gap-1 font-semibold text-emerald-600">
-                          <CheckCircle2 className="size-3.5" />
-                          Active
-                        </span>
-                      ) : selectedNumber.status === "pending_payment" ? (
+                      {selectedNumber.status === "pending_payment" ? (
                         <span className="flex items-center gap-1 font-semibold text-amber-500">
                           <Clock className="size-3.5" />
                           Pending
                         </span>
-                      ) : (
+                      ) : selectedNumber.status === "released" ||
+                        (selectedNumber.expires_at &&
+                          new Date(selectedNumber.expires_at).getTime() <= nowMs) ? (
                         <span className="flex items-center gap-1 font-semibold text-zinc-400">
                           <Clock className="size-3.5" />
                           Expired
                         </span>
+                      ) : (
+                        <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                          <CheckCircle2 className="size-3.5" />
+                          Active
+                        </span>
                       )}
 
                       {selectedNumber.expires_at &&
-                        selectedNumber.status === "active" && (
-                          <span>
-                            Expires{" "}
-                            {new Date(
-                              selectedNumber.expires_at
-                            ).toLocaleDateString()}
-                          </span>
+                        new Date(selectedNumber.expires_at).getTime() > nowMs &&
+                        selectedNumber.status !== "pending_payment" &&
+                        selectedNumber.status !== "released" && (
+                          <>
+                            <span className="text-border">•</span>
+                            <span className="font-medium">
+                              Expires in{" "}
+                              {expiryCountdown(selectedNumber.expires_at, nowMs)}
+                            </span>
+                          </>
                         )}
                     </div>
                   </div>
                 </div>
 
                 <div className="sm:text-right">
-                  <p className="font-bold text-primary">
-                    {priceLabel(selectedNumber)}
-                  </p>
+                  {selectedNumber.status === "active" && (
+                    <p className="font-bold text-primary">
+                      {priceLabel(selectedNumber)}
+                    </p>
+                  )}
 
-                  <p className="mt-0.5 text-xs capitalize text-muted-foreground">
+                  <p
+                    className={`text-xs capitalize text-muted-foreground ${
+                      selectedNumber.status === "active" ? "mt-0.5" : ""
+                    }`}
+                  >
                     {selectedNumber.number_type ?? "Virtual number"}
                   </p>
                 </div>
@@ -535,7 +632,10 @@ function NumbersPage() {
                 {subTab === "inbox" && (
                   <SmsInbox
                     numberId={selectedNumber.id}
-                    phoneNumber={selectedNumber.phone_number}
+                    phoneNumber={formatPhoneNumber(
+                          selectedNumber.phone_number,
+                          selectedNumber.country_code
+                        )}
                     provider={selectedNumber.provider ?? "telnyx"}
                   />
                 )}
@@ -544,7 +644,10 @@ function NumbersPage() {
                   selectedNumber.provider === "telnyx" && (
                     <OutboundSMS
                       numberId={selectedNumber.id}
-                      fromNumber={selectedNumber.phone_number}
+                      fromNumber={formatPhoneNumber(
+                          selectedNumber.phone_number,
+                          selectedNumber.country_code
+                        )}
                     />
                   )}
 

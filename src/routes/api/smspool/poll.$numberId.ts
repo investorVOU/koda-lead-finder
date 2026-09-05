@@ -69,12 +69,7 @@ export const Route = createFileRoute("/api/smspool/poll/$numberId")({
             body:         smsText,
             status:       "received",
           });
-
-          // Mark number as expired (one-time use)
-          await supabaseAdmin
-            .from("virtual_numbers")
-            .update({ status: "expired" })
-            .eq("id", num.id);
+          // Keep the temp number active until its expires_at countdown ends.
 
           return json({ status: "received", sms: smsText });
         }

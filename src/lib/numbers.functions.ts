@@ -1,4 +1,4 @@
-﻿import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -444,13 +444,7 @@ export const pollTempNumber = createServerFn({ method: "POST" })
         body:         smsText,
         status:       "received",
       });
-
-      // Mark number as expired after receiving
-      await supabaseAdmin
-        .from("virtual_numbers")
-        .update({ status: "expired" })
-        .eq("id", num.id)
-        .eq("user_id", userId);
+      // Keep the temp number active until its expires_at countdown ends.
 
       return { status: "received", sms: smsText } as const;
     }

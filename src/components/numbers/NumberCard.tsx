@@ -39,7 +39,8 @@ export function NumberCard({ number: initialNumber, fxRate = 1600, onDeleted, on
   const [labelDraft,   setLabelDraft]   = useState(number.label ?? "");
   const [savingLabel,  setSavingLabel]  = useState(false);
 
-  const countryInfo = NUMBER_COUNTRIES.find((c) => c.code === number.country_code);
+  const countryCode = String(number.country_code ?? "").toUpperCase();
+  const countryInfo = NUMBER_COUNTRIES.find((c) => c.code === countryCode);
   const flag = countryInfo?.flag ?? "🌐";
 
   const handleRelease = async () => {

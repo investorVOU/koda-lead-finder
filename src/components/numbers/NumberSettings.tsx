@@ -10,6 +10,7 @@ import {
   updateNumberLabel,
 } from "@/lib/numbers-extra.functions";
 import type { VirtualNumber } from "@/lib/numbers";
+import { NUMBER_COUNTRIES } from "@/lib/numbers";
 
 interface Props {
   number: VirtualNumber;
@@ -224,7 +225,13 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
           </div>
           <div>
             <p className="text-muted-foreground">Country</p>
-            <p className="font-medium">{number.country_code}</p>
+            <p className="font-medium">
+              {(() => {
+                const code = String(number.country_code ?? "").toUpperCase();
+                const info = NUMBER_COUNTRIES.find((c) => c.code === code);
+                return info ? `${info.flag} ${info.name}` : number.country_code;
+              })()}
+            </p>
           </div>
           <div>
             <p className="text-muted-foreground">Monthly</p>
