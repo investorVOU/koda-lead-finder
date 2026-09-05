@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { toast } from "sonner";
@@ -53,7 +53,7 @@ type Step = "type" | "search" | "pay" | "temp" | "temp-wait" | "rental-smspool";
 type NumberType = "rental" | "temp" | "rental-smspool";
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string | undefined;
-const TOP_UP_PRESETS = [1000, 2500, 5000, 10000];
+const TOP_UP_PRESETS = [500, 1000, 2500, 5000, 10000];
 
 // Fallback lists shown immediately while the API loads
 const FALLBACK_SMS_COUNTRIES = [
@@ -123,17 +123,23 @@ function SearchableServicePicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizeSearchText = (text: string) =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]/g, "");
+
+  const normalizedQuery = normalizeSearchText(query);
 
   const selected = services.find((service) => String(service.id ?? "") === value);
 
   const filteredServices = services.filter((service) => {
-    const idText = String(service.id ?? "");
-    const nameText = String(service.name ?? "");
+    const idText = normalizeSearchText(String(service.id ?? ""));
+    const nameText = normalizeSearchText(String(service.name ?? ""));
 
     return (
-      nameText.toLowerCase().includes(normalizedQuery) ||
-      idText.toLowerCase().includes(normalizedQuery)
+      nameText.includes(normalizedQuery) ||
+      idText.includes(normalizedQuery)
     );
   });
 
@@ -270,7 +276,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
   // Wallet
   const [toppingUp,    setToppingUp]    = useState(false);
-  const [topUpAmount,  setTopUpAmount]  = useState(5000);
+  const [topUpAmount,  setTopUpAmount]  = useState(1000);
   const [balance,      setBalance]      = useState<number | null>(null);
   const [fxRate,       setFxRate]       = useState(1600);
 
@@ -855,7 +861,18 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
+                  <div className="mt-2 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Or enter custom amount</span>
+                      <input
+                        inputMode="numeric"
+                        value={String(topUpAmount)}
+                        onChange={(e) => setTopUpAmount(Number(e.target.value.replace(/[^0-9]/g, "")) || 0)}
+                        className="ml-auto w-32 rounded-xl border border-border bg-background px-3 py-1 text-sm text-right outline-none"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
+                  </div>
                   <div className="mt-3 grid grid-cols-1 gap-2">
                     <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
                       {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
@@ -960,6 +977,25 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
                     Need ₦{tempQuote.quoteNgn.toLocaleString()} — top up wallet first
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {TOP_UP_PRESETS.map((p) => (
+                      <button key={p} onClick={() => setTopUpAmount(p)}
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${topUpAmount === p ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40"}`}
+                      >
+                        ₦{p.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Custom amount</span>
+                    <input
+                      inputMode="numeric"
+                      value={String(topUpAmount)}
+                      onChange={(e) => setTopUpAmount(Number(e.target.value.replace(/[^0-9]/g, "")) || 0)}
+                      className="ml-auto w-32 rounded-xl border border-border bg-background px-3 py-1 text-sm text-right outline-none"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
                   <div className="mt-3 grid grid-cols-1 gap-2">
                     <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
                       {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}

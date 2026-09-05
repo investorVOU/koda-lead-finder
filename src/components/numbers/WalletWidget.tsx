@@ -15,13 +15,13 @@ interface Props {
   fxRate?: number;
 }
 
-const PRESETS = [1000, 2500, 5000, 10000];
+const PRESETS = [500, 1000, 2500, 5000, 10000];
 
 export function WalletWidget({ balance, fxRate = 1600 }: Props) {
   const runTopUp = useServerFn(initiateWalletTopUp);
 
   const [open, setOpen] = useState(false);
-  const [preset, setPreset] = useState<number | null>(5000);
+  const [preset, setPreset] = useState<number | null>(1000);
   const [customVal, setCustomVal] = useState("");
   const [toppingUp, setToppingUp] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);

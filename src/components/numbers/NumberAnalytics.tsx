@@ -82,7 +82,10 @@ export function NumberAnalytics({ numberId }: Props) {
                 <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
                   {i + 1}
                 </span>
-                <span className="font-mono text-sm">{s.number}</span>
+                <span className="font-mono text-sm">
+                  {/** Hide provider-like labels: show 'System' for non-phone senders */}
+                  {/^[+\d].*/.test(String(s.number)) ? String(s.number) : "System"}
+                </span>
               </div>
               <span className="text-sm font-semibold text-muted-foreground">{s.count} SMS</span>
             </div>

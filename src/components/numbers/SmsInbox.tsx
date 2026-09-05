@@ -7,10 +7,10 @@ import { getNumberMessages } from "@/lib/numbers.functions";
 import { extractOTP, detectService } from "@/lib/sms-utils";
 import type { SmsMessage } from "@/lib/numbers";
 
-// Polling interval for SMSPool temp numbers (ms)
-const SMSPOOL_POLL_INTERVAL = 5_000;
+// Polling interval for temporary verification numbers (ms)
+const TEMP_POLL_INTERVAL = 5_000;
 // Max polling time = 20 minutes
-const SMSPOOL_MAX_POLL_MS = 20 * 60 * 1000;
+const TEMP_MAX_POLL_MS = 20 * 60 * 1000;
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -34,7 +34,7 @@ function CopyButton({ text }: { text: string }) {
 interface Props {
   numberId: string;
   phoneNumber: string;
-  /** "telnyx" = webhook delivered; "smspool" = polling required */
+  /** provider-neutral: webhooks vs polls are handled internally */
   provider?: string;
 }
 
@@ -45,7 +45,7 @@ export function SmsInbox({ numberId, phoneNumber, provider = "telnyx" }: Props) 
   const [loading,     setLoading]     = useState(true);
   const [polling,     setPolling]     = useState(false);
   const [pollExpired, setPollExpired] = useState(false);
-  const [timeLeft,    setTimeLeft]    = useState(SMSPOOL_MAX_POLL_MS);
+  const [timeLeft,    setTimeLeft]    = useState(TEMP_MAX_POLL_MS);
 
   const pollStartRef = useRef<number | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -96,12 +96,12 @@ export function SmsInbox({ numberId, phoneNumber, provider = "telnyx" }: Props) 
     if (pollTimerRef.current) return; // already polling
     pollStartRef.current = Date.now();
     setPolling(true);
-    setTimeLeft(SMSPOOL_MAX_POLL_MS);
+    setTimeLeft(TEMP_MAX_POLL_MS);
 
     // Countdown timer (updates every second for display)
     countdownRef.current = setInterval(() => {
       const elapsed = Date.now() - (pollStartRef.current ?? Date.now());
-      const remaining = Math.max(0, SMSPOOL_MAX_POLL_MS - elapsed);
+      const remaining = Math.max(0, TEMP_MAX_POLL_MS - elapsed);
       setTimeLeft(remaining);
       if (remaining === 0) stopPolling(true);
     }, 1000);
@@ -109,7 +109,7 @@ export function SmsInbox({ numberId, phoneNumber, provider = "telnyx" }: Props) 
     // Poll every 5 seconds via the REST endpoint
     const doPoll = async () => {
       const elapsed = Date.now() - (pollStartRef.current ?? Date.now());
-      if (elapsed >= SMSPOOL_MAX_POLL_MS) { stopPolling(true); return; }
+      if (elapsed >= TEMP_MAX_POLL_MS) { stopPolling(true); return; }
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -130,7 +130,7 @@ export function SmsInbox({ numberId, phoneNumber, provider = "telnyx" }: Props) 
       } catch { /* network error — keep polling */ }
     };
 
-    pollTimerRef.current = setInterval(doPoll, SMSPOOL_POLL_INTERVAL);
+    pollTimerRef.current = setInterval(doPoll, TEMP_POLL_INTERVAL);
     doPoll(); // poll immediately
   };
 
@@ -155,7 +155,7 @@ export function SmsInbox({ numberId, phoneNumber, provider = "telnyx" }: Props) 
 
   return (
     <div className="space-y-3">
-      {/* SMSPool polling indicator */}
+      {/* Temporary-number polling indicator */}
       {provider === "smspool" && (
         <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
           pollExpired
@@ -200,7 +200,9 @@ export function SmsInbox({ numberId, phoneNumber, provider = "telnyx" }: Props) 
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="size-4 shrink-0 text-primary" />
-                  <span className="font-mono text-sm font-semibold">{msg.from_number}</span>
+                  <span className="font-mono text-sm font-semibold">
+                    {/^[+\d].*/.test(String(msg.from_number)) ? String(msg.from_number) : "Kodarai sms"}
+                  </span>
                   {service && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                       {service}

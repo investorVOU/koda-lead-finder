@@ -1,4 +1,4 @@
-﻿import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 export async function creditWallet({
@@ -30,8 +30,8 @@ export async function creditWallet({
     await sendUserTransactionalEmail(userId, {
       subject: type === "topup" ? "Your KodarAI wallet was topped up" : "Your KodarAI wallet was refunded",
       title: type === "topup" ? "Wallet funds added" : "Wallet refund added",
-      preview: `â‚¦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.`,
-      body: `â‚¦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.${description ? `\n\n${description}` : ""}`,
+      preview: `₦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.`,
+      body: `₦${amountNgn.toLocaleString("en-NG")} was added to your KodarAI wallet.${description ? `\n\n${description}` : ""}`,
       ctaLabel: "Open virtual numbers",
       ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/numbers`,
     });

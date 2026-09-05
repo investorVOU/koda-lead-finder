@@ -90,6 +90,8 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
     setTimeout(() => setCopiedWebhook(false), 2000);
   };
 
+  const showWebhookSection = number.provider === "telnyx";
+
   return (
     <div className="space-y-5">
       {/* Label */}
@@ -158,7 +160,7 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
             <PhoneForwarded className="size-4 text-muted-foreground" /> Call forwarding
           </p>
           <p className="text-xs text-muted-foreground">
-            Incoming voice calls are forwarded to this number. Requires the number to be connected to a Telnyx Call Control Application with webhook set to the URL below.
+            Incoming voice calls are forwarded to this number. This requires the number to be connected to the provider webhook or call-control setup for your account.
           </p>
           <input
             type="tel"
@@ -185,28 +187,30 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
       )}
 
       {/* Webhook URL */}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold flex items-center gap-2">
-          <Globe className="size-4 text-muted-foreground" /> Webhook URL
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Paste this into your Telnyx Messaging Profile to receive SMS on this number.
-        </p>
-        <div className="flex gap-2">
-          <input
-            readOnly
-            value={webhookUrl}
-            className="flex-1 rounded-xl border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground"
-          />
-          <button
-            onClick={copyWebhook}
-            className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium hover:bg-accent"
-          >
-            {copiedWebhook ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-            {copiedWebhook ? "Copied!" : "Copy"}
-          </button>
+      {showWebhookSection && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold flex items-center gap-2">
+            <Globe className="size-4 text-muted-foreground" /> Webhook URL
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Paste this URL into your messaging webhook settings to receive SMS on this number. Kodarai will handle provider integration.
+          </p>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={webhookUrl}
+              className="flex-1 rounded-xl border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground"
+            />
+            <button
+              onClick={copyWebhook}
+              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium hover:bg-accent"
+            >
+              {copiedWebhook ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+              {copiedWebhook ? "Copied!" : "Copy"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Phone number info */}
       <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-4">
@@ -215,8 +219,8 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
         </p>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div>
-            <p className="text-muted-foreground">Provider</p>
-            <p className="font-medium capitalize">{number.provider}</p>
+            <p className="text-muted-foreground">Service</p>
+            <p className="font-medium">Kodarai sms</p>
           </div>
           <div>
             <p className="text-muted-foreground">Country</p>

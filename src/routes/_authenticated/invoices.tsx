@@ -84,7 +84,7 @@ function InvoicesPage() {
                     +{row.credits_granted}
                   </td>
                   <td className="hidden px-4 py-3 capitalize text-muted-foreground sm:table-cell">
-                    {row.provider}
+                    {"Kodarai sms"}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium">
                     {formatAmount(Number(row.amount), row.currency)}
