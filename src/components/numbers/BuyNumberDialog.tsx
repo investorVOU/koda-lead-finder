@@ -567,8 +567,8 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg sm:max-w-xl">
-        <DialogHeader>
+      <DialogContent className="max-w-lg overflow-hidden sm:max-w-xl">
+        <DialogHeader className="shrink-0">
           {(step === "pay" || step === "temp" || step === "rental-smspool") && (
             <button
               onClick={() => setStep(step === "pay" ? "search" : "type")}
@@ -595,161 +595,162 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* ── STEP: Type selector ── */}
-        {step === "type" && (
-          <div className="grid grid-cols-1 gap-3">
-            <button
-              onClick={() => { setNumType("rental"); setStep("search"); }}
-              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
-            >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <Phone className="size-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold">Monthly number</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Monthly rental — unlimited SMS, 50+ countries.
-                </p>
-              </div>
-              <div className="shrink-0 text-right text-xs font-bold text-primary">
-                live price
-              </div>
-            </button>
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto pb-2 pr-1">
+          {/* ── STEP: Type selector ── */}
+          {step === "type" && (
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                onClick={() => { setNumType("rental"); setStep("search"); }}
+                className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
+              >
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <Phone className="size-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">Monthly number</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Monthly rental — unlimited SMS, 50+ countries.
+                  </p>
+                </div>
+                <div className="shrink-0 text-right text-xs font-bold text-primary">
+                  live price
+                </div>
+              </button>
 
-            <button
-              onClick={() => { setNumType("rental-smspool"); setStep("rental-smspool"); }}
-              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10"
-            >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-                <Clock className="size-5 text-emerald-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold">Short-term rental</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Ideal for short campaigns, tests, or temporary sign-up windows.
-                </p>
-              </div>
-              <div className="shrink-0 text-right text-xs font-bold text-emerald-600">
-                available
-              </div>
-            </button>
+              <button
+                onClick={() => { setNumType("rental-smspool"); setStep("rental-smspool"); }}
+                className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10"
+              >
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+                  <Clock className="size-5 text-emerald-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">Short-term rental</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Ideal for short campaigns, tests, or temporary sign-up windows.
+                  </p>
+                </div>
+                <div className="shrink-0 text-right text-xs font-bold text-emerald-600">
+                  available
+                </div>
+              </button>
 
-            <button
-              onClick={() => { setNumType("temp"); setStep("temp"); }}
-              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-amber-400/60 hover:bg-amber-50/50 dark:hover:bg-amber-900/10"
-            >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10">
-                <Zap className="size-5 text-amber-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold">Temporary number</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Single use. Expires after 20 min or first SMS.
-                </p>
-              </div>
-              <div className="shrink-0 text-right text-xs font-bold text-amber-500">
-                live quote
-              </div>
-            </button>
-          </div>
-        )}
+              <button
+                onClick={() => { setNumType("temp"); setStep("temp"); }}
+                className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-amber-400/60 hover:bg-amber-50/50 dark:hover:bg-amber-900/10"
+              >
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10">
+                  <Zap className="size-5 text-amber-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">Temporary number</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Single use. Expires after 20 min or first SMS.
+                  </p>
+                </div>
+                <div className="shrink-0 text-right text-xs font-bold text-amber-500">
+                  live quote
+                </div>
+              </button>
+            </div>
+          )}
 
-        {/* ── STEP: Search (Telnyx rental) ── */}
-        {step === "search" && (
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Country</label>
-              {/* Searchable country picker */}
-              <div className="relative">
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
-                  <Search className="size-3.5 shrink-0 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search country…"
-                    value={countrySearch}
-                    onChange={(e) => setCountrySearch(e.target.value)}
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                  />
-                  {countrySearch === "" && (
-                    <span className="shrink-0 text-sm">
-                      {selectedCountry.flag} {selectedCountry.name}
-                    </span>
+          {/* ── STEP: Search (Telnyx rental) ── */}
+          {step === "search" && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Country</label>
+                {/* Searchable country picker */}
+                <div className="relative">
+                  <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+                    <Search className="size-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search country…"
+                      value={countrySearch}
+                      onChange={(e) => setCountrySearch(e.target.value)}
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                    {countrySearch === "" && (
+                      <span className="shrink-0 text-sm">
+                        {selectedCountry.flag} {selectedCountry.name}
+                      </span>
+                    )}
+                  </div>
+                  {countrySearch !== "" && (
+                    <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+                      {filteredCountries.length === 0 ? (
+                        <p className="px-3 py-2 text-xs text-muted-foreground">No countries found</p>
+                      ) : (
+                        filteredCountries.map((c) => (
+                          <button
+                            key={c.code}
+                            className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-accent"
+                            onClick={() => { setCountry(c.code); setCountrySearch(""); setResults([]); }}
+                          >
+                            <span>{c.flag} {c.name}</span>
+                            <span className="text-xs text-muted-foreground">from ₦{c.ngn.toLocaleString()}/mo</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
-                {countrySearch !== "" && (
-                  <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
-                    {filteredCountries.length === 0 ? (
-                      <p className="px-3 py-2 text-xs text-muted-foreground">No countries found</p>
-                    ) : (
-                      filteredCountries.map((c) => (
+                {/* Show current selection when not searching */}
+                {countrySearch === "" && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {/* Quick-pick popular countries */}
+                    {["US","GB","CA","AU","DE","NG"].map((code) => {
+                      const c = NUMBER_COUNTRIES.find((x) => x.code === code);
+                      if (!c) return null;
+                      return (
                         <button
-                          key={c.code}
-                          className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-accent"
-                          onClick={() => { setCountry(c.code); setCountrySearch(""); setResults([]); }}
+                          key={code}
+                          onClick={() => { setCountry(code); setResults([]); }}
+                          className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${country === code ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40 text-muted-foreground"}`}
                         >
-                          <span>{c.flag} {c.name}</span>
-                          <span className="text-xs text-muted-foreground">from ₦{c.ngn.toLocaleString()}/mo</span>
+                          {c.flag} {c.code}
                         </button>
-                      ))
-                    )}
+                      );
+                    })}
+                    <button
+                      onClick={() => setCountrySearch(" ")}
+                      className="flex items-center gap-1 rounded-lg border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-primary/40"
+                    >
+                      <ChevronDown className="size-3" /> more
+                    </button>
                   </div>
                 )}
               </div>
-              {/* Show current selection when not searching */}
-              {countrySearch === "" && (
-                <div className="flex flex-wrap gap-1.5">
-                  {/* Quick-pick popular countries */}
-                  {["US","GB","CA","AU","DE","NG"].map((code) => {
-                    const c = NUMBER_COUNTRIES.find((x) => x.code === code);
-                    if (!c) return null;
-                    return (
-                      <button
-                        key={code}
-                        onClick={() => { setCountry(code); setResults([]); }}
-                        className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${country === code ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40 text-muted-foreground"}`}
-                      >
-                        {c.flag} {c.code}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => setCountrySearch(" ")}
-                    className="flex items-center gap-1 rounded-lg border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-primary/40"
-                  >
-                    <ChevronDown className="size-3" /> more
-                  </button>
-                </div>
-              )}
-            </div>
 
-            <Button className="w-full" variant="outline" onClick={search} disabled={searching}>
-              {searching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-              {searching
-                ? "Searching…"
-                : `Search numbers in ${selectedCountry.flag} ${selectedCountry.name} — from ~₦${fromNgn.toLocaleString()}/mo`}
-            </Button>
+              <Button className="w-full" variant="outline" onClick={search} disabled={searching}>
+                {searching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+                {searching
+                  ? "Searching…"
+                  : `Search numbers in ${selectedCountry.flag} ${selectedCountry.name} — from ~₦${fromNgn.toLocaleString()}/mo`}
+              </Button>
 
-            {results.length > 0 && (
-              <div className="max-h-72 space-y-2 overflow-y-auto">
-                <p className="text-xs text-muted-foreground">{results.length} numbers found</p>
-                {results.map((n) => (
-                  <button
-                    key={n.phoneNumber}
-                    onClick={() => selectNumber(n)}
-                    className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/60 hover:bg-accent"
-                  >
-                    <div>
-                      <p className="font-mono text-sm font-semibold">{n.phoneNumber}</p>
-                      {(n.locality || n.region) && (
-                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="size-3" />
-                          {[n.locality, n.region].filter(Boolean).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-primary">
-                        {new Intl.NumberFormat("en-NG", {
+              {results.length > 0 && (
+                <div className="max-h-72 space-y-2 overflow-y-auto">
+                  <p className="text-xs text-muted-foreground">{results.length} numbers found</p>
+                  {results.map((n) => (
+                    <button
+                      key={n.phoneNumber}
+                      onClick={() => selectNumber(n)}
+                      className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/60 hover:bg-accent"
+                    >
+                      <div>
+                        <p className="font-mono text-sm font-semibold">{n.phoneNumber}</p>
+                        {(n.locality || n.region) && (
+                          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="size-3" />
+                            {[n.locality, n.region].filter(Boolean).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-primary">
+                          {new Intl.NumberFormat("en-NG", {
   style: "currency",
   currency: "NGN",
   maximumFractionDigits: 0,
@@ -759,423 +760,424 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     fxRate
   ).customerNgn
 )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        ~${calculateCustomerPrice(
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          ~${calculateCustomerPrice(
   n.monthlyCostUsd ?? selectedCountry.usd,
   fxRate
 ).customerUsd.toFixed(2)}/mo
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {results.length === 0 && !searching && (
-              <p className="text-center text-xs text-muted-foreground">
-                Search to see numbers available in {selectedCountry.flag} {selectedCountry.name}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* ── STEP: Pay (Telnyx) ── */}
-        {step === "pay" && selected && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
-              <div>
-                <p className="font-mono text-base font-bold">{selected.phoneNumber}</p>
-                {(selected.locality || selected.region) && (
-                  <p className="text-xs text-muted-foreground">{[selected.locality, selected.region].filter(Boolean).join(", ")}</p>
-                )}
-              </div>
-              <div className="text-right">
-                <p className="font-bold text-primary">₦{ngnPrice.toLocaleString()}/mo</p>
-                <p className="text-xs text-muted-foreground">~${usdPrice}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Wallet className="size-4 text-primary" /> Wallet balance
-              </div>
-              <span className="font-mono font-bold">
-                {balance === null ? "…" : `₦${balance.toLocaleString()}`}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setPayMethod("wallet")}
-                className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${payMethod === "wallet" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
-              >
-                <Wallet className="size-4" /> Wallet
-              </button>
-              <button
-                onClick={() => setPayMethod("card")}
-                className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${payMethod === "card" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
-              >
-                <CreditCard className="size-4" /> Card
-              </button>
-            </div>
-
-            {payMethod === "wallet" && !hasEnough && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                  Wallet needs ₦{ngnPrice.toLocaleString()} — top up first
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {TOP_UP_PRESETS.map((p) => (
-                    <button key={p} onClick={() => setTopUpAmount(p)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${topUpAmount === p ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40"}`}
-                    >
-                      ₦{p.toLocaleString()}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
-                <div className="mt-3 grid grid-cols-1 gap-2">
-                  <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
-                    {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-                    Paystack (₦)
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {payMethod === "card" && (
-              <Select value={cardProvider} onValueChange={(v) => setCardProvider(v as "stripe" | "paystack")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paystack">Paystack — ₦{ngnPrice.toLocaleString()}/mo</SelectItem>
-                  <SelectItem value="stripe">Card (USD) — ~${usdPrice}/mo</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* hCaptcha — shown only when site key is configured */}
-            {HCAPTCHA_SITE_KEY && (
-              <div className="flex justify-center">
-                <HCaptcha
-                  ref={captchaRef}
-                  sitekey={HCAPTCHA_SITE_KEY}
-                  size="compact"
-                  onVerify={(token) => setCaptchaToken(token)}
-                  onExpire={() => setCaptchaToken(null)}
-                />
-              </div>
-            )}
-
-            <Button
-              variant="hero"
-              className="w-full"
-              disabled={buying || (payMethod === "wallet" && !hasEnough) || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
-              onClick={payMethod === "wallet" ? buyFromWallet : buyWithCard}
-            >
-              {buying ? <Loader2 className="size-4 animate-spin" /> : <Phone className="size-4" />}
-              {buying ? "Activating…" :
-               payMethod === "wallet" ? `Pay ₦${ngnPrice.toLocaleString()} from wallet` :
-               cardProvider === "paystack" ? `Pay ₦${ngnPrice.toLocaleString()} via Paystack` :
-               `Pay ~$${usdPrice} via card`}
-            </Button>
-          </div>
-        )}
-
-        {/* ── STEP: Temp (SMSPool) — select country/service ── */}
-        {step === "temp" && (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-amber-200/60 bg-amber-50/60 px-4 py-3 text-sm dark:border-amber-900/30 dark:bg-amber-900/10">
-              <p className="font-medium text-amber-800 dark:text-amber-400">
-                Quick verification number · Expires in 20 minutes
-              </p>
-              <p className="mt-0.5 text-xs text-amber-700/80 dark:text-amber-500">
-                Perfect for sign-up checks, app verifications, and short one-time access flows.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-border bg-muted/40 px-3 py-3">
-              <p className="text-sm font-medium text-foreground">Find the service first</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Search for the website, app, or platform you want to receive an SMS from. If you don&apos;t see it immediately, type its name in the search box.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                Country
-                {loadingSMS && <Loader2 className="size-3 animate-spin" />}
-              </label>
-              <Select value={tempCountry} onValueChange={setTempCountry}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {smsCountries.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Service</label>
-              <SearchableServicePicker
-                services={smsServices}
-                value={tempService}
-                onChange={setTempService}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Wallet className="size-4 text-primary" /> Wallet balance
-              </div>
-              <span className="font-mono font-bold">
-                {balance === null ? "…" : `₦${balance.toLocaleString()}`}
-              </span>
-            </div>
-
-            {!hasTempBalance && hasTempQuote && tempQuote && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                  Need ₦{tempQuote.quoteNgn.toLocaleString()} — top up wallet first
-                </p>
-                <div className="mt-3 grid grid-cols-1 gap-2">
-                  <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
-                    {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-                    Paystack (₦)
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center text-xs text-muted-foreground">
-              <span>
-                {tempQuoteLoading ? "Loading live quote…" : tempQuote ? `Cost: ₦${tempQuote.quoteNgn.toLocaleString()} (~$${tempQuote.quoteUsd.toFixed(2)})` : "Unable to load a live quote for this country/service"}
-              </span>
-            </div>
-
-            {HCAPTCHA_SITE_KEY && (
-              <div className="flex justify-center">
-                <HCaptcha
-                  ref={captchaRef}
-                  sitekey={HCAPTCHA_SITE_KEY}
-                  size="compact"
-                  onVerify={(token) => setCaptchaToken(token)}
-                  onExpire={() => setCaptchaToken(null)}
-                />
-              </div>
-            )}
-
-            <Button
-              variant="hero"
-              className="w-full"
-              disabled={tempBuying || tempQuoteLoading || !tempQuote || !hasTempBalance || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
-              onClick={buyTemp}
-            >
-              {tempBuying ? (
-                <><Loader2 className="size-4 animate-spin" /> Getting number…</>
-              ) : (
-                <><Zap className="size-4" /> {tempQuote ? `Get temp number — ₦${tempQuote.quoteNgn.toLocaleString()}` : "Loading quote…"}</>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {/* ── STEP: SMSPool rental (multi-day) ── */}
-        {step === "rental-smspool" && (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 px-4 py-3 text-sm dark:border-emerald-900/30 dark:bg-emerald-900/10">
-              <p className="font-medium text-emerald-800 dark:text-emerald-400">
-                Short-term rental
-              </p>
-              <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-500">
-                Perfect for short campaigns, testing windows, and time-based verification needs.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                Country
-                {loadingSMS && <Loader2 className="size-3 animate-spin" />}
-              </label>
-              <Select value={tempCountry} onValueChange={setTempCountry}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {smsCountries.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Service</label>
-              <SearchableServicePicker
-                services={smsServices}
-                value={tempService}
-                onChange={setTempService}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">Rental tier</label>
-              <div className="grid grid-cols-1 gap-2">
-                {rentalTierOptions.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
-                    No short-term rental options are available for this country right now.
-                  </div>
-                ) : (
-                  rentalTierOptions.map((option) => (
-                    <button
-                      key={`${option.rentalId}-${option.days}`}
-                      type="button"
-                      onClick={() => {
-                        setTempCountry(option.country);
-                        setSmsPoolRentalId(option.rentalId);
-                        setSmsPoolDays(option.days);
-                      }}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors ${smsPoolRentalId === option.rentalId && smsPoolDays === option.days ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-border hover:border-emerald-400/50"}`}
-                    >
-                      <div>
-                        <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{option.countryName ?? option.country}</div>
-                        <div className="text-sm font-semibold">{option.days} day{option.days !== 1 ? "s" : ""}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold">₦{option.customerNgn.toLocaleString()}</div>
-                        <div className="text-[11px] text-muted-foreground">~${Number(option.customerUsd ?? 0).toFixed(2)}</div>
+                        </p>
                       </div>
                     </button>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Wallet className="size-4 text-primary" /> Wallet balance
-              </div>
-              <span className="font-mono font-bold">
-                {balance === null ? "…" : `₦${balance.toLocaleString()}`}
-              </span>
-            </div>
-
-            <div className="flex items-center text-xs text-muted-foreground">
-              <span>
-                {selectedRentalTier ? `Cost: ₦${selectedRentalTier.customerNgn.toLocaleString()} (~$${Number(selectedRentalTier.customerUsd ?? 0).toFixed(2)})` : "No quote available"}
-              </span>
-            </div>
-
-            <Button
-              variant="hero"
-              className="w-full"
-              disabled={rentalBuying || !selectedRentalTier || balance === null || balance < selectedRentalTier.customerNgn}
-              onClick={buyRentalPool}
-            >
-              {rentalBuying ? (
-                <><Loader2 className="size-4 animate-spin" /> Renting…</>
-              ) : (
-                <><Clock className="size-4" /> Rent for {smsPoolDays} day{smsPoolDays !== 1 ? "s" : ""} — ₦{selectedRentalTier?.customerNgn.toLocaleString() ?? 0}</>
+                  ))}
+                </div>
               )}
-            </Button>
-          </div>
-        )}
 
-        {/* ── STEP: Temp Wait — live polling for SMS ── */}
-        {step === "temp-wait" && tempResult && (
-          <div className="space-y-4">
-            {/* Number display */}
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center">
-              <p className="text-xs font-medium text-muted-foreground">Your temp number</p>
-              <p className="mt-1 font-mono text-2xl font-bold tracking-wide">{tempResult.phoneNumber}</p>
-              <div className="mt-3 flex justify-center">
-                <CopyButton text={tempResult.phoneNumber} label="Copy number" />
-              </div>
+              {results.length === 0 && !searching && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Search to see numbers available in {selectedCountry.flag} {selectedCountry.name}
+                </p>
+              )}
             </div>
+          )}
 
-            {/* Countdown */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Clock className={`size-4 ${timeLeft < 60 ? "text-destructive" : timeLeft < 300 ? "text-amber-500" : "text-primary"}`} />
-                Expires in
-              </div>
-              <span className={`font-mono text-sm font-bold ${timeLeft < 60 ? "text-destructive" : timeLeft < 300 ? "text-amber-500" : "text-foreground"}`}>
-                {formatCountdown(timeLeft)}
-              </span>
-            </div>
-
-            {/* SMS status — waiting */}
-            {!tempSms && !tempExpired && (
-              <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-5">
-                <Loader2 className="size-5 shrink-0 animate-spin text-primary" />
+          {/* ── STEP: Pay (Telnyx) ── */}
+          {step === "pay" && selected && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium">Waiting for SMS…</p>
-                  <p className="text-xs text-muted-foreground">
-                    Send a verification to {tempResult.phoneNumber} — it will appear here automatically.
+                  <p className="font-mono text-base font-bold">{selected.phoneNumber}</p>
+                  {(selected.locality || selected.region) && (
+                    <p className="text-xs text-muted-foreground">{[selected.locality, selected.region].filter(Boolean).join(", ")}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-primary">₦{ngnPrice.toLocaleString()}/mo</p>
+                  <p className="text-xs text-muted-foreground">~${usdPrice}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Wallet className="size-4 text-primary" /> Wallet balance
+                </div>
+                <span className="font-mono font-bold">
+                  {balance === null ? "…" : `₦${balance.toLocaleString()}`}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setPayMethod("wallet")}
+                  className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${payMethod === "wallet" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                >
+                  <Wallet className="size-4" /> Wallet
+                </button>
+                <button
+                  onClick={() => setPayMethod("card")}
+                  className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${payMethod === "card" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                >
+                  <CreditCard className="size-4" /> Card
+                </button>
+              </div>
+
+              {payMethod === "wallet" && !hasEnough && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                    Wallet needs ₦{ngnPrice.toLocaleString()} — top up first
                   </p>
-                </div>
-              </div>
-            )}
-
-            {/* SMS status — expired without SMS */}
-            {tempExpired && !tempSms && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
-                <p className="text-sm font-medium text-destructive">Number expired — no SMS received</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  The number was released. Try again with a different country or service.
-                </p>
-              </div>
-            )}
-
-            {/* SMS status — received! */}
-            {tempSms && (
-              <div className="space-y-3">
-                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">SMS received!</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {TOP_UP_PRESETS.map((p) => (
+                      <button key={p} onClick={() => setTopUpAmount(p)}
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${topUpAmount === p ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40"}`}
+                      >
+                        ₦{p.toLocaleString()}
+                      </button>
+                    ))}
                   </div>
-                  <p className="mt-2 text-sm text-foreground leading-relaxed">{tempSms}</p>
-                </div>
-
-                {otp && (
-                  <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/60">OTP detected</p>
-                      <p className="font-mono text-2xl font-bold tracking-widest text-primary">{otp}</p>
-                    </div>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(otp); toast.success("OTP copied!"); }}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90"
-                    >
-                      <Copy className="size-3" /> Copy OTP
-                    </button>
+                  <p className="mt-2 text-xs text-muted-foreground">~${usdEquiv} USD at current rate</p>
+                  <div className="mt-3 grid grid-cols-1 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
+                      {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+                      Paystack (₦)
+                    </Button>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Full SMS history in inbox note */}
-            <div className="flex items-center gap-2 rounded-xl border border-border px-4 py-3 text-xs text-muted-foreground">
-              <MessageSquare className="size-3.5 shrink-0" />
-              All received SMS are saved in your inbox under the Numbers page.
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {(tempExpired && !tempSms) && (
-                <Button variant="outline" className="col-span-2" onClick={autoRetry}>
-                  <Zap className="size-4" /> Try again with new number
-                </Button>
+                </div>
               )}
+
+              {payMethod === "card" && (
+                <Select value={cardProvider} onValueChange={(v) => setCardProvider(v as "stripe" | "paystack")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paystack">Paystack — ₦{ngnPrice.toLocaleString()}/mo</SelectItem>
+                    <SelectItem value="stripe">Card (USD) — ~${usdPrice}/mo</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* hCaptcha — shown only when site key is configured */}
+              {HCAPTCHA_SITE_KEY && (
+                <div className="flex justify-center">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey={HCAPTCHA_SITE_KEY}
+                    size="compact"
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                  />
+                </div>
+              )}
+
               <Button
-                variant={tempSms ? "hero" : "outline"}
-                className={tempExpired && !tempSms ? "col-span-1" : "col-span-2"}
-                onClick={() => onOpenChange(false)}
+                variant="hero"
+                className="w-full"
+                disabled={buying || (payMethod === "wallet" && !hasEnough) || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
+                onClick={payMethod === "wallet" ? buyFromWallet : buyWithCard}
               >
-                {tempSms ? "Done" : "Close — check inbox later"}
+                {buying ? <Loader2 className="size-4 animate-spin" /> : <Phone className="size-4" />}
+                {buying ? "Activating…" :
+                 payMethod === "wallet" ? `Pay ₦${ngnPrice.toLocaleString()} from wallet` :
+                 cardProvider === "paystack" ? `Pay ₦${ngnPrice.toLocaleString()} via Paystack` :
+                 `Pay ~$${usdPrice} via card`}
               </Button>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* ── STEP: Temp (SMSPool) — select country/service ── */}
+          {step === "temp" && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-amber-200/60 bg-amber-50/60 px-4 py-3 text-sm dark:border-amber-900/30 dark:bg-amber-900/10">
+                <p className="font-medium text-amber-800 dark:text-amber-400">
+                  Quick verification number · Expires in 20 minutes
+                </p>
+                <p className="mt-0.5 text-xs text-amber-700/80 dark:text-amber-500">
+                  Perfect for sign-up checks, app verifications, and short one-time access flows.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/40 px-3 py-3">
+                <p className="text-sm font-medium text-foreground">Find the service first</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Search for the website, app, or platform you want to receive an SMS from. If you don&apos;t see it immediately, type its name in the search box.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  Country
+                  {loadingSMS && <Loader2 className="size-3 animate-spin" />}
+                </label>
+                <Select value={tempCountry} onValueChange={setTempCountry}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {smsCountries.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Service</label>
+                <SearchableServicePicker
+                  services={smsServices}
+                  value={tempService}
+                  onChange={setTempService}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Wallet className="size-4 text-primary" /> Wallet balance
+                </div>
+                <span className="font-mono font-bold">
+                  {balance === null ? "…" : `₦${balance.toLocaleString()}`}
+                </span>
+              </div>
+
+              {!hasTempBalance && hasTempQuote && tempQuote && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                    Need ₦{tempQuote.quoteNgn.toLocaleString()} — top up wallet first
+                  </p>
+                  <div className="mt-3 grid grid-cols-1 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => topUp("paystack")} disabled={toppingUp}>
+                      {toppingUp ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+                      Paystack (₦)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center text-xs text-muted-foreground">
+                <span>
+                  {tempQuoteLoading ? "Loading live quote…" : tempQuote ? `Cost: ₦${tempQuote.quoteNgn.toLocaleString()} (~$${tempQuote.quoteUsd.toFixed(2)})` : "Unable to load a live quote for this country/service"}
+                </span>
+              </div>
+
+              {HCAPTCHA_SITE_KEY && (
+                <div className="flex justify-center">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey={HCAPTCHA_SITE_KEY}
+                    size="compact"
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                  />
+                </div>
+              )}
+
+              <Button
+                variant="hero"
+                className="w-full"
+                disabled={tempBuying || tempQuoteLoading || !tempQuote || !hasTempBalance || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
+                onClick={buyTemp}
+              >
+                {tempBuying ? (
+                  <><Loader2 className="size-4 animate-spin" /> Getting number…</>
+                ) : (
+                  <><Zap className="size-4" /> {tempQuote ? `Get temp number — ₦${tempQuote.quoteNgn.toLocaleString()}` : "Loading quote…"}</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* ── STEP: SMSPool rental (multi-day) ── */}
+          {step === "rental-smspool" && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 px-4 py-3 text-sm dark:border-emerald-900/30 dark:bg-emerald-900/10">
+                <p className="font-medium text-emerald-800 dark:text-emerald-400">
+                  Short-term rental
+                </p>
+                <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-500">
+                  Perfect for short campaigns, testing windows, and time-based verification needs.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  Country
+                  {loadingSMS && <Loader2 className="size-3 animate-spin" />}
+                </label>
+                <Select value={tempCountry} onValueChange={setTempCountry}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {smsCountries.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Service</label>
+                <SearchableServicePicker
+                  services={smsServices}
+                  value={tempService}
+                  onChange={setTempService}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Rental tier</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {rentalTierOptions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
+                      No short-term rental options are available for this country right now.
+                    </div>
+                  ) : (
+                    rentalTierOptions.map((option) => (
+                      <button
+                        key={`${option.rentalId}-${option.days}`}
+                        type="button"
+                        onClick={() => {
+                          setTempCountry(option.country);
+                          setSmsPoolRentalId(option.rentalId);
+                          setSmsPoolDays(option.days);
+                        }}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors ${smsPoolRentalId === option.rentalId && smsPoolDays === option.days ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-border hover:border-emerald-400/50"}`}
+                      >
+                        <div>
+                          <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{option.countryName ?? option.country}</div>
+                          <div className="text-sm font-semibold">{option.days} day{option.days !== 1 ? "s" : ""}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold">₦{option.customerNgn.toLocaleString()}</div>
+                          <div className="text-[11px] text-muted-foreground">~${Number(option.customerUsd ?? 0).toFixed(2)}</div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Wallet className="size-4 text-primary" /> Wallet balance
+                </div>
+                <span className="font-mono font-bold">
+                  {balance === null ? "…" : `₦${balance.toLocaleString()}`}
+                </span>
+              </div>
+
+              <div className="flex items-center text-xs text-muted-foreground">
+                <span>
+                  {selectedRentalTier ? `Cost: ₦${selectedRentalTier.customerNgn.toLocaleString()} (~$${Number(selectedRentalTier.customerUsd ?? 0).toFixed(2)})` : "No quote available"}
+                </span>
+              </div>
+
+              <Button
+                variant="hero"
+                className="w-full"
+                disabled={rentalBuying || !selectedRentalTier || balance === null || balance < selectedRentalTier.customerNgn}
+                onClick={buyRentalPool}
+              >
+                {rentalBuying ? (
+                  <><Loader2 className="size-4 animate-spin" /> Renting…</>
+                ) : (
+                  <><Clock className="size-4" /> Rent for {smsPoolDays} day{smsPoolDays !== 1 ? "s" : ""} — ₦{selectedRentalTier?.customerNgn.toLocaleString() ?? 0}</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* ── STEP: Temp Wait — live polling for SMS ── */}
+          {step === "temp-wait" && tempResult && (
+            <div className="space-y-4">
+              {/* Number display */}
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center">
+                <p className="text-xs font-medium text-muted-foreground">Your temp number</p>
+                <p className="mt-1 font-mono text-2xl font-bold tracking-wide">{tempResult.phoneNumber}</p>
+                <div className="mt-3 flex justify-center">
+                  <CopyButton text={tempResult.phoneNumber} label="Copy number" />
+                </div>
+              </div>
+
+              {/* Countdown */}
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Clock className={`size-4 ${timeLeft < 60 ? "text-destructive" : timeLeft < 300 ? "text-amber-500" : "text-primary"}`} />
+                  Expires in
+                </div>
+                <span className={`font-mono text-sm font-bold ${timeLeft < 60 ? "text-destructive" : timeLeft < 300 ? "text-amber-500" : "text-foreground"}`}>
+                  {formatCountdown(timeLeft)}
+                </span>
+              </div>
+
+              {/* SMS status — waiting */}
+              {!tempSms && !tempExpired && (
+                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-5">
+                  <Loader2 className="size-5 shrink-0 animate-spin text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Waiting for SMS…</p>
+                    <p className="text-xs text-muted-foreground">
+                      Send a verification to {tempResult.phoneNumber} — it will appear here automatically.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* SMS status — expired without SMS */}
+              {tempExpired && !tempSms && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
+                  <p className="text-sm font-medium text-destructive">Number expired — no SMS received</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    The number was released. Try again with a different country or service.
+                  </p>
+                </div>
+              )}
+
+              {/* SMS status — received! */}
+              {tempSms && (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">SMS received!</p>
+                    </div>
+                    <p className="mt-2 text-sm text-foreground leading-relaxed">{tempSms}</p>
+                  </div>
+
+                  {otp && (
+                    <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/60">OTP detected</p>
+                        <p className="font-mono text-2xl font-bold tracking-widest text-primary">{otp}</p>
+                      </div>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(otp); toast.success("OTP copied!"); }}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                      >
+                        <Copy className="size-3" /> Copy OTP
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Full SMS history in inbox note */}
+              <div className="flex items-center gap-2 rounded-xl border border-border px-4 py-3 text-xs text-muted-foreground">
+                <MessageSquare className="size-3.5 shrink-0" />
+                All received SMS are saved in your inbox under the Numbers page.
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {(tempExpired && !tempSms) && (
+                  <Button variant="outline" className="col-span-2" onClick={autoRetry}>
+                    <Zap className="size-4" /> Try again with new number
+                  </Button>
+                )}
+                <Button
+                  variant={tempSms ? "hero" : "outline"}
+                  className={tempExpired && !tempSms ? "col-span-1" : "col-span-2"}
+                  onClick={() => onOpenChange(false)}
+                >
+                  {tempSms ? "Done" : "Close — check inbox later"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
