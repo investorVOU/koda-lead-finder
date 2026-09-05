@@ -344,11 +344,19 @@ function NumbersPage() {
             </button>
 
             <button
-              onClick={() => setBuyOpen(true)}
-              className="relative flex h-13 items-center gap-2 px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => setSelectedTab(TAB_ALL_SMS)}
+              className={`relative flex h-13 items-center gap-2 px-4 text-sm font-semibold transition-colors ${
+                selectedTab === TAB_ALL_SMS
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <Plus className="size-4" />
-              Buy Number
+              <MessageSquare className="size-4" />
+              SMS
+
+              {selectedTab === TAB_ALL_SMS && (
+                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />
+              )}
             </button>
 
             <button
@@ -363,22 +371,6 @@ function NumbersPage() {
               Verification Orders
 
               {selectedTab === TAB_TEMP && (
-                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />
-              )}
-            </button>
-
-            <button
-              onClick={() => setSelectedTab(TAB_ALL_SMS)}
-              className={`relative flex h-13 items-center gap-2 px-4 text-sm font-semibold transition-colors ${
-                selectedTab === TAB_ALL_SMS
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <MessageSquare className="size-4" />
-              All Messages
-
-              {selectedTab === TAB_ALL_SMS && (
                 <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />
               )}
             </button>
