@@ -35,12 +35,12 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/dashboard",        label: "Finder",         icon: faSearch },
   { to: "/leads",            label: "Saved",          icon: faBookmark },
-  { to: "/revenue",          label: "Revenue",        icon: faChartBar },
   { to: "/studio",           label: "Studio",         icon: faCode },
+  { to: "/numbers",          label: "Numbers",        icon: faMobileAlt },
+  { to: "/revenue",          label: "Revenue",        icon: faChartBar, mobileHide: true },
   { to: "/referrals",        label: "Earn",           icon: faGift, mobileHide: true },
   { to: "/billing",          label: "Billing",        icon: faCreditCard },
   { to: "/invoices",         label: "Invoices",       icon: faReceipt, mobileHide: true },
-  { to: "/numbers",          label: "Numbers",        icon: faMobileAlt, mobileHide: true },
   { to: "/settings",         label: "Settings",       icon: faGear, mobileHide: true },
 ];
 
