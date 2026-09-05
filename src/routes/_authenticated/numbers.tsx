@@ -170,11 +170,6 @@ function NumbersPage() {
   };
 
   const selectedNumber = numbers.find((n) => n.id === selectedTab) ?? null;
-  const activeNumberCount = numbers.filter((number) => {
-    const expired = number.expires_at ? new Date(number.expires_at) < new Date() : false;
-    return number.status === "active" && !expired;
-  }).length;
-  const temporaryNumberCount = numbers.filter((number) => number.provider === "smspool").length;
 
   const allSubTabs: Array<{ id: SubTab; label: string; icon: React.ReactNode; hide?: boolean }> = [
     { id: "inbox"     as SubTab, label: "Inbox",     icon: <MessageSquare className="size-3.5" /> },
@@ -187,438 +182,620 @@ function NumbersPage() {
 
   const displayedMessages = searchResults ?? messages;
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // Render
   return (
     <DashboardShell>
-      <div className="flex h-full flex-col gap-5">
+      <div className="flex h-full min-h-0 flex-col gap-5">
 
-        {/* ── Page header ──────────────────────────────────────────────────────── */}
-        <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-4">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/30">
-                <Phone className="size-5" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Numbers</p>
-                <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Manage your numbers</h1>
-                <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
-                  Use numbers for SMS verification, app sign-ups, surveys, and other one-time checks. Each saved number gets its own workspace tab, while temporary orders stay separate and expire on their own.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
-              <WalletWidget balance={balance} fxRate={fxRate} />
-              <Button variant="hero" className="gap-2 shadow-sm" onClick={() => setBuyOpen(true)}>
-                <Plus className="size-4" /> Get a number
-              </Button>
-            </div>
-          </div>
-          <div className="mt-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-border bg-muted/35">
-            <div className="border-r border-border px-3 py-3.5 sm:px-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Active</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{activeNumberCount}</p>
-            </div>
-            <div className="border-r border-border px-3 py-3.5 sm:px-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Saved numbers</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{numbers.length}</p>
-            </div>
-            <div className="px-3 py-3.5 sm:px-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Temporary</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{temporaryNumberCount}</p>
-            </div>
-          </div>
-        </section>
+        {/* Compact page header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Virtual Numbers
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Buy virtual numbers for WhatsApp, Telegram, surveys, app sign-ups,
+              OTP verification, and more.
+            </p>
 
-        <div className="flex items-end justify-between gap-4 px-1">
-          <div>
-            <p className="text-sm font-semibold">Your workspace</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Each saved number has its own tab. Temporary orders and shared inboxes are tracked separately.</p>
-          </div>
-          {numbers.length > 0 && <span className="text-xs font-medium text-muted-foreground">{numbers.length} saved</span>}
-        </div>
-
-        {/* ── Number tab bar ───────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-          <div className="contents">
-            {/* Individual number tabs */}
-            {numbers.map((num) => {
-              const country   = NUMBER_COUNTRIES.find((c) => c.code === num.country_code);
-              const flag      = country?.flag ?? "🌐";
-              const isActive  = selectedTab === num.id;
-              const dot       = statusDot(num.status, num.expires_at);
-              const price     = priceLabel(num);
-              const label     = num.label ?? shortNumber(num.phone_number);
-
-              return (
-                <button
-                  key={num.id}
-                  onClick={() => {
-                    setSelectedTab(num.id);
-                    setSubTab("inbox");
-                  }}
-                  className={`group flex min-w-0 items-center gap-2 rounded-2xl border p-4 text-left transition-all ${
-                    isActive
-                      ? "border-primary bg-primary/10 text-foreground shadow-md shadow-primary/10"
-                      : "border-border bg-card text-muted-foreground shadow-sm hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground hover:shadow-md"
-                  }`}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                "WhatsApp",
+                "Telegram",
+                "Surveys",
+                "App sign-ups",
+                "OTP verification",
+              ].map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
                 >
-                  {/* Status dot */}
-                  <span className={`size-2 shrink-0 rounded-full ${dot}`} />
-
-                  {/* Flag + label */}
-                  <span className="text-base leading-none">{flag}</span>
-                  <div className="min-w-0">
-                    <p className={`truncate text-xs font-semibold ${isActive ? "text-foreground" : ""}`} style={{ maxWidth: "9rem" }}>
-                      {label}
-                    </p>
-                    {price && (
-                      <p className={`text-[10px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                        {price}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Auto-renew indicator */}
-                  {num.auto_renew && (
-                    <span className="shrink-0 text-[10px] text-primary">↻</span>
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Divider */}
-            {numbers.length > 0 && (
-              <div className="hidden" />
-            )}
-
-            {/* All SMS tab */}
-            <button
-              onClick={() => setSelectedTab(TAB_ALL_SMS)}
-              className={`flex min-w-0 items-center gap-2 rounded-2xl border p-4 text-left text-xs font-semibold transition-all ${
-                selectedTab === TAB_ALL_SMS
-                  ? "border-primary bg-primary/10 text-foreground shadow-md shadow-primary/10"
-                  : "border-border bg-card text-muted-foreground shadow-sm hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground hover:shadow-md"
-              }`}
-            >
-              <MessageSquare className="size-3.5" /> All messages
-              {messages.length > 0 && (
-                <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                  {messages.length}
+                  {item}
                 </span>
-              )}
-            </button>
-
-            {/* Temp orders tab */}
-            <button
-              onClick={() => setSelectedTab(TAB_TEMP)}
-              className={`flex min-w-0 items-center gap-2 rounded-2xl border p-4 text-left text-xs font-semibold transition-all ${
-                selectedTab === TAB_TEMP
-                  ? "border-amber-400 bg-amber-50/60 text-amber-800 shadow-md shadow-amber-500/10 dark:bg-amber-900/20 dark:text-amber-300"
-                  : "border-border bg-card text-muted-foreground shadow-sm hover:-translate-y-0.5 hover:border-amber-300 hover:text-foreground hover:shadow-md"
-              }`}
-            >
-              <Zap className="size-3.5" /> Temporary orders
-            </button>
-
-          </div>
-        </div>
-
-        {/* ── Main content area ────────────────────────────────────────────────── */}
-
-        {/* Loading skeleton */}
-        {loading && (
-          <div className="space-y-2">
-            <div className="h-12 w-full animate-pulse rounded-2xl bg-muted" />
-            <div className="h-48 w-full animate-pulse rounded-2xl bg-muted" />
-          </div>
-        )}
-
-        {/* Empty state — no numbers yet */}
-        {!loading && numbers.length === 0 && !selectedTab && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border py-20 text-center">
-            <div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
-              <Phone className="size-8 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Your workspace is ready</h2>
-              <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                Add a number or start a temporary order. Messages and controls will appear here when you need them.
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
-              <span>🇺🇸 ₦{Math.round(1.00 * fxRate).toLocaleString()}/mo</span>
-              <span>🇬🇧 ₦{Math.round(1.00 * fxRate).toLocaleString()}/mo</span>
-              <span>🇩🇪 ₦{Math.round(1.50 * fxRate).toLocaleString()}/mo</span>
-              <span>🇦🇺 ₦{Math.round(1.50 * fxRate).toLocaleString()}/mo</span>
-              <span>⚡ ₦150 one-time</span>
-            </div>
-            <Button variant="hero" onClick={() => setBuyOpen(true)}>
-              <Plus className="size-4" /> Get your first number
-            </Button>
-          </div>
-        )}
-
-        {/* ── Selected: a real virtual number ──────────────────────────────────── */}
-        {!loading && selectedNumber && (
-          <div className="flex flex-col gap-3">
-            {/* Number header */}
-            <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">
-                  {NUMBER_COUNTRIES.find((c) => c.code === selectedNumber.country_code)?.flag ?? "🌐"}
-                </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-mono text-lg font-bold">{selectedNumber.phone_number}</p>
-                    {selectedNumber.label && (
-                      <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                        {selectedNumber.label}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {selectedNumber.status === "active" ? (
-                      <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                        <CheckCircle2 className="size-3" /> Active
-                      </span>
-                    ) : selectedNumber.status === "pending_payment" ? (
-                      <span className="flex items-center gap-1 text-amber-500 font-medium">
-                        <Clock className="size-3" /> Pending
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-zinc-400 font-medium">
-                        <Clock className="size-3" /> Expired
-                      </span>
-                    )}
-                    {selectedNumber.expires_at && selectedNumber.status === "active" && (
-                      <span>· Expires {new Date(selectedNumber.expires_at).toLocaleDateString()}</span>
-                    )}
-                    {selectedNumber.auto_renew && (
-                      <span className="text-primary">· Auto-renew on</span>
-                    )}
-                    {selectedNumber.call_forward_enabled && selectedNumber.call_forward_to && (
-                      <span>· Forwarding to {selectedNumber.call_forward_to}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p className="font-bold text-primary">{priceLabel(selectedNumber)}</p>
-                <p className="text-xs text-muted-foreground capitalize">{selectedNumber.number_type ?? "Number"}</p>
-              </div>
-            </div>
-
-            {/* Sub-tabs */}
-            <div className="grid grid-cols-3 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:flex">
-              {subTabs.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setSubTab(t.id)}
-                  className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors sm:flex-1 ${
-                    subTab === t.id
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t.icon} {t.label}
-                </button>
               ))}
             </div>
 
-            {/* Sub-tab content */}
-            <div className="rounded-2xl border border-border bg-card p-5">
-              {subTab === "inbox" && (
-                <SmsInbox
-                  numberId={selectedNumber.id}
-                  phoneNumber={selectedNumber.phone_number}
-                  provider={selectedNumber.provider ?? "telnyx"}
-                />
-              )}
-              {subTab === "send" && selectedNumber.provider === "telnyx" && (
-                <OutboundSMS
-                  numberId={selectedNumber.id}
-                  fromNumber={selectedNumber.phone_number}
-                />
-              )}
-              {subTab === "templates" && selectedNumber.provider === "telnyx" && (
-                <SMSTemplates />
-              )}
-              {subTab === "analytics" && (
-                <NumberAnalytics numberId={selectedNumber.id} />
-              )}
-              {subTab === "settings" && (
-                <NumberSettings
-                  number={selectedNumber}
-                  fxRate={fxRate}
-                  onUpdated={(updates) => handleNumberUpdated(selectedNumber.id, updates)}
-                />
-              )}
-            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                Not sure which number works for your service?
+              </span>{" "}
+              Click the live chat button and type{" "}
+              <span className="font-semibold text-primary">"human"</span>{" "}
+              to speak with our team.
+            </p>
           </div>
-        )}
 
-        {/* ── Selected: All SMS ────────────────────────────────────────────────── */}
-        {!loading && selectedTab === TAB_ALL_SMS && (
-          <div className="space-y-4">
-            {/* Toolbar */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search all messages…"
-                  value={msgSearch}
-                  onChange={(e) => {
-                    setMsgSearch(e.target.value);
-                    if (!e.target.value) setSearchResults(null);
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-              <Button variant="outline" size="sm" onClick={handleSearch} disabled={searching || !msgSearch}>
-                {searching ? <Loader2 className="size-3.5 animate-spin" /> : <Search className="size-3.5" />}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
-                {exporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
-                CSV
+          <div className="flex flex-wrap items-center gap-2">
+            <WalletWidget balance={balance} fxRate={fxRate} />
+
+            <Button
+              variant="hero"
+              className="gap-2"
+              onClick={() => setBuyOpen(true)}
+            >
+              <Plus className="size-4" />
+              Buy a number
+            </Button>
+          </div>
+        </div>
+
+        {/* Main workspace */}
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+
+          {/* Sidebar */}
+          <aside className="min-w-0 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="border-b border-border p-3">
+              <Button
+                variant="outline"
+                className="w-full justify-center gap-2"
+                onClick={() => setBuyOpen(true)}
+              >
+                <Plus className="size-4" />
+                Add number
               </Button>
             </div>
 
-            {searchResults !== null && (
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for "{msgSearch}"
-                </span>
-                <button
-                  onClick={() => { setSearchResults(null); setMsgSearch(""); }}
-                  className="flex items-center gap-1 hover:text-foreground"
-                >
-                  <X className="size-3" /> Clear
-                </button>
-              </div>
-            )}
+            {/* Mobile horizontal list / Desktop vertical list */}
+            <div className="flex gap-2 overflow-x-auto p-3 lg:max-h-[calc(100vh-260px)] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto">
 
-            {msgsLoading && (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-24 animate-pulse rounded-2xl bg-muted" />
-                ))}
-              </div>
-            )}
+              {loading && (
+                <>
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-16 min-w-[210px] animate-pulse rounded-xl bg-muted lg:min-w-0"
+                    />
+                  ))}
+                </>
+              )}
 
-            {!msgsLoading && displayedMessages.length === 0 && (
-              <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center">
-                <MessageSquare className="size-10 text-muted-foreground/30" />
-                <p className="font-medium">
-                  {searchResults !== null ? "No messages match your search" : "No messages yet"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {searchResults !== null
-                    ? "Try a different keyword"
-                    : "Incoming SMS will appear here in real time."}
-                </p>
-              </div>
-            )}
+              {!loading &&
+                numbers.map((num) => {
+                  const country = NUMBER_COUNTRIES.find(
+                    (c) => c.code === num.country_code
+                  );
 
-            <div className="space-y-3">
-              {displayedMessages.map((msg: any) => {
-                const otp      = extractOTP(msg.body);
-                const numPhone = msg.virtual_numbers?.phone_number ?? msg.to_number;
-                const flag     = NUMBER_COUNTRIES.find(
-                  (c) => c.code === msg.virtual_numbers?.country_code,
-                )?.flag ?? "🌐";
+                  const flag = country?.flag ?? String.fromCodePoint(0x1f310);
+                  const isActive = selectedTab === num.id;
+                  const dot = statusDot(num.status, num.expires_at);
+                  const price = priceLabel(num);
+                  const label = num.label ?? shortNumber(num.phone_number);
 
-                return (
-                  <div key={msg.id} className="rounded-2xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare
-                          className={`size-4 shrink-0 ${
-                            msg.direction === "outbound" ? "text-emerald-500" : "text-primary"
+                  return (
+                    <button
+                      key={num.id}
+                      onClick={() => {
+                        setSelectedTab(num.id);
+                        setSubTab("inbox");
+                      }}
+                      className={`flex min-w-[210px] items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors lg:min-w-0 ${
+                        isActive
+                          ? "bg-primary/10 text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <span className={`size-2 shrink-0 rounded-full ${dot}`} />
+
+                      <span className="shrink-0 text-lg leading-none">
+                        {flag}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`truncate text-sm font-semibold ${
+                            isActive ? "text-foreground" : ""
                           }`}
-                        />
-                        <div>
-                          <p className="font-mono text-sm font-semibold">{msg.from_number}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {msg.direction === "outbound" ? "sent to" : "to"} {flag} {numPhone}
-                          </p>
+                        >
+                          {label}
+                        </p>
+
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="truncate text-[11px] text-muted-foreground">
+                            {num.phone_number}
+                          </span>
+
+                          {price && (
+                            <span className="shrink-0 text-[10px] font-medium text-primary">
+                              {price}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {/* Jump to number */}
-                        {msg.number_id && (
-                          <button
-                            onClick={() => {
-                              setSelectedTab(msg.number_id);
-                              setSubTab("inbox");
-                            }}
-                            className="text-xs text-muted-foreground hover:text-primary"
-                            title="Open in inbox"
-                          >
-                            <ChevronRight className="size-3.5" />
-                          </button>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(msg.received_at).toLocaleString()}
+
+                      {num.auto_renew && (
+                        <span className="shrink-0 text-xs text-primary">
+                          ↻
                         </span>
-                      </div>
+                      )}
+                    </button>
+                  );
+                })}
+
+              {!loading && numbers.length > 0 && (
+                <div className="mx-1 hidden border-t border-border lg:block" />
+              )}
+
+              <button
+                onClick={() => setSelectedTab(TAB_ALL_SMS)}
+                className={`flex min-w-[180px] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors lg:min-w-0 ${
+                  selectedTab === TAB_ALL_SMS
+                    ? "bg-primary/10 text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <MessageSquare className="size-4 shrink-0" />
+
+                <span className="flex-1">All messages</span>
+
+                {messages.length > 0 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                    {messages.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setSelectedTab(TAB_TEMP)}
+                className={`flex min-w-[180px] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors lg:min-w-0 ${
+                  selectedTab === TAB_TEMP
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Zap className="size-4 shrink-0" />
+                <span>Temporary orders</span>
+              </button>
+            </div>
+          </aside>
+
+          {/* Main panel */}
+          <main className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+
+            {/* No numbers */}
+            {!loading && numbers.length === 0 && !selectedTab && (
+              <div className="flex min-h-[520px] flex-col items-center justify-center px-6 text-center">
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+                  <Phone className="size-6 text-primary" />
+                </div>
+
+                <h2 className="mt-5 text-lg font-semibold">
+                  No numbers yet
+                </h2>
+
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Get a number for WhatsApp, Telegram, surveys, app registrations, or one-time verification codes.
+                </p>
+
+                <Button
+                  variant="hero"
+                  className="mt-5 gap-2"
+                  onClick={() => setBuyOpen(true)}
+                >
+                  <Plus className="size-4" />
+                  Get your first number
+                </Button>
+              </div>
+            )}
+
+            {/* Selected virtual number */}
+            {!loading && selectedNumber && (
+              <div className="flex min-h-[520px] flex-col">
+
+                {/* Number header */}
+                <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xl">
+                      {NUMBER_COUNTRIES.find(
+                        (c) => c.code === selectedNumber.country_code
+                      )?.flag ?? String.fromCodePoint(0x1f310)}
                     </div>
 
-                    <p className="mt-2 text-sm leading-relaxed text-foreground">{msg.body}</p>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate font-mono text-base font-bold sm:text-lg">
+                          {selectedNumber.phone_number}
+                        </p>
 
-                    {otp && (
-                      <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/60">
-                            OTP detected
-                          </p>
-                          <p className="font-mono text-2xl font-bold tracking-widest text-primary">{otp}</p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(otp);
-                            toast.success("OTP copied!");
-                            pushOTPHistory(otp, numPhone ?? "SMS");
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90"
-                        >
-                          Copy OTP
-                        </button>
+                        {selectedNumber.label && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                            {selectedNumber.label}
+                          </span>
+                        )}
                       </div>
-                    )}
+
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        {selectedNumber.status === "active" ? (
+                          <span className="flex items-center gap-1 font-medium text-emerald-600">
+                            <CheckCircle2 className="size-3" />
+                            Active
+                          </span>
+                        ) : selectedNumber.status === "pending_payment" ? (
+                          <span className="flex items-center gap-1 font-medium text-amber-500">
+                            <Clock className="size-3" />
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 font-medium text-zinc-400">
+                            <Clock className="size-3" />
+                            Expired
+                          </span>
+                        )}
+
+                        {selectedNumber.expires_at &&
+                          selectedNumber.status === "active" && (
+                            <span>
+                              Expires{" "}
+                              {new Date(
+                                selectedNumber.expires_at
+                              ).toLocaleDateString()}
+                            </span>
+                          )}
+
+                        {selectedNumber.auto_renew && (
+                          <span className="text-primary">
+                            Auto-renew on
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {!msgsLoading && messages.length > 0 && !searchResults && (
-              <button
-                onClick={loadMessages}
-                className="w-full py-2 text-xs text-muted-foreground hover:text-foreground"
-              >
-                ↻ Refresh
-              </button>
+                  <div className="flex items-center justify-between gap-4 sm:block sm:text-right">
+                    <p className="text-sm font-bold text-primary">
+                      {priceLabel(selectedNumber)}
+                    </p>
+                    <p className="text-xs capitalize text-muted-foreground">
+                      {selectedNumber.number_type ?? "Number"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Number navigation */}
+                <div className="overflow-x-auto border-b border-border px-2 sm:px-4">
+                  <div className="flex min-w-max">
+                    {subTabs.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setSubTab(t.id)}
+                        className={`relative flex h-12 items-center gap-2 px-3 text-sm font-medium transition-colors ${
+                          subTab === t.id
+                            ? "text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {t.icon}
+                        {t.label}
+
+                        {subTab === t.id && (
+                          <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Number content */}
+                <div className="min-h-0 flex-1 p-4 sm:p-5">
+                  {subTab === "inbox" && (
+                    <SmsInbox
+                      numberId={selectedNumber.id}
+                      phoneNumber={selectedNumber.phone_number}
+                      provider={selectedNumber.provider ?? "telnyx"}
+                    />
+                  )}
+
+                  {subTab === "send" &&
+                    selectedNumber.provider === "telnyx" && (
+                      <OutboundSMS
+                        numberId={selectedNumber.id}
+                        fromNumber={selectedNumber.phone_number}
+                      />
+                    )}
+
+                  {subTab === "templates" &&
+                    selectedNumber.provider === "telnyx" && (
+                      <SMSTemplates />
+                    )}
+
+                  {subTab === "analytics" && (
+                    <NumberAnalytics numberId={selectedNumber.id} />
+                  )}
+
+                  {subTab === "settings" && (
+                    <NumberSettings
+                      number={selectedNumber}
+                      fxRate={fxRate}
+                      onUpdated={(updates) =>
+                        handleNumberUpdated(selectedNumber.id, updates)
+                      }
+                    />
+                  )}
+                </div>
+              </div>
             )}
-          </div>
-        )}
 
-        {/* ── Selected: Temp Orders ─────────────────────────────────────────────── */}
-        {!loading && selectedTab === TAB_TEMP && (
-          <SMSPoolOrders onRefreshNumbers={loadNumbers} />
-        )}
+            {/* All messages */}
+            {!loading && selectedTab === TAB_ALL_SMS && (
+              <div className="min-h-[520px]">
+
+                <div className="border-b border-border px-4 py-4 sm:px-5">
+                  <h2 className="font-semibold text-foreground">
+                    All messages
+                  </h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Messages received across all your virtual numbers.
+                  </p>
+                </div>
+
+                <div className="p-4 sm:p-5">
+                  <div className="flex gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+                      <input
+                        type="text"
+                        placeholder="Search messages..."
+                        value={msgSearch}
+                        onChange={(e) => {
+                          setMsgSearch(e.target.value);
+
+                          if (!e.target.value) {
+                            setSearchResults(null);
+                          }
+                        }}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleSearch()
+                        }
+                        className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                      />
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSearch}
+                      disabled={searching || !msgSearch}
+                    >
+                      {searching ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Search className="size-4" />
+                      )}
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExport}
+                      disabled={exporting}
+                      className="gap-2"
+                    >
+                      {exporting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Download className="size-4" />
+                      )}
+
+                      <span className="hidden sm:inline">CSV</span>
+                    </Button>
+                  </div>
+
+                  {searchResults !== null && (
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {searchResults.length} result
+                        {searchResults.length !== 1 ? "s" : ""} for "
+                        {msgSearch}"
+                      </span>
+
+                      <button
+                        onClick={() => {
+                          setSearchResults(null);
+                          setMsgSearch("");
+                        }}
+                        className="flex items-center gap-1 hover:text-foreground"
+                      >
+                        <X className="size-3" />
+                        Clear
+                      </button>
+                    </div>
+                  )}
+
+                  {msgsLoading && (
+                    <div className="mt-5 space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="h-24 animate-pulse rounded-xl bg-muted"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {!msgsLoading && displayedMessages.length === 0 && (
+                    <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
+                      <MessageSquare className="size-9 text-muted-foreground/30" />
+
+                      <p className="mt-3 font-medium">
+                        {searchResults !== null
+                          ? "No messages match your search"
+                          : "No messages yet"}
+                      </p>
+
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {searchResults !== null
+                          ? "Try another keyword."
+                          : "Incoming SMS will appear here."}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-5 divide-y divide-border">
+                    {displayedMessages.map((msg: any) => {
+                      const otp = extractOTP(msg.body);
+
+                      const numPhone =
+                        msg.virtual_numbers?.phone_number ?? msg.to_number;
+
+                      const flag =
+                        NUMBER_COUNTRIES.find(
+                          (c) =>
+                            c.code ===
+                            msg.virtual_numbers?.country_code
+                        )?.flag ?? String.fromCodePoint(0x1f310);
+
+                      return (
+                        <div key={msg.id} className="py-4 first:pt-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex min-w-0 items-start gap-3">
+                              <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                <MessageSquare
+                                  className={`size-4 ${
+                                    msg.direction === "outbound"
+                                      ? "text-emerald-500"
+                                      : "text-primary"
+                                  }`}
+                                />
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="truncate font-mono text-sm font-semibold">
+                                  {msg.from_number}
+                                </p>
+
+                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                  {msg.direction === "outbound"
+                                    ? "sent to"
+                                    : "to"}{" "}
+                                  {flag} {numPhone}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex shrink-0 items-center gap-2">
+                              {msg.number_id && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedTab(msg.number_id);
+                                    setSubTab("inbox");
+                                  }}
+                                  className="text-muted-foreground hover:text-primary"
+                                  title="Open inbox"
+                                >
+                                  <ChevronRight className="size-4" />
+                                </button>
+                              )}
+
+                              <span className="hidden text-xs text-muted-foreground sm:inline">
+                                {new Date(
+                                  msg.received_at
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-foreground">
+                            {msg.body}
+                          </p>
+
+                          {otp && (
+                            <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/70">
+                                  OTP detected
+                                </p>
+
+                                <p className="mt-0.5 font-mono text-xl font-bold tracking-[0.2em] text-primary">
+                                  {otp}
+                                </p>
+                              </div>
+
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(otp);
+                                  toast.success("OTP copied!");
+                                  pushOTPHistory(
+                                    otp,
+                                    numPhone ?? "SMS"
+                                  );
+                                }}
+                              >
+                                Copy OTP
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {!msgsLoading &&
+                    messages.length > 0 &&
+                    !searchResults && (
+                      <button
+                        onClick={loadMessages}
+                        className="mt-4 w-full py-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Refresh messages
+                      </button>
+                    )}
+                </div>
+              </div>
+            )}
+
+            {/* Temporary orders */}
+            {!loading && selectedTab === TAB_TEMP && (
+              <div className="min-h-[520px]">
+                <div className="border-b border-border px-4 py-4 sm:px-5">
+                  <h2 className="font-semibold text-foreground">
+                    Temporary orders
+                  </h2>
+
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    One-time SMS verification numbers and active OTP orders.
+                  </p>
+                </div>
+
+                <div className="p-4 sm:p-5">
+                  <SMSPoolOrders onRefreshNumbers={loadNumbers} />
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
 
-      {/* Floating OTP history tray */}
       <OTPHistory />
 
       <BuyNumberDialog
         open={buyOpen}
         onOpenChange={(o) => {
           setBuyOpen(o);
-          if (!o) loadNumbers();
+
+          if (!o) {
+            loadNumbers();
+          }
         }}
       />
     </DashboardShell>
