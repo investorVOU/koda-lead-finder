@@ -274,7 +274,7 @@ function DashboardPage() {
         <aside className="order-1 lg:order-2">
           <div className="space-y-4">
             <CreditMeter />
-            <section className="rounded-2xl border border-border bg-card p-4">
+            <section className="hidden sm:block rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2">
                 <Clock3 className="size-4 text-primary" />
                 <h2 className="text-sm font-semibold">Saved searches</h2>
