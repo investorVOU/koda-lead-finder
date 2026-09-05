@@ -10,6 +10,10 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISSED_KEY = "kodarai-pwa-install-dismissed";
+const VISIT_KEY = "kodarai-pwa-visit-count";
+
+const FIRST_VISIT_DELAY_MS = 90_000;
+const RETURN_VISIT_DELAY_MS = 8_000;
 
 function isStandalone() {
   if (typeof window === "undefined") return false;
@@ -40,30 +44,68 @@ export function InstallPwaPrompt() {
 
     if (dismissed) return;
 
-    const ios = isIos();
+    // Count browser sessions/visits.
+    // sessionStorage prevents page refreshes from counting as new visits.
+    const sessionCountedKey = "kodarai-pwa-session-counted";
 
-    if (ios) {
-      const timer = window.setTimeout(() => {
-        setShowPrompt(true);
-      }, 5000);
+    let visits = Number(localStorage.getItem(VISIT_KEY) ?? "0");
 
-      return () => window.clearTimeout(timer);
+    if (!sessionStorage.getItem(sessionCountedKey)) {
+      visits += 1;
+
+      localStorage.setItem(VISIT_KEY, String(visits));
+      sessionStorage.setItem(sessionCountedKey, "1");
     }
 
+    const delay =
+      visits >= 2
+        ? RETURN_VISIT_DELAY_MS
+        : FIRST_VISIT_DELAY_MS;
+
+    const ios = isIos();
+
+    let showTimer: number | undefined;
+
+    const schedulePrompt = () => {
+      if (showTimer) {
+        window.clearTimeout(showTimer);
+      }
+
+      showTimer = window.setTimeout(() => {
+        if (!isStandalone()) {
+          setShowPrompt(true);
+        }
+      }, delay);
+    };
+
+    // iPhone/iPad uses our Add to Home Screen instructions.
+    if (ios) {
+      schedulePrompt();
+
+      return () => {
+        if (showTimer) {
+          window.clearTimeout(showTimer);
+        }
+      };
+    }
+
+    // Android / supported desktop browsers:
+    // wait until the browser confirms the PWA is installable.
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
 
       setInstallPrompt(event as BeforeInstallPromptEvent);
-
-      window.setTimeout(() => {
-        setShowPrompt(true);
-      }, 3000);
+      schedulePrompt();
     };
 
     const handleInstalled = () => {
       setShowPrompt(false);
       setInstallPrompt(null);
       localStorage.removeItem(DISMISSED_KEY);
+
+      if (showTimer) {
+        window.clearTimeout(showTimer);
+      }
     };
 
     window.addEventListener(
@@ -71,15 +113,25 @@ export function InstallPwaPrompt() {
       handleBeforeInstallPrompt
     );
 
-    window.addEventListener("appinstalled", handleInstalled);
+    window.addEventListener(
+      "appinstalled",
+      handleInstalled
+    );
 
     return () => {
+      if (showTimer) {
+        window.clearTimeout(showTimer);
+      }
+
       window.removeEventListener(
         "beforeinstallprompt",
         handleBeforeInstallPrompt
       );
 
-      window.removeEventListener("appinstalled", handleInstalled);
+      window.removeEventListener(
+        "appinstalled",
+        handleInstalled
+      );
     };
   }, []);
 
