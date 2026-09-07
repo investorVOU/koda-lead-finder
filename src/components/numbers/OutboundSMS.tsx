@@ -35,7 +35,7 @@ export function OutboundSMS({ numberId, fromNumber }: Props) {
     setSending(true);
     const res = await runSend({ data: { numberId, to: to.trim(), body: body.trim() } });
     setSending(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     toast.success("SMS sent!");
     setBody("");
   };

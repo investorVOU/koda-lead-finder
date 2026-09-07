@@ -36,7 +36,7 @@ export function SMSTemplates({ onUse }: Props) {
     setCreating(true);
     const res = await runCreate({ data: { name: name.trim(), body: body.trim() } });
     setCreating(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     toast.success("Template saved");
     setTemplates((t) => [res.template as SmsTemplate, ...t]);
     setName(""); setBody(""); setShowForm(false);

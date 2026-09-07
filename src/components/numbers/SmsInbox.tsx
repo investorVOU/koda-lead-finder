@@ -201,7 +201,7 @@ export function SmsInbox({ numberId, phoneNumber, provider = "telnyx" }: Props) 
                 <div className="flex items-center gap-2">
                   <MessageSquare className="size-4 shrink-0 text-primary" />
                   <span className="font-mono text-sm font-semibold">
-                    {/^[+\d].*/.test(String(msg.from_number)) ? String(msg.from_number) : "Kodarai sms"}
+                    {/^[+\d].*/.test(String(msg.from_number)) ? String(msg.from_number) : "KodarAI"}
                   </span>
                   {service && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">

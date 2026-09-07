@@ -476,7 +476,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     setResults([]); setSearching(true);
     const res = await runSearch({ data: { country, type: "local" } });
     setSearching(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     setResults(res.numbers);
   };
 
@@ -493,7 +493,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
       },
     });
     setBuying(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     toast.success("Number activated! It will appear in your list.");
     // Deduct display amount optimistically (server charges actual rate)
     setBalance((b) => b !== null ? b - ngnPrice : b);
@@ -512,7 +512,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
       },
     });
     setBuying(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     if ("url" in res) window.location.href = res.url;
   };
 
@@ -521,7 +521,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     setTempBuying(true);
     const res = await runTempBuy({ data: { country: tempCountry, service: tempService } });
     setTempBuying(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     setTempResult({
       numberId:    res.numberId,
       phoneNumber: res.phoneNumber,
@@ -591,7 +591,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     setRentalBuying(false);
     if (res?.error || !res?.phoneNumber) {
       console.error("[short-term rental] purchase failed", res);
-      toast.error(res?.message ?? "SMSPool rental is currently unavailable.");
+      toast.error("This number is currently unavailable. Please try another option.");
       return;
     }
     toast.success(`Rental number ready: ${res.phoneNumber} — valid for ${smsPoolDays} days!`);
@@ -602,7 +602,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     setToppingUp(true);
     const res = await runTopUp({ data: { amountNgn: topUpAmount, provider } });
     setToppingUp(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     if ("url" in res) window.location.href = res.url;
   };
 
@@ -634,7 +634,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
              step === "pay"            ? `Activate ${selected?.phoneNumber} — ₦${ngnPrice.toLocaleString()}/month` :
              step === "temp-wait"      ? "Use the number below for your verification. SMS will appear automatically." :
              step === "rental-smspool" ? "Rent a number for a short window when you only need it temporarily." :
-                                         "One-time use. Expires after 20 min or first SMS received."}
+                                         "One-time verification number. Available for up to 20 minutes."}
           </DialogDescription>
         </DialogHeader>
 
@@ -849,7 +849,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button
                   onClick={() => setPayMethod("wallet")}
                   className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${payMethod === "wallet" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
@@ -1233,7 +1233,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 <MessageSquare className="size-3.5 shrink-0" />
                 All received SMS are saved in your inbox under the Numbers page.
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {(tempExpired && !tempSms) && (
                   <Button variant="outline" className="col-span-2" onClick={autoRetry}>
                     <Zap className="size-4" /> Try again with new number
@@ -1252,7 +1252,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                   className={tempExpired && !tempSms ? "col-span-1" : "col-span-1"}
                   onClick={() => onOpenChange(false)}
                 >
-                  {tempSms ? "Done" : "Close — check inbox later"}
+                  {tempSms ? "Done" : "Check inbox"}
                 </Button>
               </div>
             </div>

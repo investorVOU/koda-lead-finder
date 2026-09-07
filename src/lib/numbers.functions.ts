@@ -156,7 +156,7 @@ export const getUserNumbers = createServerFn({ method: "GET" })
       .from("virtual_numbers")
       .select("*")
       .eq("user_id", userId)
-      .neq("status", "released")
+
       .order("created_at", { ascending: false });
     if (error) return { error: true, message: error.message } as const;
     return { numbers: data ?? [] } as const;

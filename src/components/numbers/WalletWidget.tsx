@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Wallet, ChevronDown, Loader2, Plus } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -98,7 +98,7 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
       resetCaptcha();
 
       if ("error" in res) {
-        toast.error(res.message);
+        toast.error("Something went wrong. Please try again.");
         return;
       }
 

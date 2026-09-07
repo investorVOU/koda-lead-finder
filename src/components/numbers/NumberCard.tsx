@@ -48,7 +48,7 @@ export function NumberCard({ number: initialNumber, fxRate = 1600, onDeleted, on
     setReleasing(true);
     const res = await runRelease({ data: { numberId: number.id } });
     setReleasing(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     toast.success("Number released.");
     onDeleted(number.id);
   };
@@ -57,7 +57,7 @@ export function NumberCard({ number: initialNumber, fxRate = 1600, onDeleted, on
     setSavingLabel(true);
     const res = await runUpdateLabel({ data: { numberId: number.id, label: labelDraft.trim() || null } });
     setSavingLabel(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     const updated = { ...number, label: labelDraft.trim() || null };
     setNumber(updated);
     onUpdated(number.id, { label: updated.label });

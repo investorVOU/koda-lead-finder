@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Phone, Plus, MessageSquare, Search, Download, Zap,
-  CheckCircle2, Clock, ChevronRight, BarChart3, Settings2,
+  CheckCircle2, Clock, ChevronRight, ChevronDown, BarChart3, Settings2,
   Send, Loader2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -125,6 +125,7 @@ function NumbersPage() {
   const [selectedTab,  setSelectedTab]  = useState<string | null>(null);
   const [subTab,       setSubTab]       = useState<SubTab>("inbox");
   const [buyOpen,      setBuyOpen]      = useState(false);
+  const [myNumbersOpen,setMyNumbersOpen]= useState(false);
   const [nowMs,        setNowMs]        = useState(() => Date.now());
 
   // Wallet
@@ -249,6 +250,363 @@ function NumbersPage() {
   // Render
   return (
     <DashboardShell>
+
+      {myNumbersOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+          onClick={() => setMyNumbersOpen(false)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl sm:rounded-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-4">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-foreground">
+                  My Numbers
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  All virtual numbers you've ever purchased.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMyNumbersOpen(false)}
+                className="flex size-9 shrink-0 items-center justify-center rounded-full text-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Close My Numbers"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Number history */}
+            <div className="overflow-y-auto p-4 sm:p-5">
+              {numbers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
+                  <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
+                    <Phone className="size-6 text-muted-foreground" />
+                  </div>
+
+                  <h3 className="mt-4 font-semibold text-foreground">
+                    No numbers yet
+                  </h3>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Numbers you purchase will appear here.
+                  </p>
+
+                  <Button
+                    type="button"
+                    className="mt-5 gap-2"
+                    onClick={() => {
+                      setMyNumbersOpen(false);
+                      setBuyOpen(true);
+                    }}
+                  >
+                    <Plus className="size-4" />
+                    Buy a number
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-7">
+                  {(() => {
+                    const activeNumbers = numbers.filter((num) => {
+                      const expiryMs = num.expires_at
+                        ? new Date(num.expires_at).getTime()
+                        : null;
+
+                      const expiredByTime =
+                        expiryMs !== null &&
+                        Number.isFinite(expiryMs) &&
+                        expiryMs <= nowMs;
+
+                      const isExpired =
+                        num.status === "expired" ||
+                        num.status === "released" ||
+                        expiredByTime;
+
+                      const isPending =
+                        num.status === "pending_payment";
+
+                      return !isExpired && !isPending;
+                    });
+
+                    if (activeNumbers.length === 0) return null;
+
+                    return (
+                      <section>
+                        <div className="mb-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="size-2 rounded-full bg-emerald-500" />
+
+                            <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-foreground">
+                              Active
+                            </h3>
+                          </div>
+
+                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+                            {activeNumbers.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {activeNumbers.map((num) => {
+                            const countryCode = String(
+                              num.country_code ?? ""
+                            )
+                              .trim()
+                              .toUpperCase();
+
+                            return (
+                              <button
+                                key={num.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTab(num.id);
+                                  setSubTab("inbox");
+                                  setMyNumbersOpen(false);
+                                }}
+                                className="group flex w-full items-center gap-3 rounded-xl border border-border bg-background p-3 text-left transition-colors hover:border-primary/30 hover:bg-muted/40"
+                              >
+                                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold text-foreground">
+                                  {countryCode || "—"}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-mono text-sm font-bold text-foreground sm:text-base">
+                                    {formatPhoneNumber(
+                                      num.phone_number,
+                                      num.country_code
+                                    )}
+                                  </p>
+
+                                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                    <span className="capitalize">
+                                      {num.number_type ?? "Virtual number"}
+                                    </span>
+
+                                    {num.expires_at &&
+                                      new Date(
+                                        num.expires_at
+                                      ).getTime() > nowMs && (
+                                        <>
+                                          <span>•</span>
+
+                                          <span className="font-medium text-emerald-600">
+                                            Expires in{" "}
+                                            {expiryCountdown(
+                                              num.expires_at,
+                                              nowMs
+                                            )}
+                                          </span>
+                                        </>
+                                      )}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors group-hover:bg-primary/10">
+                                  View
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })()}
+
+                  {(() => {
+                    const pendingNumbers = numbers.filter(
+                      (num) => num.status === "pending_payment"
+                    );
+
+                    if (pendingNumbers.length === 0) return null;
+
+                    return (
+                      <section>
+                        <div className="mb-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="size-2 rounded-full bg-amber-400" />
+
+                            <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-foreground">
+                              Pending
+                            </h3>
+                          </div>
+
+                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600">
+                            {pendingNumbers.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {pendingNumbers.map((num) => {
+                            const countryCode = String(
+                              num.country_code ?? ""
+                            )
+                              .trim()
+                              .toUpperCase();
+
+                            return (
+                              <button
+                                key={num.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTab(num.id);
+                                  setSubTab("inbox");
+                                  setMyNumbersOpen(false);
+                                }}
+                                className="group flex w-full items-center gap-3 rounded-xl border border-border bg-background p-3 text-left transition-colors hover:border-primary/30 hover:bg-muted/40"
+                              >
+                                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-xs font-bold text-amber-600">
+                                  {countryCode || "—"}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-mono text-sm font-bold text-foreground sm:text-base">
+                                    {formatPhoneNumber(
+                                      num.phone_number,
+                                      num.country_code
+                                    )}
+                                  </p>
+
+                                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                    <span className="capitalize">
+                                      {num.number_type ?? "Virtual number"}
+                                    </span>
+
+                                    <span>•</span>
+
+                                    <span className="font-medium text-amber-600">
+                                      Pending
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors group-hover:bg-primary/10">
+                                  View
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })()}
+
+                  {(() => {
+                    const expiredNumbers = numbers.filter((num) => {
+                      if (num.status === "pending_payment") {
+                        return false;
+                      }
+
+                      const expiryMs = num.expires_at
+                        ? new Date(num.expires_at).getTime()
+                        : null;
+
+                      const expiredByTime =
+                        expiryMs !== null &&
+                        Number.isFinite(expiryMs) &&
+                        expiryMs <= nowMs;
+
+                      return (
+                        num.status === "expired" ||
+                        num.status === "released" ||
+                        expiredByTime
+                      );
+                    });
+
+                    if (expiredNumbers.length === 0) return null;
+
+                    return (
+                      <section>
+                        <div className="mb-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="size-2 rounded-full bg-zinc-400" />
+
+                            <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-foreground">
+                              Expired
+                            </h3>
+                          </div>
+
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                            {expiredNumbers.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {expiredNumbers.map((num) => {
+                            const countryCode = String(
+                              num.country_code ?? ""
+                            )
+                              .trim()
+                              .toUpperCase();
+
+                            return (
+                              <button
+                                key={num.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTab(num.id);
+                                  setSubTab("inbox");
+                                  setMyNumbersOpen(false);
+                                }}
+                                className="group flex w-full items-center gap-3 rounded-xl border border-border bg-muted/20 p-3 text-left opacity-80 transition-all hover:bg-muted/50 hover:opacity-100"
+                              >
+                                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold text-muted-foreground">
+                                  {countryCode || "—"}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-mono text-sm font-bold text-foreground sm:text-base">
+                                    {formatPhoneNumber(
+                                      num.phone_number,
+                                      num.country_code
+                                    )}
+                                  </p>
+
+                                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                    <span className="capitalize">
+                                      {num.number_type ?? "Virtual number"}
+                                    </span>
+
+                                    <span>•</span>
+
+                                    {num.expires_at ? (
+                                      <span>
+                                        Expired{" "}
+                                        {new Date(
+                                          num.expires_at
+                                        ).toLocaleDateString(undefined, {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })}
+                                      </span>
+                                    ) : (
+                                      <span>Expired</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors group-hover:bg-muted">
+                                  View
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes numbersTicker {
           from {
@@ -384,12 +742,7 @@ function NumbersPage() {
 
             <button
               onClick={() => {
-                if (numbers.length > 0) {
-                  setSelectedTab(numbers[0].id);
-                  setSubTab("inbox");
-                } else {
-                  setSelectedTab(null);
-                }
+                setMyNumbersOpen(true);
               }}
               className={`relative flex h-13 items-center gap-2 px-4 text-sm font-semibold transition-colors ${
                 selectedTab !== TAB_ALL_SMS &&
@@ -400,6 +753,12 @@ function NumbersPage() {
             >
               <Phone className="size-4" />
               My Numbers
+
+              <ChevronDown
+                className={`size-3.5 transition-transform duration-200 ${
+                  myNumbersOpen ? "rotate-180" : ""
+                }`}
+              />
 
               {selectedTab !== TAB_ALL_SMS &&
                 selectedTab !== TAB_TEMP && (
@@ -819,7 +1178,11 @@ function NumbersPage() {
 
                             <div className="min-w-0">
                               <p className="truncate font-mono text-sm font-semibold">
-                                {msg.from_number}
+                                {["smspool", "telnyx"].includes(
+  String(msg.from_number ?? "").trim().toLowerCase()
+)
+  ? "KodarAI"
+  : msg.from_number}
                               </p>
 
                               <p className="mt-1 truncate text-xs text-muted-foreground">

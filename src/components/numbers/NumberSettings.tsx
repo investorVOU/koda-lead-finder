@@ -45,7 +45,7 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
     setSavingLabel(true);
     const res = await runUpdateLabel({ data: { numberId: number.id, label: label.trim() || null } });
     setSavingLabel(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     toast.success("Label saved");
     onUpdated({ label: label.trim() || null });
   };
@@ -55,7 +55,7 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
     const newVal = !autoRenew;
     const res = await runToggleRenew({ data: { numberId: number.id, autoRenew: newVal } });
     setTogglingRenew(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     setAutoRenew(newVal);
     onUpdated({ auto_renew: newVal });
     toast.success(newVal ? "Auto-renew enabled" : "Auto-renew disabled");
@@ -65,7 +65,7 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
     setExtending(true);
     const res = await runExtend({ data: { numberId: number.id } });
     setExtending(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     toast.success("Number extended by 1 month!");
     if ("expiresAt" in res) onUpdated({ expires_at: res.expiresAt });
   };
@@ -80,7 +80,7 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
       },
     });
     setSavingFwd(false);
-    if ("error" in res) { toast.error(res.message); return; }
+    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
     toast.success("Call forwarding updated");
     onUpdated({ call_forward_to: forwardTo.trim() || null, call_forward_enabled: forwardOn && !!forwardTo.trim() });
   };
@@ -161,7 +161,7 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
             <PhoneForwarded className="size-4 text-muted-foreground" /> Call forwarding
           </p>
           <p className="text-xs text-muted-foreground">
-            Incoming voice calls are forwarded to this number. This requires the number to be connected to the provider webhook or call-control setup for your account.
+            Incoming voice calls are forwarded to this number when call forwarding is enabled.
           </p>
           <input
             type="tel"
