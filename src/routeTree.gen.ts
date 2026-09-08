@@ -50,6 +50,7 @@ import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool
 import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
+import { Route as ApiPublicNumbersRenewalsRouteImport } from './routes/api/public/numbers/renewals'
 import { Route as ApiPublicMarketingWeeklyRouteImport } from './routes/api/public/marketing/weekly'
 import { Route as ApiPublicMarketingUnsubscribeRouteImport } from './routes/api/public/marketing/unsubscribe'
 import { Route as ApiPublicFollowUpRemindersDueRouteImport } from './routes/api/public/follow-up-reminders/due'
@@ -270,6 +271,12 @@ const ApiPublicWebhooksPaystackRoute =
     path: '/api/public/webhooks/paystack',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicNumbersRenewalsRoute =
+  ApiPublicNumbersRenewalsRouteImport.update({
+    id: '/api/public/numbers/renewals',
+    path: '/api/public/numbers/renewals',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMarketingWeeklyRoute =
   ApiPublicMarketingWeeklyRouteImport.update({
     id: '/api/public/marketing/weekly',
@@ -329,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
+  '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -373,6 +381,7 @@ export interface FileRoutesByTo {
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
+  '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -420,6 +429,7 @@ export interface FileRoutesById {
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
+  '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -467,6 +477,7 @@ export interface FileRouteTypes {
     | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
+    | '/api/public/numbers/renewals'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/telnyx-voice'
@@ -511,6 +522,7 @@ export interface FileRouteTypes {
     | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
+    | '/api/public/numbers/renewals'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/telnyx-voice'
@@ -557,6 +569,7 @@ export interface FileRouteTypes {
     | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
+    | '/api/public/numbers/renewals'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
     | '/api/public/webhooks/telnyx-voice'
@@ -581,6 +594,7 @@ export interface RootRouteChildren {
   ApiPublicFollowUpRemindersDueRoute: typeof ApiPublicFollowUpRemindersDueRoute
   ApiPublicMarketingUnsubscribeRoute: typeof ApiPublicMarketingUnsubscribeRoute
   ApiPublicMarketingWeeklyRoute: typeof ApiPublicMarketingWeeklyRoute
+  ApiPublicNumbersRenewalsRoute: typeof ApiPublicNumbersRenewalsRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksSmsIncomingRoute: typeof ApiPublicWebhooksSmsIncomingRoute
   ApiPublicWebhooksTelnyxVoiceRoute: typeof ApiPublicWebhooksTelnyxVoiceRoute
@@ -876,6 +890,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksPaystackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/numbers/renewals': {
+      id: '/api/public/numbers/renewals'
+      path: '/api/public/numbers/renewals'
+      fullPath: '/api/public/numbers/renewals'
+      preLoaderRoute: typeof ApiPublicNumbersRenewalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/marketing/weekly': {
       id: '/api/public/marketing/weekly'
       path: '/api/public/marketing/weekly'
@@ -983,6 +1004,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFollowUpRemindersDueRoute: ApiPublicFollowUpRemindersDueRoute,
   ApiPublicMarketingUnsubscribeRoute: ApiPublicMarketingUnsubscribeRoute,
   ApiPublicMarketingWeeklyRoute: ApiPublicMarketingWeeklyRoute,
+  ApiPublicNumbersRenewalsRoute: ApiPublicNumbersRenewalsRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksSmsIncomingRoute: ApiPublicWebhooksSmsIncomingRoute,
   ApiPublicWebhooksTelnyxVoiceRoute: ApiPublicWebhooksTelnyxVoiceRoute,

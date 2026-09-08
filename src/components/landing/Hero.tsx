@@ -194,7 +194,7 @@ export function Hero() {
               </span>
 
               <span>
-                Pay with card or Paystack
+                Pay with Paystack
               </span>
 
               <span className="inline-flex items-center gap-1.5">

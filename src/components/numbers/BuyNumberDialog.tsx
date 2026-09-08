@@ -405,7 +405,9 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     const loadRentalOptions = async () => {
       try {
         console.info("[short-term rental] loading options", { country: tempCountry, step });
-        const res = (await runGetRentalOptions({ data: { country: tempCountry, type: 0 } })) as SmsPoolRentalServerResult;
+        // SMSPool currently has stock in its type-1 rental catalogue. Keep it
+        // separate from type 0 so users never see mixed price schedules.
+        const res = (await runGetRentalOptions({ data: { country: tempCountry, type: 1 } })) as SmsPoolRentalServerResult;
         console.info("[short-term rental] options response", res);
         if (res?.error || !Array.isArray(res?.rentals)) {
           console.warn("[short-term rental] options rejected by server", res);
@@ -474,10 +476,18 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
   const search = async () => {
     setResults([]); setSearching(true);
-    const res = await runSearch({ data: { country, type: "local" } });
-    setSearching(false);
-    if ("error" in res) { toast.error("Something went wrong. Please try again."); return; }
-    setResults(res.numbers);
+    try {
+      const res = await runSearch({ data: { country, type: "local" } });
+      if ("error" in res) {
+        toast.error(res.message || "We could not find numbers right now. Please try again.");
+        return;
+      }
+      setResults(res.numbers);
+    } catch {
+      toast.error("We could not search for numbers. Check your connection and try again.");
+    } finally {
+      setSearching(false);
+    }
   };
 
   const selectNumber = (n: AvailableNumber) => { setSelected(n); setStep("pay"); };
@@ -625,12 +635,12 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
              step === "search"         ? "Find a rental number" :
              step === "pay"            ? "Complete your purchase" :
              step === "temp-wait"      ? "Number ready — waiting for SMS" :
-             step === "rental-smspool" ? "Short-term rental" :
+             step === "rental-smspool" ? "Flexible rental" :
                                          "Get a temporary number"}
           </DialogTitle>
           <DialogDescription>
-            {step === "type"           ? "Choose between a monthly rental, quick verification number, or a short-term rental." :
-             step === "search"         ? "Choose a monthly number and receive messages in your Kodarai inbox." :
+            {step === "type"           ? "Choose between a monthly number, a flexible multi-day rental, or a quick verification number." :
+             step === "search"         ? "Choose a monthly pay-as-you-go number. There is no long-term contract." :
              step === "pay"            ? `Activate ${selected?.phoneNumber} — ₦${ngnPrice.toLocaleString()}/month` :
              step === "temp-wait"      ? "Use the number below for your verification. SMS will appear automatically." :
              step === "rental-smspool" ? "Rent a number for a short window when you only need it temporarily." :
@@ -652,11 +662,11 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold">Monthly number</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Monthly rental — unlimited SMS, 50+ countries.
+                    Monthly pay-as-you-go. Stop any time.
                   </p>
                 </div>
                 <div className="shrink-0 text-right text-xs font-bold text-primary">
-                  live price
+                  monthly
                 </div>
               </button>
 
@@ -668,9 +678,9 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                   <Clock className="size-5 text-emerald-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold">Short-term rental</p>
+                  <p className="font-semibold">Flexible rental</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Ideal for short campaigns, tests, or temporary sign-up windows.
+                    Choose the duration you need for campaigns, testing, or verification.
                   </p>
                 </div>
                 <div className="shrink-0 text-right text-xs font-bold text-emerald-600">
@@ -836,7 +846,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-primary">₦{ngnPrice.toLocaleString()}/mo</p>
-                  <p className="text-xs text-muted-foreground">~${usdPrice}</p>
+                  <p className="text-xs text-muted-foreground">Pay month to month · cancel any time</p>
                 </div>
               </div>
 
@@ -1060,10 +1070,10 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
             <div className="space-y-4">
               <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 px-4 py-3 text-sm dark:border-emerald-900/30 dark:bg-emerald-900/10">
                 <p className="font-medium text-emerald-800 dark:text-emerald-400">
-                  Short-term rental
+                  Flexible rental
                 </p>
                 <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-500">
-                  Perfect for short campaigns, testing windows, and time-based verification needs.
+                  Choose a duration that fits the job. Prices vary by country and rental length.
                 </p>
               </div>
 
@@ -1092,11 +1102,11 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Rental tier</label>
-                <div className="grid grid-cols-1 gap-2">
+                <label className="text-xs font-medium text-muted-foreground">Choose duration</label>
+                <div className="flex snap-x gap-2 overflow-x-auto pb-1">
                   {rentalTierOptions.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
-                      No short-term rental options are available for this country right now.
+                      No flexible rental options are available for this country right now.
                     </div>
                   ) : (
                     rentalTierOptions.map((option) => (
@@ -1108,15 +1118,15 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                           setSmsPoolRentalId(option.rentalId);
                           setSmsPoolDays(option.days);
                         }}
-                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors ${smsPoolRentalId === option.rentalId && smsPoolDays === option.days ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-border hover:border-emerald-400/50"}`}
+                        className={`flex w-32 shrink-0 snap-start flex-col justify-between rounded-xl border px-3 py-3 text-left transition-colors ${smsPoolRentalId === option.rentalId && smsPoolDays === option.days ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-border hover:border-emerald-400/50"}`}
                       >
                         <div>
-                          <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{option.countryName ?? option.country}</div>
-                          <div className="text-sm font-semibold">{option.days} day{option.days !== 1 ? "s" : ""}</div>
+                          <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{option.days} day{option.days !== 1 ? "s" : ""}</div>
+                          <div className="mt-1 text-[11px] text-muted-foreground">{option.countryName ?? option.country}</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-bold">₦{option.customerNgn.toLocaleString()}</div>
-                          <div className="text-[11px] text-muted-foreground">~${Number(option.customerUsd ?? 0).toFixed(2)}</div>
+                        <div className="mt-3">
+                          <div className="text-sm font-bold text-foreground">₦{option.customerNgn.toLocaleString()}</div>
+                          <div className="text-[11px] text-muted-foreground">₦{Math.ceil(option.customerNgn / option.days).toLocaleString()}/day</div>
                         </div>
                       </button>
                     ))
@@ -1135,7 +1145,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
               <div className="flex items-center text-xs text-muted-foreground">
                 <span>
-                  {selectedRentalTier ? `Cost: ₦${selectedRentalTier.customerNgn.toLocaleString()} (~$${Number(selectedRentalTier.customerUsd ?? 0).toFixed(2)})` : "No quote available"}
+                  {selectedRentalTier ? `Cost: ₦${selectedRentalTier.customerNgn.toLocaleString()} (~$${Number(selectedRentalTier.customerUsd ?? 0).toFixed(2)}) · ₦${Math.ceil(selectedRentalTier.customerNgn / selectedRentalTier.days).toLocaleString()}/day` : "No quote available"}
                 </span>
               </div>
 

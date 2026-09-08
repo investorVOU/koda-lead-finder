@@ -1,0 +1,22 @@
+name: Monthly number renewals
+
+on:
+  schedule:
+    # Run hourly so opted-in numbers are renewed before their billing date.
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  renew-numbers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Process number renewals
+        env:
+          NUMBER_RENEWAL_CRON_SECRET: ${{ secrets.NUMBER_RENEWAL_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "https://kodarai.xyz/api/public/numbers/renewals" \
+            -H "Authorization: Bearer ${NUMBER_RENEWAL_CRON_SECRET}"

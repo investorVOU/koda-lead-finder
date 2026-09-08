@@ -81,7 +81,6 @@ function StudioPage() {
                 <li className="p-3 sm:p-4"><span className="mx-auto flex size-6 items-center justify-center rounded-full border border-primary/35 bg-background text-xs font-semibold text-primary">2</span><span className="mt-2 block text-xs font-medium text-foreground sm:text-sm">Edit site</span></li>
                 <li className="p-3 sm:p-4"><span className="mx-auto flex size-6 items-center justify-center rounded-full border border-primary/35 bg-background text-xs font-semibold text-primary">3</span><span className="mt-2 block text-xs font-medium text-foreground sm:text-sm">Share</span></li>
               </ol>
-              </div>
             </div>
             <div className="border-t border-border bg-[#f4f7f5] p-5 dark:bg-muted/35 sm:p-7 lg:border-l lg:border-t-0">
               <p className="text-sm font-semibold text-foreground">Ready to start?</p>

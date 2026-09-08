@@ -116,17 +116,17 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
         </div>
       </div>
 
-      {/* Auto-renew + extend (Telnyx only) */}
+      {/* Monthly pay-as-you-go renewal */}
       {number.provider === "telnyx" && (
         <div className="space-y-3 rounded-xl border border-border p-4">
           <p className="text-sm font-semibold flex items-center gap-2">
-            <RefreshCw className="size-4 text-muted-foreground" /> Renewal
+            <RefreshCw className="size-4 text-muted-foreground" /> Monthly billing
           </p>
 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm">Auto-renew monthly</p>
-              <p className="text-xs text-muted-foreground">Automatically charges wallet before expiry</p>
+              <p className="text-xs text-muted-foreground">No contract. Charge your Kodarai wallet before the billing date.</p>
             </div>
             <button
               onClick={handleAutoRenew}
@@ -143,7 +143,7 @@ export function NumberSettings({ number, fxRate = 1600, onUpdated }: Props) {
 
           <div className="flex items-center justify-between pt-1 border-t border-border">
             <div>
-              <p className="text-sm">Extend now (1 month)</p>
+              <p className="text-sm">Pay for next month</p>
               <p className="text-xs text-muted-foreground">Charge {renewPrice} from wallet</p>
             </div>
             <Button size="sm" variant="outline" onClick={extend} disabled={extending}>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Wallet, ChevronDown, Loader2, Plus } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -290,7 +290,7 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
                 <Plus className="size-3.5" />
               )}
 
-              Pay with Paystack
+              Pay
             </Button>
 
             <p className="text-center text-[10px] text-muted-foreground">

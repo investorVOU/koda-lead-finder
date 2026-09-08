@@ -6,7 +6,7 @@
  * SMSPool: cheap one-time temp numbers (OTP/verification), polling-delivered
  */
 
-const TELNYX_BASE  = "https://api.telnyx.com/v2";
+const TELNYX_BASE = "https://api.telnyx.com/v2";
 const SMSPOOL_BASE = "https://api.smspool.net";
 
 // â”€â”€ Auth helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -72,7 +72,9 @@ export interface SMSPoolRentalTier {
 }
 
 function normalizeSmsPoolCountry(value: unknown): string {
-  const raw = String(value ?? "").trim().toUpperCase();
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase();
   const cleaned = raw.replace(/[^A-Z0-9]/g, "");
   if (!cleaned) return "";
   if (cleaned === "USA" || cleaned === "UNITEDSTATES") return "US";
@@ -87,7 +89,10 @@ function parseSmsPoolRentalPricing(value: unknown): Record<string, number> {
       const parsed = JSON.parse(value) as Record<string, unknown>;
       if (parsed && typeof parsed === "object") {
         return Object.fromEntries(
-          Object.entries(parsed).map(([key, pricingValue]) => [String(key), Number(pricingValue ?? 0)]),
+          Object.entries(parsed).map(([key, pricingValue]) => [
+            String(key),
+            Number(pricingValue ?? 0),
+          ]),
         );
       }
     } catch {
@@ -98,7 +103,10 @@ function parseSmsPoolRentalPricing(value: unknown): Record<string, number> {
 
   if (typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, pricingValue]) => [String(key), Number(pricingValue ?? 0)]),
+      Object.entries(value as Record<string, unknown>).map(([key, pricingValue]) => [
+        String(key),
+        Number(pricingValue ?? 0),
+      ]),
     );
   }
 
@@ -139,7 +147,8 @@ function smsPoolUnsupportedRentalDetails({
     service,
     operation,
     responseMessage: responseBody && responseBody.trim() ? responseBody.trim().slice(0, 2000) : "",
-    message: "SMSPool does not currently expose a public 1â€“30 day rental tier API. Supported product is temporary OTP numbers via /purchase/sms; monthly rentals remain on Telnyx.",
+    message:
+      "SMSPool does not currently expose a public 1â€“30 day rental tier API. Supported product is temporary OTP numbers via /purchase/sms; monthly rentals remain on Telnyx.",
   };
 }
 
@@ -164,14 +173,16 @@ export async function searchTelnyxNumbers(
 ): Promise<TelnyxAvailableNumber[]> {
   const params = new URLSearchParams({
     "filter[country_code]": countryCode,
-    "filter[limit]":        "10",
+    "filter[limit]": "10",
     // Do NOT filter by phone_number_type â€” "local" only exists in US/CA.
     // European numbers are "national", APAC are "mobile", etc.
     // Telnyx will return whatever is available for the country.
   });
-  // filter[features] accepts an array of capability strings: sms, mms, voice, fax, etc.
-  for (const cap of capabilities) {
-    params.append("filter[features][]", cap);
+  // Telnyx documents this as the singular deep-object field
+  // `filter[features]`. We currently search for one required capability.
+  const requiredFeature = capabilities[0];
+  if (requiredFeature) {
+    params.set("filter[features]", requiredFeature);
   }
 
   const res = await fetch(`${TELNYX_BASE}/available_phone_numbers?${params}`, {
@@ -179,11 +190,11 @@ export async function searchTelnyxNumbers(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { errors?: Array<{ detail?: string }> };
+    const err = (await res.json().catch(() => ({}))) as { errors?: Array<{ detail?: string }> };
     throw new Error(err?.errors?.[0]?.detail ?? `Telnyx search failed (${res.status})`);
   }
 
-  const json = await res.json() as {
+  const json = (await res.json()) as {
     data: Array<{
       phone_number: string;
       region_information?: Array<{ region_type: string; region_name: string }>;
@@ -203,9 +214,7 @@ export async function searchTelnyxNumbers(
 
 // â”€â”€ TELNYX: Purchase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export async function purchaseTelnyxNumber(
-  phoneNumber: string,
-): Promise<TelnyxPurchasedNumber> {
+export async function purchaseTelnyxNumber(phoneNumber: string): Promise<TelnyxPurchasedNumber> {
   const profileId = process.env.TELNYX_MESSAGING_PROFILE_ID;
   const body: Record<string, string> = { phone_number: phoneNumber };
   if (profileId) body.messaging_profile_id = profileId;
@@ -217,11 +226,11 @@ export async function purchaseTelnyxNumber(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { errors?: Array<{ detail?: string }> };
+    const err = (await res.json().catch(() => ({}))) as { errors?: Array<{ detail?: string }> };
     throw new Error(err?.errors?.[0]?.detail ?? `Telnyx purchase failed (${res.status})`);
   }
 
-  const json = await res.json() as {
+  const json = (await res.json()) as {
     data: { id: string; phone_number: string; status: string };
   };
 
@@ -242,7 +251,7 @@ export async function releaseTelnyxNumber(telnyxNumberId: string): Promise<void>
 
   // 404 = already removed, treat as success
   if (!res.ok && res.status !== 404) {
-    const err = await res.json().catch(() => ({})) as { errors?: Array<{ detail?: string }> };
+    const err = (await res.json().catch(() => ({}))) as { errors?: Array<{ detail?: string }> };
     throw new Error(err?.errors?.[0]?.detail ?? `Telnyx release failed (${res.status})`);
   }
 }
@@ -252,9 +261,9 @@ export async function releaseTelnyxNumber(telnyxNumberId: string): Promise<void>
 export async function getTelnyxPricing(countryCode: string): Promise<number> {
   try {
     const numbers = await searchTelnyxNumbers(countryCode);
-    return numbers[0]?.monthlyCostUsd ?? 1.00;
+    return numbers[0]?.monthlyCostUsd ?? 1.0;
   } catch {
-    return 1.00;
+    return 1.0;
   }
 }
 
@@ -279,22 +288,25 @@ export async function requestSMSPoolNumber(
     throw new Error(`SMSPool request failed (${res.status})`);
   }
 
-  const json = await res.json() as {
+  const json = (await res.json()) as {
     success?: number;
     error?: number;
     message?: string;
     order_id?: string | number; // SMSPool uses order_id (not orderId)
-    number?: string;            // phone number field is "number" (not phonenumber)
+    number?: string; // phone number field is "number" (not phonenumber)
     country?: string;
     service?: string;
     expires_in?: number;
   };
 
   if (json.error || json.success === 0) {
-    throw new Error(json.message ?? "SMSPool number request failed â€” check balance or country/service availability");
+    throw new Error(
+      json.message ??
+        "SMSPool number request failed â€” check balance or country/service availability",
+    );
   }
 
-  const orderId     = String(json.order_id ?? "");
+  const orderId = String(json.order_id ?? "");
   const phoneNumber = json.number ?? "";
 
   if (!orderId || !phoneNumber) {
@@ -312,7 +324,7 @@ export async function requestSMSPoolNumber(
  */
 export async function pollSMSPoolInbox(orderId: string): Promise<string | null> {
   const params = new URLSearchParams({
-    key:     smsPoolKey(),
+    key: smsPoolKey(),
     orderid: orderId,
   });
 
@@ -320,12 +332,12 @@ export async function pollSMSPoolInbox(orderId: string): Promise<string | null> 
     const res = await fetch(`${SMSPOOL_BASE}/sms/check?${params}`);
     if (!res.ok) return null;
 
-    const json = await res.json() as {
-      sms?:      string;
+    const json = (await res.json()) as {
+      sms?: string;
       full_sms?: string;
       // status is numeric: 1=waiting, 2=received/completed, 3=expired/cancelled
-      status?:   number | string;
-      code?:     string;
+      status?: number | string;
+      code?: string;
     };
 
     // Most reliable signal: SMS text present in response
@@ -363,7 +375,7 @@ export async function getSMSPoolPrice(country: string, service: string = "any"):
         continue;
       }
 
-      const json = await res.json() as Record<string, unknown>;
+      const json = (await res.json()) as Record<string, unknown>;
       const candidates = [
         json.price,
         json.amount,
@@ -378,13 +390,21 @@ export async function getSMSPoolPrice(country: string, service: string = "any"):
 
       const priceValue = candidates.find((value) => {
         if (value === null || value === undefined || value === "") return false;
-        const raw = typeof value === "object" ? ((value as Record<string, unknown>).price ?? (value as Record<string, unknown>).amount ?? (value as Record<string, unknown>).cost) : value;
+        const raw =
+          typeof value === "object"
+            ? ((value as Record<string, unknown>).price ??
+              (value as Record<string, unknown>).amount ??
+              (value as Record<string, unknown>).cost)
+            : value;
         return raw !== null && raw !== undefined && raw !== "";
       });
 
       const normalized = Number(
         typeof priceValue === "object"
-          ? ((priceValue as Record<string, unknown>).price ?? (priceValue as Record<string, unknown>).amount ?? (priceValue as Record<string, unknown>).cost ?? 0)
+          ? ((priceValue as Record<string, unknown>).price ??
+              (priceValue as Record<string, unknown>).amount ??
+              (priceValue as Record<string, unknown>).cost ??
+              0)
           : priceValue,
       );
 
@@ -404,7 +424,7 @@ export async function getSMSPoolPricing(): Promise<Record<string, number>> {
     const res = await fetch(`${SMSPOOL_BASE}/country/prices?${params}`);
     if (!res.ok) return {};
 
-    const json = await res.json() as Array<{
+    const json = (await res.json()) as Array<{
       country?: string;
       name?: string;
       price?: string | number;
@@ -431,13 +451,21 @@ export async function getSMSPoolCountries(): Promise<Array<{ id: string; name: s
     const res = await fetch(`${SMSPOOL_BASE}/country/retrieve_all?${params}`);
     if (!res.ok) return SMSPOOL_COMMON_COUNTRIES;
 
-    const json = await res.json() as Array<{ ID?: string; name?: string; short_name?: string; id?: string | number; shortName?: string }>; 
+    const json = (await res.json()) as Array<{
+      ID?: string;
+      name?: string;
+      short_name?: string;
+      id?: string | number;
+      shortName?: string;
+    }>;
     if (!Array.isArray(json)) return SMSPOOL_COMMON_COUNTRIES;
 
-    return json.map((c) => ({
-      id: String(c.short_name ?? c.shortName ?? c.ID ?? c.id ?? ""),
-      name: String(c.name ?? c.short_name ?? c.shortName ?? c.ID ?? ""),
-    })).filter((c) => c.id);
+    return json
+      .map((c) => ({
+        id: String(c.short_name ?? c.shortName ?? c.ID ?? c.id ?? ""),
+        name: String(c.name ?? c.short_name ?? c.shortName ?? c.ID ?? ""),
+      }))
+      .filter((c) => c.id);
   } catch {
     return SMSPOOL_COMMON_COUNTRIES;
   }
@@ -449,21 +477,25 @@ export async function getSMSPoolServices(): Promise<SMSPoolService[]> {
     const res = await fetch(`${SMSPOOL_BASE}/service/retrieve_all?${params}`);
     if (!res.ok) return SMSPOOL_COMMON_SERVICES;
 
-    const json = await res.json() as Array<{ ID?: string | number; name?: string; id?: string | number }>;
+    const json = (await res.json()) as Array<{
+      ID?: string | number;
+      name?: string;
+      id?: string | number;
+    }>;
     if (!Array.isArray(json)) return SMSPOOL_COMMON_SERVICES;
 
-    return json.map((s) => ({
-      id: String(s.ID ?? s.id ?? s.name ?? ""),
-      name: String(s.name ?? s.ID ?? s.id ?? ""),
-    })).filter((s) => s.id);
+    return json
+      .map((s) => ({
+        id: String(s.ID ?? s.id ?? s.name ?? ""),
+        name: String(s.name ?? s.ID ?? s.id ?? ""),
+      }))
+      .filter((s) => s.id);
   } catch {
     return SMSPOOL_COMMON_SERVICES;
   }
 }
 
-export async function getSMSPoolRentals(
-  type: 0 | 1 = 0
-): Promise<SMSPoolRentalTier[]> {
+export async function getSMSPoolRentals(type: 0 | 1 = 0): Promise<SMSPoolRentalTier[]> {
   const endpoint = `${SMSPOOL_BASE}/rental/retrieve_all`;
 
   const body = new FormData();
@@ -498,9 +530,7 @@ export async function getSMSPoolRentals(
   } | null = null;
 
   try {
-    json = rawText
-      ? JSON.parse(rawText)
-      : null;
+    json = rawText ? JSON.parse(rawText) : null;
   } catch {
     json = null;
   }
@@ -509,36 +539,22 @@ export async function getSMSPoolRentals(
     status: response.status,
     success: json?.success,
     message: json?.message,
-    count: Array.isArray(json?.data)
-      ? json.data.length
-      : 0,
+    count: Array.isArray(json?.data) ? json.data.length : 0,
   });
 
   if (!response.ok) {
-    throw new Error(
-      json?.message ??
-      `SMSPool rental retrieval failed (${response.status})`
-    );
+    throw new Error(json?.message ?? `SMSPool rental retrieval failed (${response.status})`);
   }
 
-  if (
-    !json ||
-    json.success !== 1 ||
-    !Array.isArray(json.data)
-  ) {
-    throw new Error(
-      json?.message ??
-      "SMSPool did not return any rental products."
-    );
+  if (!json || json.success !== 1 || !Array.isArray(json.data)) {
+    throw new Error(json?.message ?? "SMSPool did not return any rental products.");
   }
 
   return json.data
     .map((item) => {
       const pricing: Record<string, number> = {};
 
-      for (const [days, rawPrice] of Object.entries(
-        item.pricing ?? {}
-      )) {
+      for (const [days, rawPrice] of Object.entries(item.pricing ?? {})) {
         const price = Number(rawPrice);
 
         if (Number.isFinite(price)) {
@@ -552,6 +568,7 @@ export async function getSMSPoolRentals(
         country: item.name ?? "",
         tag: item.tag ?? item.name ?? "",
         region: item.region ?? "",
+        type,
         pricing,
         priority: item.priority ?? 0,
         pool: item.pool ?? null,
@@ -562,11 +579,7 @@ export async function getSMSPoolRentals(
         refundMinDays: item.refund_min_days ?? 0,
       };
     })
-    .filter(
-      (item) =>
-        item.rentalId &&
-        Object.keys(item.pricing).length > 0
-    ) as SMSPoolRentalTier[];
+    .filter((item) => item.rentalId && Object.keys(item.pricing).length > 0) as SMSPoolRentalTier[];
 }
 
 // â”€â”€ Shared utilities (re-exported from sms-utils for server callers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -575,11 +588,7 @@ export { extractOTP, detectService } from "@/lib/sms-utils";
 
 // â”€â”€ TELNYX: Send outbound SMS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export async function sendTelnyxSMS(
-  from: string,
-  to: string,
-  text: string,
-): Promise<string> {
+export async function sendTelnyxSMS(from: string, to: string, text: string): Promise<string> {
   const profileId = process.env.TELNYX_MESSAGING_PROFILE_ID;
   const res = await fetch(`${TELNYX_BASE}/messages`, {
     method: "POST",
@@ -592,10 +601,10 @@ export async function sendTelnyxSMS(
     }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { errors?: Array<{ detail?: string }> };
+    const err = (await res.json().catch(() => ({}))) as { errors?: Array<{ detail?: string }> };
     throw new Error(err?.errors?.[0]?.detail ?? `Telnyx send SMS failed (${res.status})`);
   }
-  const json = await res.json() as { data: { id: string } };
+  const json = (await res.json()) as { data: { id: string } };
   return json.data.id;
 }
 
@@ -618,8 +627,10 @@ export async function configureTelnyxCallForward(
   });
   // Ignore 404 / 422 â€” number may not be a Call Control number
   if (!res.ok && res.status !== 404 && res.status !== 422) {
-    const err = await res.json().catch(() => ({})) as { errors?: Array<{ detail?: string }> };
-    throw new Error(err?.errors?.[0]?.detail ?? `Telnyx call forward config failed (${res.status})`);
+    const err = (await res.json().catch(() => ({}))) as { errors?: Array<{ detail?: string }> };
+    throw new Error(
+      err?.errors?.[0]?.detail ?? `Telnyx call forward config failed (${res.status})`,
+    );
   }
 }
 
@@ -630,7 +641,7 @@ export async function getSMSPoolBalance(): Promise<number> {
     const params = new URLSearchParams({ key: smsPoolKey() });
     const res = await fetch(`${SMSPOOL_BASE}/account/balance?${params}`);
     if (!res.ok) return 0;
-    const json = await res.json() as { balance?: string | number };
+    const json = (await res.json()) as { balance?: string | number };
     return parseFloat(String(json.balance ?? "0"));
   } catch {
     return 0;
@@ -643,7 +654,7 @@ export async function cancelSMSPoolOrder(orderId: string): Promise<void> {
   const params = new URLSearchParams({ key: smsPoolKey(), orderid: orderId });
   const res = await fetch(`${SMSPOOL_BASE}/sms/cancel?${params}`);
   if (!res.ok) throw new Error(`SMSPool cancel failed (${res.status})`);
-  const json = await res.json() as { success?: number; message?: string };
+  const json = (await res.json()) as { success?: number; message?: string };
   if (json.success !== 1) throw new Error(json.message ?? "SMSPool cancel failed");
 }
 
@@ -653,7 +664,7 @@ export async function resendSMSPoolSMS(orderId: string): Promise<void> {
   const params = new URLSearchParams({ key: smsPoolKey(), orderid: orderId });
   const res = await fetch(`${SMSPOOL_BASE}/sms/resend?${params}`);
   if (!res.ok) throw new Error(`SMSPool resend failed (${res.status})`);
-  const json = await res.json() as { success?: number; message?: string };
+  const json = (await res.json()) as { success?: number; message?: string };
   if (json.success !== 1) throw new Error(json.message ?? "SMSPool resend failed");
 }
 
@@ -709,7 +720,7 @@ export async function purchaseSMSPoolRental(
     body,
   });
 
-  const json = await res.json().catch(() => null) as {
+  const json = (await res.json().catch(() => null)) as {
     success?: number;
     message?: string;
     order_id?: string | number;
@@ -730,9 +741,13 @@ export async function purchaseSMSPoolRental(
     throw new Error(json?.message ?? `SMSPool rental purchase failed (${res.status})`);
   }
 
-  const orderId = String(json.rental_code ?? json.rentalCode ?? json.order_id ?? json.orderId ?? json.id ?? "");
+  const orderId = String(
+    json.rental_code ?? json.rentalCode ?? json.order_id ?? json.orderId ?? json.id ?? "",
+  );
   const phoneNumber = String(json.number ?? json.phone_number ?? json.phonenumber ?? "");
-  const expiresIn = Number(json.expires_in ?? json.expiresIn ?? json.expires_at ?? json.expiresAt ?? days * 24 * 60 * 60);
+  const expiresIn = Number(
+    json.expires_in ?? json.expiresIn ?? json.expires_at ?? json.expiresAt ?? days * 24 * 60 * 60,
+  );
 
   if (!orderId || !phoneNumber) {
     throw new Error("SMSPool rental purchase response is missing required rental details");
@@ -759,7 +774,7 @@ export async function purchaseSMSPoolRentalNumber(
     try {
       const res = await fetch(url);
       if (!res.ok) continue;
-      const json = await res.json() as {
+      const json = (await res.json()) as {
         success?: number;
         error?: number;
         message?: string;
@@ -773,7 +788,9 @@ export async function purchaseSMSPoolRentalNumber(
       };
 
       if (json.error || json.success === 0) {
-        throw new Error(json.message ?? "SMSPool rental failed â€” check country/service availability");
+        throw new Error(
+          json.message ?? "SMSPool rental failed â€” check country/service availability",
+        );
       }
 
       const orderId = String(json.order_id ?? json.orderId ?? "");

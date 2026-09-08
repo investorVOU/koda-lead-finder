@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Extended server functions for the Numbers page features:
  *   Outbound SMS, auto-renew toggle, renewal, call forwarding,
  *   SMS templates, analytics, number labels, SMSPool ops, search, CSV export.
@@ -17,11 +17,13 @@ import { getSMSPoolRentals, purchaseSMSPoolRental, smsPoolKey } from "@/lib/serv
 export const sendOutboundSMS = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      numberId: z.string().uuid(),
-      to:       z.string().min(7),
-      body:     z.string().min(1).max(1600),
-    }).parse(d),
+    z
+      .object({
+        numberId: z.string().uuid(),
+        to: z.string().min(7),
+        body: z.string().min(1).max(1600),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -36,23 +38,26 @@ export const sendOutboundSMS = createServerFn({ method: "POST" })
     if (!num || num.status !== "active")
       return { error: true, message: "Number not found or not active" } as const;
     if (num.provider !== "telnyx")
-      return { error: true, message: "Outbound SMS is only available on Telnyx rental numbers" } as const;
+      return {
+        error: true,
+        message: "Outbound SMS is only available on Telnyx rental numbers",
+      } as const;
 
     try {
       const { sendTelnyxSMS } = await import("@/lib/services/phone-numbers");
       const msgId = await sendTelnyxSMS(num.phone_number, data.to, data.body);
 
       await supabaseAdmin.from("sms_messages").insert({
-        number_id:    data.numberId,
-        user_id:      userId,
-        provider:     "telnyx",
+        number_id: data.numberId,
+        user_id: userId,
+        provider: "telnyx",
         provider_sid: msgId,
-        twilio_sid:   null,
-        direction:    "outbound",
-        from_number:  num.phone_number,
-        to_number:    data.to,
-        body:         data.body,
-        status:       "sent",
+        twilio_sid: null,
+        direction: "outbound",
+        from_number: num.phone_number,
+        to_number: data.to,
+        body: data.body,
+        status: "sent",
       });
 
       return { success: true, messageId: msgId } as const;
@@ -66,10 +71,12 @@ export const sendOutboundSMS = createServerFn({ method: "POST" })
 export const toggleAutoRenew = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      numberId:   z.string().uuid(),
-      autoRenew:  z.boolean(),
-    }).parse(d),
+    z
+      .object({
+        numberId: z.string().uuid(),
+        autoRenew: z.boolean(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -92,13 +99,16 @@ export const extendNumber = createServerFn({ method: "POST" })
 
     const { data: num } = await supabaseAdmin
       .from("virtual_numbers")
-      .select("phone_number, provider, provider_sid, twilio_sid, monthly_ngn, monthly_usd, country_code, expires_at")
+      .select(
+        "phone_number, provider, provider_sid, twilio_sid, monthly_ngn, monthly_usd, country_code, expires_at",
+      )
       .eq("id", data.numberId)
       .eq("user_id", userId)
       .single();
 
     if (!num) return { error: true, message: "Number not found" } as const;
-    if (num.provider !== "telnyx") return { error: true, message: "Only Telnyx numbers can be manually extended" } as const;
+    if (num.provider !== "telnyx")
+      return { error: true, message: "Only Telnyx numbers can be manually extended" } as const;
 
     const { debitWallet } = await import("@/lib/wallet.server");
     const ok = await debitWallet({
@@ -109,7 +119,9 @@ export const extendNumber = createServerFn({ method: "POST" })
     if (!ok) return { error: true, message: "Insufficient wallet balance" } as const;
 
     const currentExpiry = num.expires_at ? new Date(num.expires_at) : new Date();
-    const newExpiry = new Date(Math.max(currentExpiry.getTime(), Date.now()) + 31 * 24 * 60 * 60 * 1000);
+    const newExpiry = new Date(
+      Math.max(currentExpiry.getTime(), Date.now()) + 31 * 24 * 60 * 60 * 1000,
+    );
 
     await supabaseAdmin
       .from("virtual_numbers")
@@ -128,12 +140,17 @@ const e164Regex = /^\+[1-9]\d{6,14}$/;
 export const setCallForward = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      numberId:  z.string().uuid(),
-      // Strict E.164 validation prevents premium-rate / SIP URI abuse
-      forwardTo: z.string().regex(e164Regex, "Must be a valid E.164 phone number (e.g. +14155552671)").nullable(),
-      enabled:   z.boolean(),
-    }).parse(d),
+    z
+      .object({
+        numberId: z.string().uuid(),
+        // Strict E.164 validation prevents premium-rate / SIP URI abuse
+        forwardTo: z
+          .string()
+          .regex(e164Regex, "Must be a valid E.164 phone number (e.g. +14155552671)")
+          .nullable(),
+        enabled: z.boolean(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -151,7 +168,7 @@ export const setCallForward = createServerFn({ method: "POST" })
     await supabaseAdmin
       .from("virtual_numbers")
       .update({
-        call_forward_to:      data.forwardTo,
+        call_forward_to: data.forwardTo,
         call_forward_enabled: data.enabled && !!data.forwardTo,
       })
       .eq("id", data.numberId)
@@ -175,10 +192,12 @@ export const setCallForward = createServerFn({ method: "POST" })
 export const updateNumberLabel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      numberId: z.string().uuid(),
-      label:    z.string().max(50).nullable(),
-    }).parse(d),
+    z
+      .object({
+        numberId: z.string().uuid(),
+        label: z.string().max(50).nullable(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -209,10 +228,12 @@ export const getTemplates = createServerFn({ method: "GET" })
 export const createTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      name: z.string().min(1).max(50),
-      body: z.string().min(1).max(1600),
-    }).parse(d),
+    z
+      .object({
+        name: z.string().min(1).max(50),
+        body: z.string().min(1).max(1600),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -256,7 +277,7 @@ export const getNumberAnalytics = createServerFn({ method: "POST" })
     if (error) return { error: true, message: error.message } as const;
 
     const msgs = messages ?? [];
-    const inbound  = msgs.filter((m) => m.direction !== "outbound");
+    const inbound = msgs.filter((m) => m.direction !== "outbound");
     const outbound = msgs.filter((m) => m.direction === "outbound");
 
     // Sender frequency
@@ -269,13 +290,13 @@ export const getNumberAnalytics = createServerFn({ method: "POST" })
 
     // 30-day count
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const last30        = inbound.filter((m) => m.received_at >= thirtyDaysAgo).length;
+    const last30 = inbound.filter((m) => m.received_at >= thirtyDaysAgo).length;
 
     return {
-      totalInbound:  inbound.length,
+      totalInbound: inbound.length,
       totalOutbound: outbound.length,
-      last30Days:    last30,
-      lastActivity:  inbound[0]?.received_at ?? null,
+      last30Days: last30,
+      lastActivity: inbound[0]?.received_at ?? null,
       topSenders,
     } as const;
   });
@@ -301,10 +322,12 @@ export const markMessagesRead = createServerFn({ method: "POST" })
 export const searchMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      query:    z.string().min(1).max(200),
-      numberId: z.string().uuid().optional(),
-    }).parse(d),
+    z
+      .object({
+        query: z.string().min(1).max(200),
+        numberId: z.string().uuid().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -345,7 +368,7 @@ export const exportMessages = createServerFn({ method: "POST" })
     if (error) return { error: true, message: error.message, csv: "" } as const;
 
     const rows = msgs ?? [];
-    const header = "Date,Direction,From,To,Body,Status,Provider\n";
+    const header = "Date,Direction,From,To,Body,Status\n";
     const body = rows
       .map((m) =>
         [
@@ -355,7 +378,6 @@ export const exportMessages = createServerFn({ method: "POST" })
           m.to_number,
           `"${(m.body ?? "").replace(/"/g, '""')}"`,
           m.status,
-          m.provider,
         ].join(","),
       )
       .join("\n");
@@ -372,7 +394,9 @@ export const listSMSPoolOrders = createServerFn({ method: "GET" })
     // Pull active SMSPool numbers from our own DB (not SMSPool API â€” more reliable)
     const { data, error } = await supabaseAdmin
       .from("virtual_numbers")
-      .select("id, phone_number, country_code, provider_sid, twilio_sid, status, expires_at, created_at")
+      .select(
+        "id, phone_number, country_code, provider_sid, twilio_sid, status, expires_at, created_at",
+      )
       .eq("user_id", userId)
       .eq("provider", "smspool")
       .neq("status", "released")
@@ -409,7 +433,9 @@ export const cancelSMSPoolTempOrder = createServerFn({ method: "POST" })
       try {
         const { cancelSMSPoolOrder } = await import("@/lib/services/phone-numbers");
         await cancelSMSPoolOrder(orderId);
-      } catch { /* SMSPool may reject if already expired â€” still mark released */ }
+      } catch {
+        /* SMSPool may reject if already expired â€” still mark released */
+      }
     }
 
     // Refund the actual amount debited. If the row has no recorded amount, do not invent a static price.
@@ -418,8 +444,8 @@ export const cancelSMSPoolTempOrder = createServerFn({ method: "POST" })
       const { creditWallet } = await import("@/lib/wallet.server");
       await creditWallet({
         userId,
-        amountNgn:   refundNgn,
-        type:        "refund",
+        amountNgn: refundNgn,
+        type: "refund",
         description: "Refund: cancelled SMSPool order",
       });
     }
@@ -505,14 +531,10 @@ type SMSPoolRentalPurchaseResponse = {
 };
 
 function getSMSPoolApiKey(): string {
-  const key =
-    process.env.SMSPOOL_API_KEY ??
-    process.env.SMSPOOL_KEY;
+  const key = process.env.SMSPOOL_API_KEY ?? process.env.SMSPOOL_KEY;
 
   if (!key) {
-    throw new Error(
-      "SMSPool API key is missing. Set SMSPOOL_API_KEY or SMSPOOL_KEY."
-    );
+    throw new Error("SMSPool API key is missing. Set SMSPOOL_API_KEY or SMSPOOL_KEY.");
   }
 
   return key;
@@ -520,7 +542,7 @@ function getSMSPoolApiKey(): string {
 
 function smsPoolRentalCountryMatches(
   requestedCountry: string,
-  rental: SMSPoolRentalApiItem
+  rental: SMSPoolRentalApiItem,
 ): boolean {
   const requested = requestedCountry
     .trim()
@@ -598,28 +620,25 @@ function smsPoolRentalCountryMatches(
 
   const accepted = aliases[requested] ?? [requested];
 
-  return accepted.some((alias) =>
-    name === alias ||
-    tag === alias ||
-    name.includes(alias) ||
-    tag.includes(alias)
+  return accepted.some(
+    (alias) => name === alias || tag === alias || name.includes(alias) || tag.includes(alias),
   );
 }
 
 export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      country: z.string().min(1).max(50),
-      type: z.union([z.literal(0), z.literal(1)]).default(0),
-    }).parse(d)
+    z
+      .object({
+        country: z.string().min(1).max(50),
+        type: z.union([z.literal(0), z.literal(1)]).default(0),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     const { country } = data;
 
-    const baseUrl =
-      process.env.SMSPOOL_BASE ??
-      "https://api.smspool.net";
+    const baseUrl = process.env.SMSPOOL_BASE ?? "https://api.smspool.net";
 
     const endpoint = `${baseUrl}/rental/retrieve_all`;
 
@@ -646,9 +665,7 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
         let json: SMSPoolRentalListResponse | null = null;
 
         try {
-          json = rawText
-            ? JSON.parse(rawText) as SMSPoolRentalListResponse
-            : null;
+          json = rawText ? (JSON.parse(rawText) as SMSPoolRentalListResponse) : null;
         } catch {
           console.error("[smspool] invalid JSON response", {
             type,
@@ -664,9 +681,7 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
           status: response.status,
           success: json?.success,
           message: json?.message,
-          count: Array.isArray(json?.data)
-            ? json.data.length
-            : 0,
+          count: Array.isArray(json?.data) ? json.data.length : 0,
         });
 
         /*
@@ -674,32 +689,20 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
          * one type while the other type still has inventory.
          * Do not fail the entire request because of that.
          */
-        if (
-          !response.ok ||
-          !json ||
-          json.success !== 1 ||
-          !Array.isArray(json.data)
-        ) {
+        if (!response.ok || !json || json.success !== 1 || !Array.isArray(json.data)) {
           return [];
         }
 
         return json.data;
       };
 
-      const [type0Rentals, type1Rentals] = await Promise.all([
-        fetchRentalType(0),
-        fetchRentalType(1),
-      ]);
-
-      const allRentals = [
-        ...type0Rentals,
-        ...type1Rentals,
-      ];
+      // SMSPool uses type to separate extendable and non-extendable rental
+      // catalogues. Keep those price schedules separate in the customer UI.
+      const allRentals = await fetchRentalType(data.type);
 
       console.info("[smspool] combined rental products", {
         country,
-        type0Count: type0Rentals.length,
-        type1Count: type1Rentals.length,
+        rentalType: data.type,
         total: allRentals.length,
         products: allRentals.map((rental) => ({
           ID: rental.ID,
@@ -715,16 +718,14 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
       const uniqueRentals = Array.from(
         new Map(
           allRentals.map((rental) => [
-            String(rental.ID ?? "") +
-              "|" +
-              String(rental.tag ?? rental.name ?? ""),
+            String(rental.ID ?? "") + "|" + String(rental.tag ?? rental.name ?? ""),
             rental,
-          ])
-        ).values()
+          ]),
+        ).values(),
       );
 
       const matchingProducts = uniqueRentals.filter((rental) =>
-        smsPoolRentalCountryMatches(country, rental)
+        smsPoolRentalCountryMatches(country, rental),
       );
 
       console.info("[smspool] country rental matches", {
@@ -766,10 +767,7 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
               Number.isFinite(parsedPrice) &&
               parsedPrice >= 0
             ) {
-              pricing[String(parsedDays)] = calculateCustomerPrice(
-                parsedPrice,
-                fxRate
-              );
+              pricing[String(parsedDays)] = calculateCustomerPrice(parsedPrice, fxRate);
             }
           }
 
@@ -777,55 +775,30 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
             rentalId: String(item.ID ?? ""),
             country,
 
-            name:
-              item.name ??
-              item.tag ??
-              country,
+            name: item.name ?? item.tag ?? country,
 
-            tag:
-              item.tag ??
-              item.name ??
-              country,
+            tag: item.tag ?? item.name ?? country,
 
-            region:
-              item.region ??
-              null,
+            region: item.region ?? null,
 
             pricing,
 
-            priority:
-              item.priority ??
-              0,
+            priority: item.priority ?? 0,
 
-            pool:
-              item.pool ??
-              null,
+            pool: item.pool ?? null,
 
-            singleService:
-              item.single_service ??
-              null,
+            singleService: item.single_service ?? null,
 
-            singleServiceExtend:
-              item.single_service_extend ??
-              null,
+            singleServiceExtend: item.single_service_extend ?? null,
 
-            isRefundable:
-              item.is_refundable === 1,
+            isRefundable: item.is_refundable === 1,
 
-            refundWithin:
-              item.refund_within ??
-              0,
+            refundWithin: item.refund_within ?? 0,
 
-            refundMinDays:
-              item.refund_min_days ??
-              0,
+            refundMinDays: item.refund_min_days ?? 0,
           };
         })
-        .filter(
-          (item) =>
-            item.rentalId.length > 0 &&
-            Object.keys(item.pricing).length > 0
-        );
+        .filter((item) => item.rentalId.length > 0 && Object.keys(item.pricing).length > 0);
 
       console.info("[smspool] normalized rentals", {
         country,
@@ -836,8 +809,7 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
       if (rentals.length === 0) {
         return {
           error: true,
-          message:
-            `No SMSPool rental products are currently available for ${country}.`,
+          message: `No SMSPool rental products are currently available for ${country}.`,
           provider: "smspool",
           endpoint,
           status: 404,
@@ -863,18 +835,13 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
     } catch (error) {
       console.error("[smspool] rental option lookup failed", {
         country,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
+        error: error instanceof Error ? error.message : String(error),
       });
 
       return {
         error: true,
         message:
-          error instanceof Error
-            ? error.message
-            : "Unable to retrieve SMSPool rental numbers.",
+          error instanceof Error ? error.message : "Unable to retrieve SMSPool rental numbers.",
         provider: "smspool",
         endpoint,
         status: 500,
@@ -887,7 +854,6 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
   });
 
 export const buyRentalSMSPool = createServerFn({ method: "POST" })
-
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => smsPoolRentalSchema.parse(d))
   .handler(async ({ data }) => {
@@ -908,7 +874,9 @@ export const buyRentalSMSPool = createServerFn({ method: "POST" })
         orderId: result.orderId,
         rentalCode: result.orderId,
         expiresIn: result.expiresIn,
-        message: formattedPhone ? `Rental ready: ${formattedPhone}` : "Rental purchased successfully",
+        message: formattedPhone
+          ? `Rental ready: ${formattedPhone}`
+          : "Rental purchased successfully",
       } as const;
     } catch (error) {
       console.error("[smspool] rental purchase failed", error);
@@ -924,6 +892,3 @@ export const buyRentalSMSPool = createServerFn({ method: "POST" })
       } as const;
     }
   });
-
-
-
