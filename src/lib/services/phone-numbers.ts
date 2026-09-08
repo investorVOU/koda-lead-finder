@@ -161,7 +161,6 @@ function smsPoolUnsupportedRentalError(input: {
   responseBody?: string;
 }): Error {
   const details = smsPoolUnsupportedRentalDetails(input);
-  console.warn("[smspool] unsupported rental product requested", details);
   return new Error(details.message);
 }
 
@@ -534,13 +533,6 @@ export async function getSMSPoolRentals(type: 0 | 1 = 0): Promise<SMSPoolRentalT
   } catch {
     json = null;
   }
-
-  console.info("[smspool] getSMSPoolRentals", {
-    status: response.status,
-    success: json?.success,
-    message: json?.message,
-    count: Array.isArray(json?.data) ? json.data.length : 0,
-  });
 
   if (!response.ok) {
     throw new Error(json?.message ?? `SMSPool rental retrieval failed (${response.status})`);

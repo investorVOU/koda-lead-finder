@@ -4,7 +4,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { paystackFetch } from "@/lib/billing.server";
 import { NUMBER_COUNTRIES } from "@/lib/numbers";
-import { verifyHCaptcha } from "@/lib/hcaptcha.server";
 import {
   searchTelnyxNumbers,
   requestSMSPoolNumber,
@@ -26,49 +25,57 @@ function appUrl(): string {
 export const searchAvailableNumbers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ country: z.string().length(2), type: z.enum(["local", "mobile", "tollFree"]).optional() }).parse(d),
+    z
+      .object({
+        country: z.string().length(2),
+        type: z.enum(["local", "mobile", "tollFree"]).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     try {
       const results = await searchTelnyxNumbers(data.country, ["sms"]);
+      const { getCachedFxRate } = await import("@/lib/wallet.server");
+      const fxRate = await getCachedFxRate();
       return {
         numbers: results.map((n) => ({
           phoneNumber: n.phoneNumber,
           friendlyName: n.phoneNumber,
           region: n.region,
           locality: n.locality,
-          monthlyCostUsd: n.monthlyCostUsd,
+          monthlyPriceUsd: calculateCustomerPrice(n.monthlyCostUsd, fxRate).customerUsd,
         })),
       } as const;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to search numbers";
-      return { error: true, message: msg } as const;
+    } catch {
+      return { error: true, message: "Unable to search for numbers right now." } as const;
     }
   });
 
 export const getSmsPoolQuote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ country: z.string().min(1).max(10), service: z.string().min(1).max(50).default("any") }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        country: z.string().min(1).max(10),
+        service: z.string().min(1).max(50).default("any"),
+      })
+      .parse(d),
+  )
   .handler(async ({ data }) => {
     const { getCachedFxRate } = await import("@/lib/wallet.server");
     const fxRate = await getCachedFxRate();
-    const providerUsd = await getSMSPoolPrice(data.country, data.service);
-    const price = calculateCustomerPrice(providerUsd, fxRate);
+    const price = calculateCustomerPrice(await getSMSPoolPrice(data.country, data.service), fxRate);
     return {
-      providerUsd,
       quoteUsd: price.customerUsd,
       quoteNgn: price.customerNgn,
-      usd: price.customerUsd,
-      ngn: price.customerNgn,
     } as const;
   });
 
 // â”€â”€ Initiate Telnyx number purchase (checkout session) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const purchaseSchema = z.object({
-  phoneNumber:  z.string().min(7),
-  country:      z.string().length(2),
-  captchaToken: z.string().min(1).optional(),
+  phoneNumber: z.string().min(7),
+  country: z.string().length(2),
   // Origin / price intentionally NOT accepted from client â€” derived server-side
 });
 
@@ -78,17 +85,15 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId, supabase } = context;
 
-    if (data.captchaToken) {
-      const ok = await verifyHCaptcha(data.captchaToken);
-      if (!ok) return { error: true, message: "Captcha verification failed." } as const;
-    }
-
     const { getCachedFxRate } = await import("@/lib/wallet.server");
     const fxRate = await getCachedFxRate();
     const liveNumbers = await searchTelnyxNumbers(data.country, ["sms"]);
     const inventoryMatch = liveNumbers.find((n) => n.phoneNumber === data.phoneNumber);
     if (!inventoryMatch) {
-      return { error: true, message: `Number ${data.phoneNumber} is no longer available in ${data.country}.` } as const;
+      return {
+        error: true,
+        message: `Number ${data.phoneNumber} is no longer available in ${data.country}.`,
+      } as const;
     }
 
     const price = calculateCustomerPrice(inventoryMatch.monthlyCostUsd, fxRate);
@@ -100,20 +105,21 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
     const { data: numRow, error: dbErr } = await supabaseAdmin
       .from("virtual_numbers")
       .insert({
-        user_id:      userId,
-        twilio_sid:   pendingSid,
+        user_id: userId,
+        twilio_sid: pendingSid,
         phone_number: data.phoneNumber,
         country_code: data.country,
-        provider:     "telnyx",
-        status:       "pending_payment",
-        monthly_usd:  price.customerUsd,
-        monthly_ngn:  price.customerNgn,
-        expires_at:   new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString(),
+        provider: "telnyx",
+        status: "pending_payment",
+        monthly_usd: price.customerUsd,
+        monthly_ngn: price.customerNgn,
+        expires_at: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString(),
       })
       .select("id")
       .single();
 
-    if (dbErr || !numRow) return { error: true, message: "Failed to create number record" } as const;
+    if (dbErr || !numRow)
+      return { error: true, message: "Failed to create number record" } as const;
 
     const base = appUrl();
     const successUrl = `${base}/numbers?status=success`;
@@ -126,23 +132,22 @@ export const initiateNumberPurchase = createServerFn({ method: "POST" })
         "POST",
         {
           email,
-          amount:       Math.round(price.customerNgn * 100),
-          currency:     "NGN",
-          reference:    ref,
+          amount: Math.round(price.customerNgn * 100),
+          currency: "NGN",
+          reference: ref,
           callback_url: successUrl,
           metadata: {
-            user_id:      userId,
-            kind:         "number_rental",
-            number_id:    numRow.id,
+            user_id: userId,
+            kind: "number_rental",
+            number_id: numRow.id,
             phone_number: data.phoneNumber,
-            country:      data.country,
+            country: data.country,
           },
         },
       );
       return { url: res.data.authorization_url } as const;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Paystack error";
-      return { error: true, message: msg } as const;
+    } catch {
+      return { error: true, message: "Unable to start payment. Please try again." } as const;
     }
   });
 
@@ -219,8 +224,8 @@ export const releaseNumber = createServerFn({ method: "POST" })
       try {
         const { releaseTelnyxNumber } = await import("@/lib/services/phone-numbers");
         await releaseTelnyxNumber(sid);
-      } catch (e) {
-        console.error("[numbers] Telnyx release error:", e);
+      } catch {
+        console.error("[numbers] number release failed");
         // Don't fail â€” still mark as released in DB
       }
     }
@@ -237,9 +242,8 @@ export const releaseNumber = createServerFn({ method: "POST" })
 // â”€â”€ Buy Telnyx number from wallet balance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const walletBuySchema = z.object({
-  phoneNumber:  z.string().min(7),
-  country:      z.string().length(2),
-  captchaToken: z.string().min(1).optional(),
+  phoneNumber: z.string().min(7),
+  country: z.string().length(2),
   // Price intentionally NOT accepted from client â€” looked up server-side
 });
 
@@ -249,17 +253,15 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
 
-    if (data.captchaToken) {
-      const ok = await verifyHCaptcha(data.captchaToken);
-      if (!ok) return { error: true, message: "Captcha verification failed." } as const;
-    }
-
     const { getCachedFxRate } = await import("@/lib/wallet.server");
     const fxRate = await getCachedFxRate();
     const liveNumbers = await searchTelnyxNumbers(data.country, ["sms"]);
     const inventoryMatch = liveNumbers.find((n) => n.phoneNumber === data.phoneNumber);
     if (!inventoryMatch) {
-      return { error: true, message: `Number ${data.phoneNumber} is no longer available in ${data.country}.` } as const;
+      return {
+        error: true,
+        message: `Number ${data.phoneNumber} is no longer available in ${data.country}.`,
+      } as const;
     }
 
     const price = calculateCustomerPrice(inventoryMatch.monthlyCostUsd, fxRate);
@@ -271,14 +273,14 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
     const { data: numRow, error: dbErr } = await supabaseAdmin
       .from("virtual_numbers")
       .insert({
-        user_id:      userId,
-        twilio_sid:   pendingSid,
+        user_id: userId,
+        twilio_sid: pendingSid,
         phone_number: data.phoneNumber,
         country_code: data.country,
-        provider:     "telnyx",
-        status:       "pending_payment",
-        monthly_usd:  price.customerUsd,
-        monthly_ngn:  price.customerNgn,
+        provider: "telnyx",
+        status: "pending_payment",
+        monthly_usd: price.customerUsd,
+        monthly_ngn: price.customerNgn,
       })
       .select("id")
       .single();
@@ -287,7 +289,7 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
 
     const ok = await debitWallet({
       userId,
-      amountNgn:   price.customerNgn,
+      amountNgn: price.customerNgn,
       phoneNumber: data.phoneNumber,
     });
     if (!ok) {
@@ -297,25 +299,27 @@ export const buyNumberFromWallet = createServerFn({ method: "POST" })
 
     try {
       await activateVirtualNumber({
-        numberId:    numRow.id,
+        numberId: numRow.id,
         phoneNumber: data.phoneNumber,
         userId,
-        provider:    "wallet",
-        reference:   `wallet_${numRow.id}`,
-        amount:      price.customerNgn,
+        provider: "wallet",
+        reference: `wallet_${numRow.id}`,
+        amount: price.customerNgn,
       });
       return { success: true } as const;
-    } catch (e: unknown) {
+    } catch {
       const { creditWallet } = await import("@/lib/wallet.server");
       await creditWallet({
         userId,
-        amountNgn:   price.customerNgn,
-        type:        "refund",
+        amountNgn: price.customerNgn,
+        type: "refund",
         description: `Refund: failed number provision ${data.phoneNumber}`,
       });
       await supabaseAdmin.from("virtual_numbers").delete().eq("id", numRow.id);
-      const msg = e instanceof Error ? e.message : "Telnyx error";
-      return { error: true, message: msg } as const;
+      return {
+        error: true,
+        message: "This number is currently unavailable. Please try another.",
+      } as const;
     }
   });
 
@@ -341,7 +345,7 @@ export const requestTempNumber = createServerFn({ method: "POST" })
 
     const ok = await debitWallet({
       userId,
-      amountNgn:   price.customerNgn,
+      amountNgn: price.customerNgn,
       phoneNumber: `SMSPool/${data.country}/${data.service}`,
     });
     if (!ok) return { error: true, message: "Insufficient wallet balance" } as const;
@@ -350,14 +354,14 @@ export const requestTempNumber = createServerFn({ method: "POST" })
     const { data: numRow, error: dbErr } = await supabaseAdmin
       .from("virtual_numbers")
       .insert({
-        user_id:      userId,
-        twilio_sid:   pendingSid,
+        user_id: userId,
+        twilio_sid: pendingSid,
         phone_number: "pending",
         country_code: data.country.toUpperCase().slice(0, 2),
-        provider:     "smspool",
-        status:       "pending_payment",
-        monthly_usd:  price.customerUsd,
-        monthly_ngn:  price.customerNgn,
+        provider: "smspool",
+        status: "pending_payment",
+        monthly_usd: price.customerUsd,
+        monthly_ngn: price.customerNgn,
       })
       .select("id")
       .single();
@@ -366,8 +370,8 @@ export const requestTempNumber = createServerFn({ method: "POST" })
       const { creditWallet } = await import("@/lib/wallet.server");
       await creditWallet({
         userId,
-        amountNgn:   price.customerNgn,
-        type:        "refund",
+        amountNgn: price.customerNgn,
+        type: "refund",
         description: "Refund: failed to create SMSPool record",
       });
       return { error: true, message: "Database error" } as const;
@@ -375,31 +379,36 @@ export const requestTempNumber = createServerFn({ method: "POST" })
 
     try {
       const result = await requestSMSPoolNumber(data.country, data.service);
-      await supabaseAdmin.from("virtual_numbers").update({ phone_number: result.phoneNumber }).eq("id", numRow.id);
+      await supabaseAdmin
+        .from("virtual_numbers")
+        .update({ phone_number: result.phoneNumber })
+        .eq("id", numRow.id);
       await activateSMSPoolNumber({
-        numberId:    numRow.id,
-        orderId:     result.orderId,
+        numberId: numRow.id,
+        orderId: result.orderId,
         phoneNumber: result.phoneNumber,
         userId,
       });
 
       return {
         success: true,
-        numberId:    numRow.id,
-        orderId:     result.orderId,
+        numberId: numRow.id,
+        orderId: result.orderId,
         phoneNumber: result.phoneNumber,
       } as const;
-    } catch (e: unknown) {
+    } catch {
       const { creditWallet } = await import("@/lib/wallet.server");
       await creditWallet({
         userId,
-        amountNgn:   price.customerNgn,
-        type:        "refund",
+        amountNgn: price.customerNgn,
+        type: "refund",
         description: "Refund: SMSPool request failed",
       });
       await supabaseAdmin.from("virtual_numbers").delete().eq("id", numRow.id);
-      const msg = e instanceof Error ? e.message : "SMSPool error";
-      return { error: true, message: msg } as const;
+      return {
+        error: true,
+        message: "This number is currently unavailable. Please try another.",
+      } as const;
     }
   });
 
@@ -434,15 +443,15 @@ export const pollTempNumber = createServerFn({ method: "POST" })
     if (smsText) {
       // Store in DB (realtime will push to client)
       await supabaseAdmin.from("sms_messages").insert({
-        number_id:    num.id,
-        user_id:      userId,
-        provider:     "smspool",
+        number_id: num.id,
+        user_id: userId,
+        provider: "smspool",
         provider_sid: orderId,
-        direction:    "inbound",
-        from_number:  "SMSPool",
-        to_number:    num.phone_number,
-        body:         smsText,
-        status:       "received",
+        direction: "inbound",
+        from_number: "SMSPool",
+        to_number: num.phone_number,
+        body: smsText,
+        status: "received",
       });
       // Keep the temp number active until its expires_at countdown ends.
 
@@ -467,4 +476,3 @@ export const listSMSPoolServices = createServerFn({ method: "GET" })
     const services = await getSMSPoolServices();
     return { services } as const;
   });
-

@@ -13,6 +13,29 @@ import {
 import { activateVirtualNumber } from "@/lib/numbers.server";
 import { creditWallet } from "@/lib/wallet.server";
 
+type PaystackWebhookEvent = {
+  event?: string;
+  data?: {
+    id?: string | number;
+    reference?: string;
+    subscription_code?: string;
+    amount?: number;
+    currency?: string;
+    metadata?: {
+      user_id?: string;
+      kind?: string;
+      plan_id?: string;
+      amount_ngn?: number | string;
+      number_id?: string;
+      phone_number?: string;
+    };
+    customer?: {
+      customer_code?: string;
+    };
+    email_token?: string;
+  };
+};
+
 export const Route = createFileRoute("/api/public/webhooks/paystack")({
   server: {
     handlers: {
@@ -31,9 +54,9 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
           return new Response("Invalid signature", { status: 401 });
         }
 
-        let event: any;
+        let event: PaystackWebhookEvent;
         try {
-          event = JSON.parse(body);
+          event = JSON.parse(body) as PaystackWebhookEvent;
         } catch {
           return new Response("Invalid payload", { status: 400 });
         }
@@ -65,10 +88,7 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
                   description: `Wallet top-up via Paystack (₦${amountNgn.toLocaleString()})`,
                 });
                 // Mark user as onboarded after any successful paid fulfillment
-                await supabaseAdmin
-                  .from("profiles")
-                  .update({ onboarded: true })
-                  .eq("id", userId);
+                await supabaseAdmin.from("profiles").update({ onboarded: true }).eq("id", userId);
                 break;
               }
               if (kind === "number_rental") {
@@ -109,10 +129,7 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
 
               // Mark user as onboarded after any successful paid fulfillment
               // (number_rental, subscription, credit_pack all land here)
-              await supabaseAdmin
-                .from("profiles")
-                .update({ onboarded: true })
-                .eq("id", userId);
+              await supabaseAdmin.from("profiles").update({ onboarded: true }).eq("id", userId);
 
               break;
             }
@@ -147,8 +164,8 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
             default:
               break;
           }
-        } catch (e) {
-          console.error("paystack webhook handler error", e);
+        } catch {
+          console.error("[billing] webhook handler failed");
           await releaseWebhookEvent("paystack", eventId);
           return new Response("handler error", { status: 500 });
         }

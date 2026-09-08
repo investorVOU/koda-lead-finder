@@ -1,14 +1,9 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Wallet, ChevronDown, Loader2, Plus } from "lucide-react";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { initiateWalletTopUp } from "@/lib/wallet.functions";
-
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as
-  | string
-  | undefined;
 
 interface Props {
   balance: number | null;
@@ -24,17 +19,11 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
   const [preset, setPreset] = useState<number | null>(1000);
   const [customVal, setCustomVal] = useState("");
   const [toppingUp, setToppingUp] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-
   const wrapRef = useRef<HTMLDivElement>(null);
-  const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
-      if (
-        wrapRef.current &&
-        !wrapRef.current.contains(event.target as Node)
-      ) {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
@@ -50,36 +39,13 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
     ? parseInt(customVal.replace(/[^0-9]/g, ""), 10) || 0
     : (preset ?? 0);
 
-  const isValid =
-    finalAmount >= 500 &&
-    finalAmount <= 500_000;
+  const isValid = finalAmount >= 500 && finalAmount <= 500_000;
 
-  const usdEquiv =
-    finalAmount > 0
-      ? (finalAmount / fxRate).toFixed(2)
-      : "0.00";
-
-  const captchaOk =
-    !HCAPTCHA_SITE_KEY ||
-    Boolean(captchaToken);
-
-  const resetCaptcha = () => {
-    captchaRef.current?.resetCaptcha();
-    setCaptchaToken(null);
-  };
+  const usdEquiv = finalAmount > 0 ? (finalAmount / fxRate).toFixed(2) : "0.00";
 
   const topUp = async () => {
     if (!isValid) {
-      toast.error(
-        "Enter an amount between NGN 500 and NGN 500,000"
-      );
-      return;
-    }
-
-    if (!captchaOk) {
-      toast.error(
-        "Please complete the security check first"
-      );
+      toast.error("Enter an amount between NGN 500 and NGN 500,000");
       return;
     }
 
@@ -90,12 +56,8 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
         data: {
           amountNgn: finalAmount,
           provider: "paystack",
-          captchaToken:
-            captchaToken ?? undefined,
         },
       });
-
-      resetCaptcha();
 
       if ("error" in res) {
         toast.error("Something went wrong. Please try again.");
@@ -105,49 +67,31 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
       if ("url" in res) {
         window.location.href = res.url;
       }
-    } catch (error) {
-      console.error(
-        "Wallet top up failed:",
-        error
-      );
-
-      toast.error(
-        "Unable to start payment. Please try again."
-      );
+    } catch {
+      toast.error("Unable to start payment. Please try again.");
     } finally {
       setToppingUp(false);
     }
   };
 
   return (
-    <div
-      ref={wrapRef}
-      className="relative min-w-0 max-w-full"
-    >
+    <div ref={wrapRef} className="relative min-w-0 max-w-full">
       <button
         type="button"
-        onClick={() =>
-          setOpen((value) => !value)
-        }
+        onClick={() => setOpen((value) => !value)}
         className="flex max-w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm shadow-sm transition-colors hover:bg-accent sm:px-4"
       >
         <Wallet className="size-4 shrink-0 text-primary" />
 
         <span className="min-w-0 truncate font-mono font-bold">
-          {balance === null
-            ? "..."
-            : `NGN ${balance.toLocaleString()}`}
+          {balance === null ? "..." : `NGN ${balance.toLocaleString()}`}
         </span>
 
-        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
-          · Top up
-        </span>
+        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">· Top up</span>
 
         <ChevronDown
           className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${
-            open
-              ? "rotate-180"
-              : ""
+            open ? "rotate-180" : ""
           }`}
         />
       </button>
@@ -181,21 +125,15 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
         >
           <div className="space-y-4">
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-muted-foreground">
-                Current balance
-              </p>
+              <p className="text-xs font-semibold text-muted-foreground">Current balance</p>
 
               <p className="mt-0.5 break-words font-mono text-2xl font-bold">
-                {balance === null
-                  ? "..."
-                  : `NGN ${balance.toLocaleString()}`}
+                {balance === null ? "..." : `NGN ${balance.toLocaleString()}`}
               </p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                Top up amount
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">Top up amount</p>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {PRESETS.map((amount) => (
@@ -207,16 +145,12 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
                       setCustomVal("");
                     }}
                     className={`min-w-0 rounded-lg border px-2 py-1.5 text-xs font-semibold transition-colors ${
-                      preset === amount &&
-                      !customVal
+                      preset === amount && !customVal
                         ? "border-primary bg-primary/5 text-primary"
                         : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
                     }`}
                   >
-                    NGN{" "}
-                    {amount >= 1000
-                      ? `${amount / 1000}k`
-                      : amount}
+                    NGN {amount >= 1000 ? `${amount / 1000}k` : amount}
                   </button>
                 ))}
               </div>
@@ -232,9 +166,7 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
                   placeholder="Custom amount"
                   value={customVal}
                   onChange={(event) => {
-                    setCustomVal(
-                      event.target.value
-                    );
+                    setCustomVal(event.target.value);
                     setPreset(null);
                   }}
                   className="w-full min-w-0 rounded-xl border border-border bg-background py-2 pl-12 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
@@ -246,50 +178,25 @@ export function WalletWidget({ balance, fxRate = 1600 }: Props) {
                   Approx. ${usdEquiv} USD at current rate
                   {!isValid && (
                     <span className="ml-1 text-destructive">
-                      {finalAmount < 500
-                        ? "(minimum NGN 500)"
-                        : "(maximum NGN 500,000)"}
+                      {finalAmount < 500 ? "(minimum NGN 500)" : "(maximum NGN 500,000)"}
                     </span>
                   )}
                 </p>
               )}
             </div>
 
-            {HCAPTCHA_SITE_KEY && (
-              <div className="max-w-full overflow-hidden">
-                <div className="flex justify-center">
-                  <HCaptcha
-                    ref={captchaRef}
-                    sitekey={HCAPTCHA_SITE_KEY}
-                    size="compact"
-                    onVerify={(token) =>
-                      setCaptchaToken(token)
-                    }
-                    onExpire={() =>
-                      setCaptchaToken(null)
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
             <Button
               type="button"
               size="sm"
               className="w-full"
               onClick={topUp}
-              disabled={
-                toppingUp ||
-                !isValid ||
-                !captchaOk
-              }
+              disabled={toppingUp || !isValid}
             >
               {toppingUp ? (
                 <Loader2 className="size-3.5 animate-spin" />
               ) : (
                 <Plus className="size-3.5" />
               )}
-
               Pay
             </Button>
 

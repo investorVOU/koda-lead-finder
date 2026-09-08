@@ -4,7 +4,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { paystackFetch } from "@/lib/billing.server";
 import { getCachedFxRate } from "@/lib/wallet.server";
-import { verifyHCaptcha } from "@/lib/hcaptcha.server";
 
 // Derive redirect base URL server-side — never trust the client origin
 function appUrl(): string {
@@ -33,9 +32,8 @@ export const getWalletData = createServerFn({ method: "GET" })
   });
 
 const topUpSchema = z.object({
-  amountNgn:    z.number().min(500).max(500000),
-  provider:     z.enum(["paystack"]),
-  captchaToken: z.string().min(1).optional(), // optional so non-hcaptcha contexts still work
+  amountNgn: z.number().min(500).max(500000),
+  provider: z.enum(["paystack"]),
 });
 
 export const initiateWalletTopUp = createServerFn({ method: "POST" })
@@ -44,16 +42,10 @@ export const initiateWalletTopUp = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId, supabase } = context;
 
-    // hCaptcha verification — blocks bots from spamming payment sessions
-    if (data.captchaToken) {
-      const ok = await verifyHCaptcha(data.captchaToken);
-      if (!ok) return { error: true, message: "Captcha verification failed. Please try again." } as const;
-    }
-
     const { data: userData } = await supabase.auth.getUser();
     const email = userData.user?.email ?? "";
 
-    const base       = appUrl();
+    const base = appUrl();
     const successUrl = `${base}/numbers?wallet=funded`;
 
     // ── Paystack (NGN) ────────────────────────────────────────────────────────
@@ -65,19 +57,19 @@ export const initiateWalletTopUp = createServerFn({ method: "POST" })
         "POST",
         {
           email,
-          amount:       Math.round(data.amountNgn * 100), // kobo
-          currency:     "NGN",
-          reference:    ref,
+          amount: Math.round(data.amountNgn * 100), // kobo
+          currency: "NGN",
+          reference: ref,
           callback_url: successUrl,
           metadata: {
-            user_id:    userId,
-            kind:       "wallet_topup",
+            user_id: userId,
+            kind: "wallet_topup",
             amount_ngn: data.amountNgn,
           },
         },
       );
       return { url: res.data.authorization_url } as const;
-    } catch (e: unknown) {
-      return { error: true, message: e instanceof Error ? e.message : "Paystack error" } as const;
+    } catch {
+      return { error: true, message: "Unable to start payment. Please try again." } as const;
     }
   });

@@ -179,8 +179,8 @@ export const setCallForward = createServerFn({ method: "POST" })
       try {
         const { configureTelnyxCallForward } = await import("@/lib/services/phone-numbers");
         await configureTelnyxCallForward(num.provider_sid, data.enabled ? data.forwardTo : null);
-      } catch (e) {
-        console.warn("[callForward] Telnyx config error (non-fatal):", e);
+      } catch {
+        console.warn("[numbers] call forwarding configuration failed");
       }
     }
 
@@ -649,12 +649,6 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
         body.append("key", getSMSPoolApiKey());
         body.append("type", String(type));
 
-        console.info("[smspool] requesting rental type", {
-          country,
-          type,
-          endpoint,
-        });
-
         const response = await fetch(endpoint, {
           method: "POST",
           body,
@@ -667,22 +661,8 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
         try {
           json = rawText ? (JSON.parse(rawText) as SMSPoolRentalListResponse) : null;
         } catch {
-          console.error("[smspool] invalid JSON response", {
-            type,
-            status: response.status,
-            rawText,
-          });
-
           return [];
         }
-
-        console.info("[smspool] rental type response", {
-          type,
-          status: response.status,
-          success: json?.success,
-          message: json?.message,
-          count: Array.isArray(json?.data) ? json.data.length : 0,
-        });
 
         /*
          * SMSPool may return an error/no-rentals response for
@@ -700,18 +680,6 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
       // catalogues. Keep those price schedules separate in the customer UI.
       const allRentals = await fetchRentalType(data.type);
 
-      console.info("[smspool] combined rental products", {
-        country,
-        rentalType: data.type,
-        total: allRentals.length,
-        products: allRentals.map((rental) => ({
-          ID: rental.ID,
-          name: rental.name,
-          tag: rental.tag,
-          pricing: rental.pricing,
-        })),
-      });
-
       /*
        * Remove duplicate products.
        */
@@ -728,17 +696,6 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
         smsPoolRentalCountryMatches(country, rental),
       );
 
-      console.info("[smspool] country rental matches", {
-        requestedCountry: country,
-        totalProducts: uniqueRentals.length,
-        matchingProducts: matchingProducts.length,
-        availableCountries: uniqueRentals.map((rental) => ({
-          id: rental.ID,
-          name: rental.name,
-          tag: rental.tag,
-        })),
-      });
-
       const { getCachedFxRate } = await import("@/lib/wallet.server");
       const fxRate = await getCachedFxRate();
 
@@ -747,12 +704,8 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
           const pricing: Record<
             string,
             {
-              providerUsd: number;
-              providerNgn: number;
-              platformFeeNgn: number;
               customerNgn: number;
               customerUsd: number;
-              fxRate: number;
             }
           > = {};
 
@@ -767,7 +720,11 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
               Number.isFinite(parsedPrice) &&
               parsedPrice >= 0
             ) {
-              pricing[String(parsedDays)] = calculateCustomerPrice(parsedPrice, fxRate);
+              const customerPrice = calculateCustomerPrice(parsedPrice, fxRate);
+              pricing[String(parsedDays)] = {
+                customerNgn: customerPrice.customerNgn,
+                customerUsd: customerPrice.customerUsd,
+              };
             }
           }
 
@@ -775,79 +732,29 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
             rentalId: String(item.ID ?? ""),
             country,
 
-            name: item.name ?? item.tag ?? country,
-
-            tag: item.tag ?? item.name ?? country,
-
-            region: item.region ?? null,
-
             pricing,
-
-            priority: item.priority ?? 0,
-
-            pool: item.pool ?? null,
-
-            singleService: item.single_service ?? null,
-
-            singleServiceExtend: item.single_service_extend ?? null,
-
-            isRefundable: item.is_refundable === 1,
-
-            refundWithin: item.refund_within ?? 0,
-
-            refundMinDays: item.refund_min_days ?? 0,
           };
         })
         .filter((item) => item.rentalId.length > 0 && Object.keys(item.pricing).length > 0);
 
-      console.info("[smspool] normalized rentals", {
-        country,
-        count: rentals.length,
-        rentals,
-      });
-
       if (rentals.length === 0) {
         return {
           error: true,
-          message: `No SMSPool rental products are currently available for ${country}.`,
-          provider: "smspool",
-          endpoint,
-          status: 404,
-          country,
-          service: "any",
-          operation: "list_rental_tiers",
+          message: "No flexible rentals are currently available for this country.",
           rentals: [],
-          availableCountries: uniqueRentals.map((rental) => ({
-            id: String(rental.ID ?? ""),
-            name: rental.name ?? "",
-            tag: rental.tag ?? "",
-          })),
         } as const;
       }
 
       return {
         success: true,
-        provider: "smspool",
-        status: 200,
-        country,
         rentals,
       } as const;
-    } catch (error) {
-      console.error("[smspool] rental option lookup failed", {
-        country,
-        error: error instanceof Error ? error.message : String(error),
-      });
+    } catch {
+      console.error("[numbers] flexible rental lookup failed");
 
       return {
         error: true,
-        message:
-          error instanceof Error ? error.message : "Unable to retrieve SMSPool rental numbers.",
-        provider: "smspool",
-        endpoint,
-        status: 500,
-        country,
-        service: "any",
-        operation: "list_rental_tiers",
+        message: "Unable to retrieve flexible rentals right now.",
         rentals: [],
       } as const;
     }
@@ -856,39 +763,95 @@ export const getSmsPoolRentalOptions = createServerFn({ method: "POST" })
 export const buyRentalSMSPool = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => smsPoolRentalSchema.parse(d))
-  .handler(async ({ data }) => {
-    const endpoint = `${process.env.SMSPOOL_BASE ?? "https://api.smspool.net"}/purchase/rental`;
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    let chargedAmountNgn: number | null = null;
 
     try {
+      // Re-read the price catalogue on the server. The rental ID, duration, and any
+      // price sent by the browser are never trusted for billing.
+      const catalog = await getSMSPoolRentals(1);
+      const rental = catalog.find(
+        (item) =>
+          item.rentalId === data.rentalId &&
+          smsPoolRentalCountryMatches(data.country, {
+            ID: item.rentalId,
+            name: item.name,
+            tag: item.tag,
+            pricing: item.pricing,
+          }),
+      );
+      const providerUsd = Number(rental?.pricing[String(data.days)]);
+
+      if (!rental || !Number.isFinite(providerUsd) || providerUsd <= 0) {
+        return {
+          error: true,
+          message: "This rental option is no longer available.",
+        } as const;
+      }
+
+      const { getCachedFxRate, debitWallet } = await import("@/lib/wallet.server");
+      const price = calculateCustomerPrice(providerUsd, await getCachedFxRate());
+      const debited = await debitWallet({
+        userId,
+        amountNgn: price.customerNgn,
+        phoneNumber: `Flexible rental/${data.country}`,
+        description: `Flexible rental for ${data.days} day${data.days === 1 ? "" : "s"}`,
+      });
+
+      if (!debited) {
+        return { error: true, message: "Insufficient wallet balance." } as const;
+      }
+      chargedAmountNgn = price.customerNgn;
+
       const result = await purchaseSMSPoolRental(data.rentalId, data.days, data.service);
-      const formattedPhone = result.phoneNumber || "";
+      const expiresAt =
+        result.expiresIn > 10_000_000
+          ? new Date(result.expiresIn > 10_000_000_000 ? result.expiresIn : result.expiresIn * 1000)
+          : new Date(Date.now() + Math.max(60, result.expiresIn) * 1000);
+
+      const { error: numberError } = await supabaseAdmin.from("virtual_numbers").insert({
+        user_id: userId,
+        twilio_sid: result.orderId,
+        provider_sid: result.orderId,
+        provider: "smspool",
+        phone_number: result.phoneNumber,
+        friendly_name: result.phoneNumber,
+        country_code: data.country.toUpperCase().slice(0, 2),
+        number_type: "flexible rental",
+        status: "active",
+        monthly_usd: price.customerUsd,
+        monthly_ngn: price.customerNgn,
+        expires_at: expiresAt.toISOString(),
+      });
+
+      if (numberError) throw numberError;
 
       return {
         success: true,
-        provider: "smspool",
-        endpoint,
-        country: data.country,
-        service: data.service,
-        operation: "purchase_rental",
-        phoneNumber: formattedPhone,
-        orderId: result.orderId,
-        rentalCode: result.orderId,
+        phoneNumber: result.phoneNumber,
         expiresIn: result.expiresIn,
-        message: formattedPhone
-          ? `Rental ready: ${formattedPhone}`
-          : "Rental purchased successfully",
       } as const;
-    } catch (error) {
-      console.error("[smspool] rental purchase failed", error);
+    } catch {
+      // A failed supplier request or persistence failure must never cost the customer funds.
+      // Refund through the same wallet ledger used for all number purchases.
+      try {
+        if (chargedAmountNgn !== null) {
+          const { creditWallet } = await import("@/lib/wallet.server");
+          await creditWallet({
+            userId,
+            amountNgn: chargedAmountNgn,
+            type: "refund",
+            description: "Refund: flexible rental could not be issued",
+          });
+        }
+      } catch {
+        console.error("[numbers] flexible rental refund failed");
+      }
+      console.error("[numbers] flexible rental purchase failed");
       return {
         error: true,
-        message: error instanceof Error ? error.message : "SMSPool rental purchase failed",
-        provider: "smspool",
-        endpoint,
-        status: 500,
-        country: data.country,
-        service: data.service,
-        operation: "purchase_rental",
+        message: "This rental is currently unavailable. Please try another option.",
       } as const;
     }
   });
