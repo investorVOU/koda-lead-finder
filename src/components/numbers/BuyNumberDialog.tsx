@@ -283,7 +283,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const [results, setResults] = useState<AvailableNumber[]>([]);
   const [selected, setSelected] = useState<AvailableNumber | null>(null);
   const [payMethod, setPayMethod] = useState<"wallet" | "card">("wallet");
-  const [cardProvider, setCardProvider] = useState<"stripe" | "paystack">("stripe");
+  const [cardProvider, setCardProvider] = useState<"paystack">("paystack");
   const [buying, setBuying] = useState(false);
 
   // SMSPool temp state — order
@@ -349,6 +349,11 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
   const hasTempBalance = balance !== null && tempQuote !== null && balance >= tempQuoteNgn;
   const hasTempQuote = Boolean(tempQuote);
 
+  const monthlyShortfall = balance !== null ? Math.max(0, ngnPrice - balance) : 0;
+  const monthlySuggestedTopUp = monthlyShortfall > 0 ? Math.max(500, Math.ceil(monthlyShortfall)) : 0;
+  const tempShortfall = balance !== null && tempQuote ? Math.max(0, tempQuote.quoteNgn - balance) : 0;
+  const tempSuggestedTopUp = tempShortfall > 0 ? Math.max(500, Math.ceil(tempShortfall)) : 0;
+
   const rentalTierOptions = smsPoolRentalOptions
     .flatMap((rental) =>
       Object.entries(rental.pricing ?? {}).map(([daysStr, quote]) => ({
@@ -373,6 +378,17 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
       (option) => option.rentalId === smsPoolRentalId && option.days === smsPoolDays,
     ) ?? rentalTierOptions[0];
 
+  const rentalShortfall =
+    balance !== null && selectedRentalTier
+      ? Math.max(0, selectedRentalTier.customerNgn - balance)
+      : 0;
+  const rentalSuggestedTopUp =
+    rentalShortfall > 0 ? Math.max(500, Math.ceil(rentalShortfall)) : 0;
+  const hasRentalBalance =
+    balance !== null &&
+    selectedRentalTier !== undefined &&
+    balance >= selectedRentalTier.customerNgn;
+
   // Reset on open/close; load wallet + SMSPool lists
   useEffect(() => {
     if (!open) {
@@ -392,6 +408,56 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
       setBalance(res.balance);
       setFxRate(res.fxRate);
     });
+  }, [open]);
+
+
+  useEffect(() => {
+    if (!open) return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("wallet") !== "funded") return;
+
+    const raw = sessionStorage.getItem("kodarai_pending_number_purchase");
+    if (!raw) return;
+
+    try {
+      const pending = JSON.parse(raw) as
+        | { type: "monthly"; phoneNumber: string; country: string }
+        | { type: "temp"; country: string; service: string }
+        | {
+            type: "rental-smspool";
+            rentalId: string;
+            country: string;
+            service: string;
+            days: number;
+          };
+
+      if (pending.type === "monthly") {
+        setCountry(pending.country);
+        setSelected({
+          phoneNumber: pending.phoneNumber,
+          friendlyName: pending.phoneNumber,
+        });
+        setPayMethod("wallet");
+        setStep("pay");
+      } else if (pending.type === "temp") {
+        setTempCountry(pending.country);
+        setTempService(pending.service);
+        setStep("temp");
+      } else {
+        setTempCountry(pending.country);
+        setTempService(pending.service);
+        setSmsPoolRentalId(pending.rentalId);
+        setSmsPoolDays(pending.days);
+        setStep("rental-smspool");
+      }
+
+      sessionStorage.removeItem("kodarai_pending_number_purchase");
+      window.history.replaceState({}, "", "/numbers");
+      toast.success("Wallet funded. Continue your purchase.");
+    } catch {
+      sessionStorage.removeItem("kodarai_pending_number_purchase");
+    }
   }, [open]);
 
   // Refresh SMSPool lists + balance when the temp/rental-smspool step first opens.
@@ -657,14 +723,42 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
     onOpenChange(false);
   };
 
-  const topUp = async (provider: "stripe" | "paystack") => {
+  const topUp = async (
+    amount: number,
+    pendingPurchase?:
+      | { type: "monthly"; phoneNumber: string; country: string }
+      | { type: "temp"; country: string; service: string }
+      | {
+          type: "rental-smspool";
+          rentalId: string;
+          country: string;
+          service: string;
+          days: number;
+        },
+  ) => {
+    const safeAmount = Math.max(500, Math.ceil(amount));
+
+    if (pendingPurchase) {
+      sessionStorage.setItem(
+        "kodarai_pending_number_purchase",
+        JSON.stringify(pendingPurchase),
+      );
+    }
+
+    setTopUpAmount(safeAmount);
     setToppingUp(true);
-    const res = await runTopUp({ data: { amountNgn: topUpAmount, provider } });
+
+    const res = await runTopUp({
+      data: { amountNgn: safeAmount, provider: "paystack" },
+    });
+
     setToppingUp(false);
+
     if ("error" in res) {
-      toast.error("Something went wrong. Please try again.");
+      toast.error(res.message || "Unable to start wallet top-up.");
       return;
     }
+
     if ("url" in res) window.location.href = res.url;
   };
 
@@ -962,69 +1056,52 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
               {payMethod === "wallet" && !hasEnough && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                    Wallet needs ₦{ngnPrice.toLocaleString()} — top up first
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {TOP_UP_PRESETS.map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setTopUpAmount(p)}
-                        className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${topUpAmount === p ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40"}`}
-                      >
-                        ₦{p.toLocaleString()}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Or enter custom amount</span>
-                      <input
-                        inputMode="numeric"
-                        value={String(topUpAmount)}
-                        onChange={(e) =>
-                          setTopUpAmount(Number(e.target.value.replace(/[^0-9]/g, "")) || 0)
-                        }
-                        className="ml-auto w-32 rounded-xl border border-border bg-background px-3 py-1 text-sm text-right outline-none"
-                      />
-                    </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                      Your wallet is short by ₦{monthlyShortfall.toLocaleString()}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      ~${usdEquiv} USD at current rate
+                      Wallet: ₦{(balance ?? 0).toLocaleString()} · Number: ₦
+                      {ngnPrice.toLocaleString()}
                     </p>
                   </div>
-                  <div className="mt-3 grid grid-cols-1 gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => topUp("paystack")}
-                      disabled={toppingUp}
-                    >
-                      {toppingUp ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="size-3.5" />
-                      )}
-                      Paystack (₦)
-                    </Button>
-                  </div>
+
+                  <Button
+                    className="mt-3 w-full"
+                    size="sm"
+                    variant="outline"
+                    disabled={toppingUp}
+                    onClick={() =>
+                      topUp(monthlySuggestedTopUp, {
+                        type: "monthly",
+                        phoneNumber: selected.phoneNumber,
+                        country,
+                      })
+                    }
+                  >
+                    {toppingUp ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="size-3.5" />
+                    )}
+                    Top up ₦{monthlySuggestedTopUp.toLocaleString()} & continue
+                  </Button>
+
+                  {monthlySuggestedTopUp > monthlyShortfall && (
+                    <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                      Minimum wallet top-up is ₦500. Any extra stays in your wallet.
+                    </p>
+                  )}
                 </div>
               )}
 
               {payMethod === "card" && (
-                <Select
-                  value={cardProvider}
-                  onValueChange={(v) => setCardProvider(v as "stripe" | "paystack")}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="paystack">
-                      Paystack — ₦{ngnPrice.toLocaleString()}/mo
-                    </SelectItem>
-                    <SelectItem value="stripe">Card (USD) — ~${usdPrice}/mo</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="rounded-xl border border-border bg-muted/40 px-4 py-3">
+                  <p className="text-sm font-medium">Pay directly</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Use Paystack checkout without funding your wallet first.
+                  </p>
+                </div>
               )}
 
               <Button
@@ -1042,9 +1119,7 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                   ? "Activating…"
                   : payMethod === "wallet"
                     ? `Pay ₦${ngnPrice.toLocaleString()} from wallet`
-                    : cardProvider === "paystack"
-                      ? `Pay ₦${ngnPrice.toLocaleString()} via Paystack`
-                      : `Pay ~$${usdPrice} via card`}
+                    : `Pay ₦${ngnPrice.toLocaleString()} directly`}
               </Button>
             </div>
           )}
@@ -1108,49 +1183,42 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
 
               {!hasTempBalance && hasTempQuote && tempQuote && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                    Need ₦{tempQuote.quoteNgn.toLocaleString()} — top up wallet first
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {TOP_UP_PRESETS.map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setTopUpAmount(p)}
-                        className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${topUpAmount === p ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/40"}`}
-                      >
-                        ₦{p.toLocaleString()}
-                      </button>
-                    ))}
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                      You need ₦{tempShortfall.toLocaleString()} more
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Wallet: ₦{(balance ?? 0).toLocaleString()} · Number: ₦
+                      {tempQuote.quoteNgn.toLocaleString()}
+                    </p>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Custom amount</span>
-                    <input
-                      inputMode="numeric"
-                      value={String(topUpAmount)}
-                      onChange={(e) =>
-                        setTopUpAmount(Number(e.target.value.replace(/[^0-9]/g, "")) || 0)
-                      }
-                      className="ml-auto w-32 rounded-xl border border-border bg-background px-3 py-1 text-sm text-right outline-none"
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    ~${usdEquiv} USD at current rate
-                  </p>
-                  <div className="mt-3 grid grid-cols-1 gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => topUp("paystack")}
-                      disabled={toppingUp}
-                    >
-                      {toppingUp ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="size-3.5" />
-                      )}
-                      Paystack (₦)
-                    </Button>
-                  </div>
+
+                  <Button
+                    className="mt-3 w-full"
+                    size="sm"
+                    variant="outline"
+                    disabled={toppingUp}
+                    onClick={() =>
+                      topUp(tempSuggestedTopUp, {
+                        type: "temp",
+                        country: tempCountry,
+                        service: tempService,
+                      })
+                    }
+                  >
+                    {toppingUp ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="size-3.5" />
+                    )}
+                    Top up ₦{tempSuggestedTopUp.toLocaleString()} & continue
+                  </Button>
+
+                  {tempSuggestedTopUp > tempShortfall && (
+                    <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                      Minimum wallet top-up is ₦500. Any extra stays in your wallet.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1284,15 +1352,53 @@ export function BuyNumberDialog({ open, onOpenChange }: Props) {
                 </span>
               </div>
 
+              {selectedRentalTier && !hasRentalBalance && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                      You need ₦{rentalShortfall.toLocaleString()} more
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Wallet: ₦{(balance ?? 0).toLocaleString()} · Rental: ₦
+                      {selectedRentalTier.customerNgn.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <Button
+                    className="mt-3 w-full"
+                    size="sm"
+                    variant="outline"
+                    disabled={toppingUp}
+                    onClick={() =>
+                      topUp(rentalSuggestedTopUp, {
+                        type: "rental-smspool",
+                        rentalId: smsPoolRentalId,
+                        country: tempCountry,
+                        service: tempService,
+                        days: smsPoolDays,
+                      })
+                    }
+                  >
+                    {toppingUp ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="size-3.5" />
+                    )}
+                    Top up ₦{rentalSuggestedTopUp.toLocaleString()} & continue
+                  </Button>
+
+                  {rentalSuggestedTopUp > rentalShortfall && (
+                    <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                      Minimum wallet top-up is ₦500. Any extra stays in your wallet.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <Button
                 variant="hero"
                 className="w-full"
-                disabled={
-                  rentalBuying ||
-                  !selectedRentalTier ||
-                  balance === null ||
-                  balance < selectedRentalTier.customerNgn
-                }
+                disabled={rentalBuying || !selectedRentalTier || !hasRentalBalance}
                 onClick={buyRentalPool}
               >
                 {rentalBuying ? (
