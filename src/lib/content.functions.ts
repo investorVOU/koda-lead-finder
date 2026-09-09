@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
+import { callAiFallbackProviders } from "@/lib/ai-fallback-providers.server";
 import {
   getYouTubeChannelData,
   type YouTubeChannelData,
@@ -29,7 +30,7 @@ export interface GeneratedContent {
 
 interface GenerateSuccess {
   content: GeneratedContent;
-  provider: "groq" | "gemini";
+  provider: "groq" | "gemini" | "openrouter" | "bytez";
   model: string;
 }
 
@@ -262,6 +263,39 @@ async function callGemini(prompt: string, tone: string): Promise<string> {
   return raw;
 }
 
+async function callContentWithFallback(
+  prompt: string,
+  tone: string,
+  preferGemini: boolean,
+): Promise<{ raw: string; provider: GenerateSuccess["provider"]; model: string }> {
+  const primary = preferGemini
+    ? [{ provider: "gemini" as const, call: () => callGemini(prompt, tone), model: GEMINI_MODEL }, { provider: "groq" as const, call: () => callGroq(prompt, tone), model: GROQ_MODEL }]
+    : [{ provider: "groq" as const, call: () => callGroq(prompt, tone), model: GROQ_MODEL }, { provider: "gemini" as const, call: () => callGemini(prompt, tone), model: GEMINI_MODEL }];
+
+  for (const candidate of primary) {
+    try {
+      return { raw: await candidate.call(), provider: candidate.provider, model: candidate.model };
+    } catch (error) {
+      console.warn(`KodarAI content ${candidate.provider} failed; trying the next provider.`, error);
+    }
+  }
+
+  const fallback = await callAiFallbackProviders(
+    [
+      { role: "system", content: `You are an expert content creator writing in a ${tone} tone. Return only valid JSON.` },
+      { role: "user", content: prompt },
+    ],
+    { temperature: 0.75, maxTokens: 4_000 },
+  );
+  return { raw: fallback.content, provider: fallback.provider, model: fallback.model };
+}
+
+// Reused by the private marketing tool so all product copy generation follows
+// the same configured Groq → Gemini → fallback-provider chain as Studio.
+export async function generateJsonWithConfiguredAi(prompt: string, tone: string) {
+  return callContentWithFallback(prompt, tone, false);
+}
+
 export const generateContent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => inputSchema.parse(data))
@@ -291,12 +325,13 @@ export const generateContent = createServerFn({ method: "POST" })
         channelContext: buildChannelContext(channelData),
       });
 
-      const useGemini = data.type === "youtube-script";
-      const raw = useGemini
-        ? await callGemini(prompt, data.tone)
-        : await callGroq(prompt, data.tone);
+      const ai = await callContentWithFallback(
+        prompt,
+        data.tone,
+        data.type === "youtube-script",
+      );
 
-      const parsed = JSON.parse(cleanJsonResponse(raw));
+      const parsed = JSON.parse(cleanJsonResponse(ai.raw));
       const validated = generatedContentSchema.safeParse(parsed);
 
       if (!validated.success) {
@@ -309,8 +344,8 @@ export const generateContent = createServerFn({ method: "POST" })
 
       return {
         content: validated.data,
-        provider: useGemini ? "gemini" : "groq",
-        model: useGemini ? GEMINI_MODEL : GROQ_MODEL,
+        provider: ai.provider,
+        model: ai.model,
       } satisfies GenerateSuccess;
     } catch (error) {
       console.error("Content generation failed:", error);
