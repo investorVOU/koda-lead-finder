@@ -24,7 +24,11 @@ import {
   PLANS,
   PACKS,
   formatNgn,
+  getAnnualSavings,
+  getPlanPrice,
+  type BillingCycle,
 } from "@/lib/billing";
+import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 
 import { createCheckout } from "@/lib/billing.functions";
 
@@ -35,6 +39,7 @@ export function PlansDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
 
   const runCheckout = useServerFn(createCheckout);
 
@@ -42,6 +47,7 @@ export function PlansDialog({
     kind: "subscription" | "pack",
     id: string,
     key: string,
+    cycle?: BillingCycle,
   ) => {
     setBusy(key);
 
@@ -50,6 +56,7 @@ export function PlansDialog({
         data: {
           kind,
           id,
+          cycle,
           origin: window.location.origin,
         },
       });
@@ -109,13 +116,15 @@ export function PlansDialog({
             </TabsTrigger>
           </TabsList>
 
-          {/* MONTHLY PLANS */}
+          {/* SUBSCRIPTION PLANS */}
           <TabsContent
             value="plans"
-            className="mt-4 grid gap-4 sm:grid-cols-3"
+            className="mt-4"
           >
+            <BillingCycleToggle cycle={cycle} onChange={setCycle} />
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
             {PLANS.map((p) => {
-              const busyKey = `${p.id}-paystack`;
+              const busyKey = `${p.id}-${cycle}-paystack`;
 
               return (
                 <div
@@ -142,17 +151,18 @@ export function PlansDialog({
 
                   <div className="mt-3 flex items-end gap-1">
                     <span className="font-display text-2xl font-bold">
-                      {formatNgn(p.ngn)}
+                      {formatNgn(getPlanPrice(p, cycle))}
                     </span>
 
                     <span className="mb-0.5 text-xs text-muted-foreground">
-                      /mo
+                      {cycle === "annually" ? "/yr" : "/mo"}
                     </span>
                   </div>
 
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {p.credits} leads / month
                   </p>
+                  {cycle === "annually" && <p className="mt-1 text-xs font-medium text-primary">Save {formatNgn(getAnnualSavings(p))} yearly</p>}
 
                   <ul className="mt-3 flex-1 space-y-1.5">
                     {p.features.slice(0, 3).map((feature) => (
@@ -177,6 +187,7 @@ export function PlansDialog({
                           "subscription",
                           p.id,
                           busyKey,
+                          cycle,
                         )
                       }
                     >
@@ -190,6 +201,7 @@ export function PlansDialog({
                 </div>
               );
             })}
+            </div>
           </TabsContent>
 
           {/* LEAD PACKS */}

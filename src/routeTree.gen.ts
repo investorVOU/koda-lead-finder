@@ -46,6 +46,7 @@ import { Route as AuthenticatedStudioContentRouteImport } from './routes/_authen
 import { Route as AuthenticatedStudioChannelReviewRouteImport } from './routes/_authenticated/studio/channel-review'
 import { Route as AuthenticatedStudioAutomationsRouteImport } from './routes/_authenticated/studio/automations'
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
+import { Route as AuthenticatedInternalMarketingRouteImport } from './routes/_authenticated/internal.marketing'
 import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool/poll.$numberId'
 import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
@@ -248,6 +249,12 @@ const AuthenticatedStudioProjectIdRoute =
     path: '/$projectId',
     getParentRoute: () => AuthenticatedStudioRoute,
   } as any)
+const AuthenticatedInternalMarketingRoute =
+  AuthenticatedInternalMarketingRouteImport.update({
+    id: '/internal/marketing',
+    path: '/internal/marketing',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiSmspoolPollNumberIdRoute = ApiSmspoolPollNumberIdRouteImport.update({
   id: '/api/smspool/poll/$numberId',
   path: '/api/smspool/poll/$numberId',
@@ -322,6 +329,7 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/studio/automations': typeof AuthenticatedStudioAutomationsRoute
   '/studio/channel-review': typeof AuthenticatedStudioChannelReviewRoute
@@ -367,6 +375,7 @@ export interface FileRoutesByTo {
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/studio/automations': typeof AuthenticatedStudioAutomationsRoute
   '/studio/channel-review': typeof AuthenticatedStudioChannelReviewRoute
@@ -415,6 +424,7 @@ export interface FileRoutesById {
   '/_authenticated/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/_authenticated/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/_authenticated/studio/automations': typeof AuthenticatedStudioAutomationsRoute
   '/_authenticated/studio/channel-review': typeof AuthenticatedStudioChannelReviewRoute
@@ -463,6 +473,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/api/ping'
     | '/preview/$slug'
+    | '/internal/marketing'
     | '/studio/$projectId'
     | '/studio/automations'
     | '/studio/channel-review'
@@ -508,6 +519,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/api/ping'
     | '/preview/$slug'
+    | '/internal/marketing'
     | '/studio/$projectId'
     | '/studio/automations'
     | '/studio/channel-review'
@@ -555,6 +567,7 @@ export interface FileRouteTypes {
     | '/_authenticated/welcome'
     | '/api/ping'
     | '/preview/$slug'
+    | '/_authenticated/internal/marketing'
     | '/_authenticated/studio/$projectId'
     | '/_authenticated/studio/automations'
     | '/_authenticated/studio/channel-review'
@@ -862,6 +875,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStudioProjectIdRouteImport
       parentRoute: typeof AuthenticatedStudioRoute
     }
+    '/_authenticated/internal/marketing': {
+      id: '/_authenticated/internal/marketing'
+      path: '/internal/marketing'
+      fullPath: '/internal/marketing'
+      preLoaderRoute: typeof AuthenticatedInternalMarketingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/smspool/poll/$numberId': {
       id: '/api/smspool/poll/$numberId'
       path: '/api/smspool/poll/$numberId'
@@ -963,6 +983,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
   AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
   AuthenticatedWelcomeRoute: typeof AuthenticatedWelcomeRoute
+  AuthenticatedInternalMarketingRoute: typeof AuthenticatedInternalMarketingRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -980,6 +1001,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
   AuthenticatedSupportRoute: AuthenticatedSupportRoute,
   AuthenticatedWelcomeRoute: AuthenticatedWelcomeRoute,
+  AuthenticatedInternalMarketingRoute: AuthenticatedInternalMarketingRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

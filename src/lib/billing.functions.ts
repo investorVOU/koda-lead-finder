@@ -2,13 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { findPlan, findPack } from "@/lib/billing";
+import { findPlan, findPack, getPlanPrice, type BillingCycle } from "@/lib/billing";
 import { paystackFetch, getPaystackPlanCode } from "@/lib/billing.server";
 import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 const checkoutSchema = z.object({
   kind: z.enum(["subscription", "pack"]),
   id: z.string().min(1).max(40),
+  cycle: z.enum(["monthly", "annually"]).optional(),
   origin: z.string().url().max(300),
 });
 
@@ -29,17 +30,19 @@ export const createCheckout = createServerFn({ method: "POST" })
       if (data.kind === "subscription") {
         const plan = findPlan(data.id);
         if (!plan) return { error: "bad_request", message: "Unknown plan." } as const;
-        const planCode = await getPaystackPlanCode(plan);
+        const cycle: BillingCycle = data.cycle ?? "monthly";
+        const amount = getPlanPrice(plan, cycle);
+        const planCode = await getPaystackPlanCode(plan, cycle);
         const res = await paystackFetch<{ data: { authorization_url: string } }>(
           "/transaction/initialize",
           "POST",
           {
             email,
-            amount: plan.ngn * 100,
+            amount: amount * 100,
             plan: planCode,
             currency: "NGN",
             callback_url: successUrl,
-            metadata: { user_id: userId, kind: "subscription", plan_id: plan.id },
+            metadata: { user_id: userId, kind: "subscription", plan_id: plan.id, cycle },
           },
         );
         return { url: res.data.authorization_url } as const;

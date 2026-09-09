@@ -9,7 +9,8 @@ import { CreditMeter } from "@/components/dashboard/CreditMeter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
-import { PLANS, PACKS, PLAN_LABELS, formatNgn } from "@/lib/billing";
+import { PLANS, PACKS, PLAN_LABELS, formatNgn, getAnnualSavings, getPlanPrice, type BillingCycle } from "@/lib/billing";
+import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { createCheckout, cancelSubscription } from "@/lib/billing.functions";
 
 export const Route = createFileRoute("/_authenticated/billing")({
@@ -26,6 +27,11 @@ function BillingPage() {
   const runCancel = useServerFn(cancelSubscription);
 
   const [busy, setBusy] = useState<string | null>(null);
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+
+  useEffect(() => {
+    if (window.location.hash === "#annually") setCycle("annually");
+  }, []);
 
   // Toast + refresh after returning from a provider checkout
   useEffect(() => {
@@ -51,10 +57,11 @@ function BillingPage() {
     kind: "subscription" | "pack",
     id: string,
     key: string,
+    selectedCycle?: BillingCycle,
   ) => {
     setBusy(key);
     const res = await runCheckout({
-      data: { provider: "paystack", kind, id, origin: window.location.origin },
+      data: { provider: "paystack", kind, id, cycle: selectedCycle, origin: window.location.origin },
     });
     if ("error" in res) {
       toast.error(res.message);
@@ -84,7 +91,7 @@ function BillingPage() {
         <div>
           <h1 className="text-2xl font-bold">Billing & Plans</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Subscribe for monthly leads, then add one-time lead packs whenever you need more.
+            Subscribe monthly or yearly, then add one-time lead packs whenever you need more.
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -129,11 +136,12 @@ function BillingPage() {
           {/* Subscriptions */}
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-              <CreditCard className="size-5 text-primary" /> Monthly plans
+              <CreditCard className="size-5 text-primary" /> Plans
             </h2>
+            <div className="mb-4"><BillingCycleToggle cycle={cycle} onChange={setCycle} /></div>
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {PLANS.map((p) => {
-                const current = sub?.plan === p.id && isActive;
+                const current = sub?.plan === p.id && sub?.billing_cycle === cycle && isActive;
                 return (
                   <div
                     key={p.id}
@@ -151,9 +159,10 @@ function BillingPage() {
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{p.tagline}</p>
                     <div className="mt-3 flex items-end gap-1">
-                      <span className="font-display text-3xl font-bold">{formatNgn(p.ngn)}</span>
-                      <span className="mb-1 text-sm text-muted-foreground">/mo</span>
+                      <span className="font-display text-3xl font-bold">{formatNgn(getPlanPrice(p, cycle))}</span>
+                      <span className="mb-1 text-sm text-muted-foreground">{cycle === "annually" ? "/yr" : "/mo"}</span>
                     </div>
+                    {cycle === "annually" && <p className="mt-1 text-xs font-medium text-primary">Save {formatNgn(getAnnualSavings(p))} per year</p>}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {p.credits} leads / month
                     </p>
@@ -171,12 +180,12 @@ function BillingPage() {
                         variant={p.highlight ? "hero" : "outline"}
                         className="w-full"
                         disabled={current || busy !== null}
-                        onClick={() => checkout("subscription", p.id, p.id + "paystack")}
+                        onClick={() => checkout("subscription", p.id, `${p.id}-${cycle}-paystack`, cycle)}
                       >
-                        {busy === p.id + "paystack" ? (
+                        {busy === `${p.id}-${cycle}-paystack` ? (
                           <Loader2 className="size-4 animate-spin" />
                         ) : (
-                          `Subscribe · ${formatNgn(p.ngn)}`
+                          `Subscribe · ${formatNgn(getPlanPrice(p, cycle))}`
                         )}
                       </Button>
                     </div>

@@ -25,6 +25,7 @@ type PaystackWebhookEvent = {
       user_id?: string;
       kind?: string;
       plan_id?: string;
+      cycle?: "monthly" | "annually";
       amount_ngn?: number | string;
       number_id?: string;
       phone_number?: string;
@@ -113,6 +114,7 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
                   reference: data.reference,
                   currency,
                   amount,
+                  cycle: meta.cycle,
                 });
                 await creditReferrer(userId); // award referrer on first purchase
               } else {

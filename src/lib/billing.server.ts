@@ -4,7 +4,7 @@
 import process from "node:process";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { findPlan, findPack } from "@/lib/billing";
+import { BILLING_PRICE_TIER, findPlan, findPack, getPlanPrice, type BillingCycle, type Plan } from "@/lib/billing";
 import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 export type Provider = "paystack";
@@ -46,31 +46,35 @@ export function verifyPaystackSignature(payload: string, header: string | null, 
 }
 
 // Get (or lazily create + cache) a Paystack recurring plan code for a plan.
-export async function getPaystackPlanCode(plan: {
-  id: string;
-  name: string;
-  ngn: number;
-}): Promise<string> {
+export async function getPaystackPlanCode(
+  plan: Plan,
+  cycle: BillingCycle = "monthly",
+): Promise<string> {
+  // The table also contains plans made before launch pricing. Keep the cache
+  // keys distinct so Paystack never reuses a plan with the wrong amount.
+  const providerCycleKey = BILLING_PRICE_TIER === "high"
+    ? cycle
+    : `${cycle}-${BILLING_PRICE_TIER}`;
   const { data } = await supabaseAdmin
     .from("provider_plans")
     .select("provider_plan_code")
     .eq("provider", "paystack")
     .eq("plan_id", plan.id)
-    .eq("cycle", "monthly")
+    .eq("cycle", providerCycleKey)
     .maybeSingle();
   const existing = (data as { provider_plan_code?: string } | null)?.provider_plan_code;
   if (existing) return existing;
 
   const res = await paystackFetch<{ data: { plan_code: string } }>("/plan", "POST", {
-    name: `Kodarai ${plan.name}`,
-    amount: plan.ngn * 100,
-    interval: "monthly",
+    name: `Kodarai ${plan.name} ${BILLING_PRICE_TIER === "low" ? "Launch " : ""}(${cycle === "annually" ? "Annual" : "Monthly"})`,
+    amount: getPlanPrice(plan, cycle) * 100,
+    interval: cycle,
     currency: "NGN",
   });
   const code = res.data.plan_code;
   await supabaseAdmin
     .from("provider_plans")
-    .insert({ provider: "paystack", plan_id: plan.id, cycle: "monthly", provider_plan_code: code });
+    .insert({ provider: "paystack", plan_id: plan.id, cycle: providerCycleKey, provider_plan_code: code });
   return code;
 }
 
@@ -154,23 +158,38 @@ export async function applySubscription(args: {
   reference?: string | null;
   currency?: string;
   amount?: number;
+  cycle?: BillingCycle;
   periodEnd?: string | null;
 }): Promise<void> {
   const plan = findPlan(args.planId);
   if (!plan || !args.userId) return;
-  const reset = args.periodEnd ?? new Date(Date.now() + 30 * 86_400_000).toISOString();
+  const { data: existingSubscription } = await supabaseAdmin
+    .from("subscriptions")
+    .select("billing_cycle")
+    .eq("user_id", args.userId)
+    .maybeSingle();
+  const savedCycle = (existingSubscription as { billing_cycle?: string } | null)?.billing_cycle;
+  // Paystack renewal events may not repeat the checkout metadata. Preserve the
+  // already-recorded cycle in that case, while new checkouts always send one.
+  const cycle = args.cycle ?? (savedCycle === "annually" ? "annually" : "monthly");
+  // Annual billing changes when the customer is charged, not their monthly
+  // lead allowance. The credit RPC resets this allowance every month.
+  const creditsResetAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  const periodEnd = args.periodEnd ?? new Date(
+    Date.now() + (cycle === "annually" ? 365 : 30) * 86_400_000,
+  ).toISOString();
 
   await supabaseAdmin
     .from("subscriptions")
     .update({
       plan: plan.id,
       status: "active",
-      billing_cycle: "monthly",
+      billing_cycle: cycle,
       provider: args.provider,
       search_credits_total: plan.credits,
       search_credits_used: 0,
-      credits_reset_at: reset,
-      current_period_end: args.periodEnd ?? null,
+      credits_reset_at: creditsResetAt,
+      current_period_end: periodEnd,
       provider_customer_id: args.providerCustomerId ?? undefined,
       provider_subscription_id: args.providerSubscriptionId ?? undefined,
       provider_subscription_token: args.providerSubscriptionToken ?? undefined,
@@ -183,9 +202,9 @@ export async function applySubscription(args: {
     provider: args.provider,
     provider_reference: args.reference ?? null,
     kind: "subscription",
-    description: `${plan.name} plan — ${plan.credits} leads / month`,
+    description: `${plan.name} plan — ${cycle === "annually" ? "annual billing" : "monthly billing"}`,
     plan_id: plan.id,
-    amount: args.amount ?? plan.ngn,
+    amount: args.amount ?? getPlanPrice(plan, cycle),
     currency: args.currency ?? "NGN",
     credits_granted: plan.credits,
     status: "success",
@@ -195,7 +214,7 @@ export async function applySubscription(args: {
     subject: `Your ${plan.name} plan is active — KodarAI`,
     title: "Your subscription is active",
     preview: `${plan.credits} leads are ready for this billing period.`,
-    body: `Your ${plan.name} plan is now active. ${plan.credits} leads are available for this billing period.`,
+    body: `Your ${plan.name} plan is now active with ${cycle === "annually" ? "annual" : "monthly"} billing. ${plan.credits} leads are available for this billing period.`,
     ctaLabel: "Open billing",
     ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/billing`,
   });

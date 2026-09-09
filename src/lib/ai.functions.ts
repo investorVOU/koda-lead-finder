@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hasPaidSubscription, hasPlanAtLeast, paidPlanRequired } from "@/lib/subscription.server";
+import { callAiFallbackProviders } from "@/lib/ai-fallback-providers.server";
 
 const leadSchema = z.object({
   name: z.string().min(1).max(160),
@@ -44,7 +45,12 @@ async function groqChat(
   opts?: { temperature?: number },
 ): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("GROQ_API_KEY not set");
+  if (!apiKey) {
+    const fallback = await callAiFallbackProviders(messages, {
+      temperature: opts?.temperature ?? 0.95,
+    });
+    return fallback.content;
+  }
 
   let lastErr: Error | null = null;
 
@@ -83,13 +89,23 @@ async function groqChat(
 
       return content;
     } catch (e) {
-      if (e instanceof Error && e.message === "rate_limited") throw e;
+      if (e instanceof Error && e.message === "rate_limited") {
+        lastErr = e;
+        break;
+      }
       lastErr = e as Error;
       // try next model
     }
   }
 
-  throw lastErr ?? new Error("All Groq models failed");
+  try {
+    const fallback = await callAiFallbackProviders(messages, {
+      temperature: opts?.temperature ?? 0.95,
+    });
+    return fallback.content;
+  } catch (fallbackError) {
+    throw lastErr ?? (fallbackError instanceof Error ? fallbackError : new Error("All AI providers failed."));
+  }
 }
 
 function pick<T>(arr: T[]): T {

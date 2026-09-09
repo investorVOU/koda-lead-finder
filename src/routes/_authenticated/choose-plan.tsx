@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { Check, CreditCard, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,7 +8,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { PACKS, PLANS, formatNgn } from "@/lib/billing";
+import { PACKS, PLANS, formatNgn, getAnnualSavings, getPlanPrice, type BillingCycle } from "@/lib/billing";
+import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { Logo } from "@/components/landing/Logo";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
@@ -17,7 +19,8 @@ export const Route = createFileRoute("/_authenticated/choose-plan")({
 
 function ChoosePlanPage() {
   const navigate = useNavigate();
-  const goToBilling = () => navigate({ to: "/billing" });
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const goToBilling = () => navigate({ to: "/billing", hash: cycle });
 
   return (
     <div className="min-h-screen bg-[image:var(--gradient-hero)] px-4 py-10 sm:py-12">
@@ -46,6 +49,7 @@ function ChoosePlanPage() {
           </TabsList>
 
           <TabsContent value="plans" className="mt-7">
+            <BillingCycleToggle cycle={cycle} onChange={setCycle} />
             <div className="mb-5 text-center">
               <p className="font-semibold">For freelancers building a steady client pipeline</p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -67,9 +71,10 @@ function ChoosePlanPage() {
                   )}
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{plan.name}</p>
                   <p className="mt-2 text-3xl font-bold">
-                    {formatNgn(plan.ngn)}
-                    <span className="text-base font-normal text-muted-foreground">/mo</span>
+                    {formatNgn(getPlanPrice(plan, cycle))}
+                    <span className="text-base font-normal text-muted-foreground">{cycle === "annually" ? "/yr" : "/mo"}</span>
                   </p>
+                  {cycle === "annually" && <p className="mt-1 text-xs font-medium text-primary">Save {formatNgn(getAnnualSavings(plan))} yearly</p>}
                   <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
                   <ul className="mt-4 flex-1 space-y-2">
                     {plan.features.map((feature) => (

@@ -14,6 +14,14 @@ export interface Plan {
 }
 
 export type PaidPlanId = Plan["id"];
+export type BillingCycle = "monthly" | "annually";
+export type BillingPriceTier = "low" | "high";
+
+export const ANNUAL_DISCOUNT_PERCENT = 20;
+// This is public, build-time configuration. Use "low" for launch pricing and
+// "high" to restore the original prices after redeploying.
+export const BILLING_PRICE_TIER: BillingPriceTier =
+  import.meta.env.VITE_BILLING_PRICE_TIER === "high" ? "high" : "low";
 
 const PLAN_RANK: Record<PaidPlanId, number> = {
   starter: 1,
@@ -104,6 +112,28 @@ export const PLANS: Plan[] = [
     ],
   },
 ];
+
+const LAUNCH_MONTHLY_PRICES: Record<PaidPlanId, number> = {
+  starter: 3500,
+  pro: 9500,
+  agency: 24000,
+};
+
+export function getPlanMonthlyPrice(plan: Plan): number {
+  return BILLING_PRICE_TIER === "low"
+    ? LAUNCH_MONTHLY_PRICES[plan.id]
+    : plan.ngn;
+}
+
+export function getPlanPrice(plan: Plan, cycle: BillingCycle): number {
+  const monthlyPrice = getPlanMonthlyPrice(plan);
+  if (cycle === "monthly") return monthlyPrice;
+  return Math.round(monthlyPrice * 12 * (1 - ANNUAL_DISCOUNT_PERCENT / 100));
+}
+
+export function getAnnualSavings(plan: Plan): number {
+  return getPlanMonthlyPrice(plan) * 12 - getPlanPrice(plan, "annually");
+}
 
 export const PACKS: Pack[] = [
   { id: "pack_small", name: "Starter Pack", ngn: 3200, credits: 25 },

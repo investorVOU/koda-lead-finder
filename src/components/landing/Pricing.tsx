@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Check, CreditCard, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,10 +8,12 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { PACKS, PLANS, formatNgn } from "@/lib/billing";
+import { PACKS, PLANS, formatNgn, getAnnualSavings, getPlanPrice, type BillingCycle } from "@/lib/billing";
+import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { FadeUp } from "./FadeUp";
 
 export function Pricing() {
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
   return (
     <section id="pricing" className="border-y border-border bg-secondary/40">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
@@ -45,8 +48,9 @@ export function Pricing() {
           </TabsList>
 
           <TabsContent value="plans" className="mt-8">
+            <BillingCycleToggle cycle={cycle} onChange={setCycle} />
             <p className="mb-5 text-center text-sm text-muted-foreground">
-              Every monthly plan includes Kodarai Studio and Website Builder access.
+              {cycle === "annually" ? "Pay once per year and save 20%." : "Every monthly plan includes Kodarai Studio and Website Builder access."}
             </p>
             <div className="grid items-start gap-6 lg:grid-cols-3">
               {PLANS.map((plan) => (
@@ -66,9 +70,10 @@ export function Pricing() {
                   <h3 className="text-lg font-semibold">{plan.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
                   <div className="mt-5 flex items-end gap-1">
-                    <span className="font-display text-4xl font-bold">{formatNgn(plan.ngn)}</span>
-                    <span className="mb-1 text-sm text-muted-foreground">/mo</span>
+                    <span className="font-display text-4xl font-bold">{formatNgn(getPlanPrice(plan, cycle))}</span>
+                    <span className="mb-1 text-sm text-muted-foreground">{cycle === "annually" ? "/yr" : "/mo"}</span>
                   </div>
+                  {cycle === "annually" && <p className="mt-1 text-xs font-medium text-primary">Save {formatNgn(getAnnualSavings(plan))} per year</p>}
                   <p className="mt-1 text-xs text-muted-foreground">
                     {plan.credits.toLocaleString("en-NG")} leads included each month
                   </p>
