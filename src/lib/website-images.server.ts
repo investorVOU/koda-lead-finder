@@ -1,7 +1,10 @@
 import type {
   BusinessWebsiteInput,
+  WebsiteImage,
+  WebsiteOverlayStrength,
   WebsiteTemplateKey,
   WebsiteVisuals,
+  WebsiteHeroStyle,
 } from "@/lib/website-templates";
 
 const PEXELS_SEARCH_URL =
@@ -14,7 +17,6 @@ type PexelsPhoto = {
   url: string;
   photographer: string;
   photographer_url: string;
-  avg_color?: string | null;
   alt?: string | null;
   src: {
     original: string;
@@ -34,21 +36,7 @@ type PexelsSearchResponse = {
   photos: PexelsPhoto[];
 };
 
-export type WebsiteImage = {
-  id: string;
-  url: string;
-  largeUrl: string;
-  thumbnailUrl: string;
-  alt: string;
-  photographer: string;
-  photographerUrl: string;
-  sourceUrl: string;
-  source: "pexels";
-};
-
-function normalize(
-  value?: string | null,
-) {
+function clean(value?: string | null) {
   return (value ?? "")
     .trim()
     .replace(/\s+/g, " ");
@@ -57,16 +45,12 @@ function normalize(
 function cleanLocation(
   value?: string | null,
 ) {
-  const location = normalize(value);
+  const location = clean(value);
 
   if (!location) {
     return "";
   }
 
-  /*
-   * Full street addresses often make image
-   * search worse. Keep the query broad.
-   */
   const parts = location
     .split(",")
     .map((part) => part.trim())
@@ -77,12 +61,12 @@ function cleanLocation(
     .join(" ");
 }
 
-function queryForTemplate(
+function defaultQueries(
   template: WebsiteTemplateKey,
   business: BusinessWebsiteInput,
-): string[] {
+) {
   const category =
-    normalize(business.category);
+    clean(business.category);
 
   const location =
     cleanLocation(
@@ -90,86 +74,85 @@ function queryForTemplate(
         business.address,
     );
 
-  const local = location
+  const nearby = location
     ? ` ${location}`
     : "";
 
   switch (template) {
     case "restaurant":
       return [
-        `${category || "restaurant"} food interior${local}`,
-        `restaurant dining food${local}`,
-        "beautiful restaurant food table",
+        `${category || "restaurant"} food dining${nearby}`,
+        "beautiful restaurant interior food",
+        "premium restaurant plated food",
       ];
 
     case "salon":
       return [
-        `${category || "beauty salon"} interior${local}`,
+        `${category || "beauty salon"} interior${nearby}`,
         "modern beauty salon interior",
-        "hair salon styling",
+        "professional hair salon styling",
       ];
 
     case "hotel":
       return [
-        `${category || "hotel"} exterior interior${local}`,
-        "luxury hotel room interior",
-        "hotel hospitality interior",
+        `${category || "hotel"} interior${nearby}`,
+        "beautiful hotel room interior",
+        "hotel lobby hospitality",
       ];
 
     case "real-estate":
       return [
-        `modern real estate property${local}`,
-        "modern house architecture",
-        "luxury residential property",
+        `modern property real estate${nearby}`,
+        "modern residential property exterior",
+        "premium house interior architecture",
       ];
 
     case "gym":
       return [
-        `${category || "gym"} training${local}`,
-        "modern gym interior fitness",
-        "fitness training gym",
+        `${category || "gym"} fitness${nearby}`,
+        "modern gym interior training",
+        "fitness strength training gym",
       ];
 
     case "healthcare":
       return [
-        `${category || "medical clinic"} interior${local}`,
-        "modern medical clinic",
+        `${category || "medical clinic"} interior${nearby}`,
+        "modern medical clinic interior",
         "healthcare professional clinic",
       ];
 
     case "church":
       return [
-        `${category || "church"} worship interior${local}`,
-        "church community worship",
+        `${category || "church"} worship${nearby}`,
+        "church community worship interior",
         "modern church interior",
       ];
 
     case "retail":
       return [
-        `${category || "retail store"} interior${local}`,
-        "modern boutique store interior",
-        "retail shop products",
+        `${category || "retail store"} interior${nearby}`,
+        "modern boutique retail interior",
+        "premium store products display",
       ];
 
     case "professional":
       return [
-        `${category || "professional office"} workspace${local}`,
-        "modern professional office",
-        "business consultation office",
+        `${category || "professional office"}${nearby}`,
+        "modern professional office meeting",
+        "business consultation workspace",
       ];
 
     default:
       return [
-        `${category || "local business"} professional${local}`,
-        `${category || "small business"} interior`,
-        "modern local business",
+        `${category || "local business"}${nearby}`,
+        `${category || "small business"} professional interior`,
+        "modern local business interior",
       ];
   }
 }
 
 async function searchPexels(
   query: string,
-  perPage = 8,
 ): Promise<PexelsPhoto[]> {
   const apiKey =
     process.env.PEXELS_API_KEY;
@@ -183,7 +166,7 @@ async function searchPexels(
       query,
       orientation: "landscape",
       size: "medium",
-      per_page: String(perPage),
+      per_page: "10",
     });
 
   const response = await fetch(
@@ -199,16 +182,33 @@ async function searchPexels(
 
   if (!response.ok) {
     console.error(
-      `[website-images] Pexels returned ${response.status}`,
+      `[Kodarai images] Pexels returned ${response.status}`,
     );
 
     return [];
   }
 
-  const json =
+  const result =
     (await response.json()) as PexelsSearchResponse;
 
-  return json.photos ?? [];
+  return result.photos ?? [];
+}
+
+function uniquePhotos(
+  photos: PexelsPhoto[],
+) {
+  const used =
+    new Set<number>();
+
+  return photos.filter((photo) => {
+    if (used.has(photo.id)) {
+      return false;
+    }
+
+    used.add(photo.id);
+
+    return true;
+  });
 }
 
 function toWebsiteImage(
@@ -217,26 +217,17 @@ function toWebsiteImage(
   return {
     id: String(photo.id),
 
-    /*
-     * Use the Pexels-hosted optimized
-     * landscape image in generated sites.
-     */
     url:
+      photo.src.large2x ||
       photo.src.landscape ||
-      photo.src.large2x ||
       photo.src.large,
-
-    largeUrl:
-      photo.src.large2x ||
-      photo.src.large ||
-      photo.src.landscape,
 
     thumbnailUrl:
       photo.src.medium ||
       photo.src.small,
 
     alt:
-      normalize(photo.alt) ||
+      clean(photo.alt) ||
       "Business photography",
 
     photographer:
@@ -252,112 +243,109 @@ function toWebsiteImage(
   };
 }
 
-function uniquePhotos(
-  photos: PexelsPhoto[],
-) {
-  const seen =
-    new Set<number>();
-
-  return photos.filter((photo) => {
-    if (seen.has(photo.id)) {
-      return false;
-    }
-
-    seen.add(photo.id);
-    return true;
-  });
-}
-
 export async function resolveWebsiteVisuals(
   business: BusinessWebsiteInput,
-  input: {
+  options: {
     template: WebsiteTemplateKey;
-    heroStyle:
-      | "background"
-      | "split"
-      | "editorial";
+
+    heroStyle: WebsiteHeroStyle;
+
     overlayStrength:
-      | "light"
-      | "medium"
-      | "dark";
+      WebsiteOverlayStrength;
+
+    searchDirection?: string | null;
   },
 ): Promise<WebsiteVisuals> {
+  const empty: WebsiteVisuals = {
+    heroStyle:
+      options.heroStyle,
+
+    overlayStrength:
+      options.overlayStrength,
+
+    heroImage: null,
+
+    galleryImages: [],
+
+    sourceName: null,
+
+    sourceUrl: null,
+  };
+
   if (!process.env.PEXELS_API_KEY) {
-    return {
-      heroStyle: input.heroStyle,
-      overlayStrength:
-        input.overlayStrength,
-      heroImage: null,
-      galleryImages: [],
-      sourceName: null,
-      sourceUrl: null,
-    };
+    console.warn(
+      "[Kodarai images] PEXELS_API_KEY is not configured.",
+    );
+
+    return empty;
   }
 
-  const queries =
-    queryForTemplate(
-      input.template,
-      business,
+  const aiDirection =
+    clean(
+      options.searchDirection,
     );
+
+  const queries = [
+    ...(aiDirection
+      ? [aiDirection]
+      : []),
+
+    ...defaultQueries(
+      options.template,
+      business,
+    ),
+  ];
 
   let photos: PexelsPhoto[] = [];
 
-  /*
-   * We intentionally search sequentially.
-   * Usually the first good category query
-   * gives enough photos and avoids burning
-   * unnecessary API quota.
-   */
   for (const query of queries) {
     try {
-      const results =
-        await searchPexels(query);
+      const found =
+        await searchPexels(
+          query,
+        );
 
       photos = uniquePhotos([
         ...photos,
-        ...results,
+        ...found,
       ]);
 
-      if (photos.length >= 5) {
+      if (photos.length >= 7) {
         break;
       }
     } catch (error) {
       console.error(
-        "[website-images] image search failed",
+        "[Kodarai images] Search failed:",
         error,
       );
     }
   }
 
-  if (!photos.length) {
-    return {
-      heroStyle: input.heroStyle,
-      overlayStrength:
-        input.overlayStrength,
-      heroImage: null,
-      galleryImages: [],
-      sourceName: null,
-      sourceUrl: null,
-    };
-  }
-
-  const converted =
+  const images =
     photos
-      .slice(0, 5)
+      .slice(0, 7)
       .map(toWebsiteImage);
 
+  if (!images.length) {
+    return empty;
+  }
+
   return {
-    heroStyle: input.heroStyle,
+    heroStyle:
+      options.heroStyle,
+
     overlayStrength:
-      input.overlayStrength,
+      options.overlayStrength,
 
     heroImage:
-      converted[0] ?? null,
+      images[0] ?? null,
 
     galleryImages:
-      converted.slice(1, 4),
+      images.slice(1, 5),
 
-    sourceName: "Pexels",
+    sourceName:
+      "Pexels",
+
     sourceUrl:
       "https://www.pexels.com/",
   };
