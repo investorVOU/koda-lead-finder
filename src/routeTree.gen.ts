@@ -55,6 +55,7 @@ import { Route as ApiPublicNumbersRenewalsRouteImport } from './routes/api/publi
 import { Route as ApiPublicMarketingWeeklyRouteImport } from './routes/api/public/marketing/weekly'
 import { Route as ApiPublicMarketingUnsubscribeRouteImport } from './routes/api/public/marketing/unsubscribe'
 import { Route as ApiPublicFollowUpRemindersDueRouteImport } from './routes/api/public/follow-up-reminders/due'
+import { Route as AuthenticatedStudioPreviewProjectIdRouteImport } from './routes/_authenticated/studio.preview.$projectId'
 
 const TrialWelcomeRoute = TrialWelcomeRouteImport.update({
   id: '/trial-welcome',
@@ -302,6 +303,12 @@ const ApiPublicFollowUpRemindersDueRoute =
     path: '/api/public/follow-up-reminders/due',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedStudioPreviewProjectIdRoute =
+  AuthenticatedStudioPreviewProjectIdRouteImport.update({
+    id: '/preview/$projectId',
+    path: '/preview/$projectId',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -341,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio/': typeof AuthenticatedStudioIndexRoute
+  '/studio/preview/$projectId': typeof AuthenticatedStudioPreviewProjectIdRoute
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
@@ -387,6 +395,7 @@ export interface FileRoutesByTo {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/studio': typeof AuthenticatedStudioIndexRoute
+  '/studio/preview/$projectId': typeof AuthenticatedStudioPreviewProjectIdRoute
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
@@ -436,6 +445,7 @@ export interface FileRoutesById {
   '/api/studio/channel-review': typeof ApiStudioChannelReviewRoute
   '/api/studio/generate': typeof ApiStudioGenerateRoute
   '/_authenticated/studio/': typeof AuthenticatedStudioIndexRoute
+  '/_authenticated/studio/preview/$projectId': typeof AuthenticatedStudioPreviewProjectIdRoute
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio/'
+    | '/studio/preview/$projectId'
     | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
@@ -531,6 +542,7 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/studio'
+    | '/studio/preview/$projectId'
     | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
@@ -579,6 +591,7 @@ export interface FileRouteTypes {
     | '/api/studio/channel-review'
     | '/api/studio/generate'
     | '/_authenticated/studio/'
+    | '/_authenticated/studio/preview/$projectId'
     | '/api/public/follow-up-reminders/due'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
@@ -938,6 +951,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFollowUpRemindersDueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/studio/preview/$projectId': {
+      id: '/_authenticated/studio/preview/$projectId'
+      path: '/preview/$projectId'
+      fullPath: '/studio/preview/$projectId'
+      preLoaderRoute: typeof AuthenticatedStudioPreviewProjectIdRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
   }
 }
 
@@ -951,6 +971,7 @@ interface AuthenticatedStudioRouteChildren {
   AuthenticatedStudioResearchRoute: typeof AuthenticatedStudioResearchRoute
   AuthenticatedStudioScraperRoute: typeof AuthenticatedStudioScraperRoute
   AuthenticatedStudioIndexRoute: typeof AuthenticatedStudioIndexRoute
+  AuthenticatedStudioPreviewProjectIdRoute: typeof AuthenticatedStudioPreviewProjectIdRoute
 }
 
 const AuthenticatedStudioRouteChildren: AuthenticatedStudioRouteChildren = {
@@ -963,6 +984,8 @@ const AuthenticatedStudioRouteChildren: AuthenticatedStudioRouteChildren = {
   AuthenticatedStudioResearchRoute: AuthenticatedStudioResearchRoute,
   AuthenticatedStudioScraperRoute: AuthenticatedStudioScraperRoute,
   AuthenticatedStudioIndexRoute: AuthenticatedStudioIndexRoute,
+  AuthenticatedStudioPreviewProjectIdRoute:
+    AuthenticatedStudioPreviewProjectIdRoute,
 }
 
 const AuthenticatedStudioRouteWithChildren =

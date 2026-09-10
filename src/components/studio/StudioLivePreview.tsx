@@ -720,7 +720,7 @@ export function StudioLivePreview({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#101013]">
+    <div className="flex h-full min-h-0 min-w-0 w-full flex-col bg-[#101013]">
       {/* Browser toolbar */}
 
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#17171b] px-3">
@@ -817,7 +817,7 @@ export function StudioLivePreview({
         ref={
           previewAreaRef
         }
-        className="relative flex min-h-0 flex-1 overflow-auto bg-[#242429] p-3"
+        className="relative flex min-h-0 min-w-0 flex-1 overflow-auto bg-[#242429] p-3"
       >
         <div
           className="relative mx-auto shrink-0 overflow-hidden bg-white shadow-[0_18px_60px_rgba(0,0,0,0.28)]"

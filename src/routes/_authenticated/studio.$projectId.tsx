@@ -1224,7 +1224,7 @@ function DesktopStudio({
   const [sidebar, setSidebar] = useState<"files" | "chat" | "history">("files");
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(360px,1fr)_minmax(400px,0.95fr)] overflow-hidden">
+    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[220px_minmax(0,1fr)_minmax(320px,0.9fr)] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-white/[0.06] bg-[#0b0e11]">
         <div className="flex h-11 border-b border-white/[0.06] p-1.5">
           {(
@@ -1282,7 +1282,7 @@ function DesktopStudio({
         />
       </section>
 
-      <section className="min-h-0">
+      <section className="min-h-0 min-w-0 overflow-hidden">
         <StudioLivePreview
           files={files}
           deploymentUrl={deploymentUrl}
