@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
+import { isIP } from "node:net";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { hasPaidSubscription } from "@/lib/subscription.server";
+import { hasCustomDomainEntitlement, hasPaidSubscription } from "@/lib/subscription.server";
 import {
   applyStudioFileChanges,
   normalizeStudioFiles,
@@ -10,12 +11,22 @@ import {
   serializeStudioFiles,
   type StudioFile,
 } from "@/lib/studio-files";
-import {
-  buildBusinessWebsiteFiles,
-  type BusinessWebsiteInput,
-} from "@/lib/website-templates";
+import { buildBusinessWebsiteFiles, type BusinessWebsiteInput } from "@/lib/website-templates";
 import { generateBusinessWebsiteSpec, generateWebsiteEdit } from "@/lib/website-builder.server";
-import { createVercelProject, deployToVercel, getVercelDeployment, publicVercelUrl, waitForVercelDeployment } from "@/lib/vercel.server";
+import {
+  addVercelProjectDomain,
+  createVercelProject,
+  deployToVercel,
+  getVercelDeployment,
+  getVercelDomainConfiguration,
+  getVercelProjectDomain,
+  publicVercelUrl,
+  removeVercelProjectDomain,
+  type VercelDomainConfiguration,
+  type VercelProjectDomain,
+  verifyVercelProjectDomain,
+  waitForVercelDeployment,
+} from "@/lib/vercel.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseAdmin as any;
@@ -44,9 +55,30 @@ export interface StudioProject {
   vercel_url?: string | null;
   deployment_status?: string;
   deployment_error?: string | null;
+  custom_domain?: string | null;
+  custom_domain_status?: CustomDomainStatus | null;
+  custom_domain_verified?: boolean;
   created_at: string;
   updated_at: string;
 }
+
+export type CustomDomainStatus = "pending" | "configuring" | "connected" | "error";
+
+export type CustomDomainDnsRecord = {
+  type: string;
+  name: string;
+  value: string;
+  reason?: string;
+};
+
+export type StudioCustomDomainDetails = {
+  domain: string;
+  status: CustomDomainStatus;
+  verified: boolean;
+  dnsRecords: CustomDomainDnsRecord[];
+  configuredBy: string | null;
+  error?: string;
+};
 
 export interface StudioMessage {
   id: string;
@@ -156,7 +188,297 @@ export const getStudioProject = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .single();
     if (error) return { error: error.message } as const;
-    return { project: project as StudioProject } as const;
+    return {
+      project: project as StudioProject,
+      customDomainManagementAllowed: await hasCustomDomainEntitlement(context.userId),
+    } as const;
+  });
+
+const customDomainInput = z.object({
+  project_id: z.string().uuid(),
+  domain: z.string().min(1).max(253),
+});
+
+const customDomainStatusInput = z.object({
+  project_id: z.string().uuid(),
+  verify: z.boolean().optional(),
+});
+
+function normalizeCustomDomain(input: string): string {
+  const candidate = input
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "")
+    .replace(/\.$/, "");
+
+  if (!candidate || /[\s/@:?#[\]]/.test(candidate) || candidate.includes("/")) {
+    throw new Error("Enter a valid domain such as example.com or www.example.com.");
+  }
+
+  const domain = new URL(`https://${candidate}`).hostname.toLowerCase();
+  if (
+    domain !== candidate ||
+    domain.length > 253 ||
+    isIP(domain) !== 0 ||
+    !domain.includes(".") ||
+    domain.split(".").some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
+  ) {
+    throw new Error("Enter a valid domain such as example.com or www.example.com.");
+  }
+
+  return domain;
+}
+
+function upgradeRequired() {
+  return {
+    error: "upgrade_required",
+    message:
+      "Custom domains are available on Pro and Agency. Upgrade to Pro to manage a custom domain.",
+  } as const;
+}
+
+async function findOwnedCustomDomainProject(projectId: string, userId: string) {
+  const { data: project, error } = await db
+    .from("studio_projects")
+    .select(
+      "id,user_id,deployment_url,vercel_project_id,custom_domain,custom_domain_status,custom_domain_verified",
+    )
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!project) return null;
+  return project as {
+    id: string;
+    deployment_url: string | null;
+    vercel_project_id: string | null;
+    custom_domain: string | null;
+    custom_domain_status: CustomDomainStatus | null;
+    custom_domain_verified: boolean | null;
+  };
+}
+
+function domainDnsRecords(
+  domain: string,
+  projectDomain: VercelProjectDomain,
+  configuration: VercelDomainConfiguration | null,
+): CustomDomainDnsRecord[] {
+  const verification = (projectDomain.verification ?? []).map((record) => ({
+    type: record.type,
+    name: record.domain,
+    value: record.value,
+    ...(record.reason ? { reason: record.reason } : {}),
+  }));
+
+  // Vercel's configuration endpoint returns record values, while the requested
+  // host is the domain that was sent to that endpoint. No DNS target is guessed.
+  const configurationRecords: CustomDomainDnsRecord[] = [
+    ...(configuration?.recommendedIPv4 ?? []).flatMap((record) =>
+      (record.value ?? []).map((value) => ({ type: "A", name: domain, value })),
+    ),
+    ...(configuration?.recommendedCNAME ?? []).flatMap((record) =>
+      record.value ? [{ type: "CNAME", name: domain, value: record.value }] : [],
+    ),
+  ];
+
+  return [...verification, ...configurationRecords].filter(
+    (record, index, records) =>
+      records.findIndex(
+        (candidate) =>
+          candidate.type === record.type &&
+          candidate.name === record.name &&
+          candidate.value === record.value,
+      ) === index,
+  );
+}
+
+function deriveCustomDomainStatus(
+  projectDomain: VercelProjectDomain,
+  configuration: VercelDomainConfiguration | null,
+): CustomDomainStatus {
+  if (projectDomain.verified) return "connected";
+  if (configuration && configuration.misconfigured === false) return "configuring";
+  return "pending";
+}
+
+async function readCustomDomainDetails(
+  projectId: string,
+  domain: string,
+  verify = false,
+): Promise<StudioCustomDomainDetails> {
+  const projectDomain = verify
+    ? await verifyVercelProjectDomain(projectId, domain)
+    : await getVercelProjectDomain(projectId, domain);
+  const configuration = await getVercelDomainConfiguration(projectId, domain).catch(() => null);
+  const status = deriveCustomDomainStatus(projectDomain, configuration);
+
+  return {
+    domain,
+    status,
+    verified: projectDomain.verified,
+    dnsRecords: domainDnsRecords(domain, projectDomain, configuration),
+    configuredBy: configuration?.configuredBy ?? null,
+  };
+}
+
+async function persistCustomDomainDetails(projectId: string, details: StudioCustomDomainDetails) {
+  const { error } = await db
+    .from("studio_projects")
+    .update({
+      custom_domain: details.domain,
+      custom_domain_status: details.status,
+      custom_domain_verified: details.verified,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+}
+
+/** Adds a domain through Vercel only after project ownership and Pro/Agency access are checked. */
+export const addStudioCustomDomain = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => customDomainInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const project = await findOwnedCustomDomainProject(data.project_id, context.userId);
+    if (!project) return { error: "not_found", message: "Studio project not found." } as const;
+    if (!(await hasCustomDomainEntitlement(context.userId))) return upgradeRequired();
+    if (!project.deployment_url || !project.vercel_project_id) {
+      return {
+        error: "deployment_missing",
+        message: "Publish this website before connecting a custom domain.",
+      } as const;
+    }
+
+    let domain: string;
+    try {
+      domain = normalizeCustomDomain(data.domain);
+    } catch (error) {
+      return {
+        error: "invalid_domain",
+        message: error instanceof Error ? error.message : "Invalid domain.",
+      } as const;
+    }
+
+    if (project.custom_domain && project.custom_domain !== domain) {
+      return {
+        error: "custom_domain_exists",
+        message: "Remove the existing custom domain before connecting another one.",
+      } as const;
+    }
+
+    try {
+      let projectDomain: VercelProjectDomain;
+      try {
+        projectDomain = await addVercelProjectDomain(project.vercel_project_id, domain);
+      } catch (error) {
+        // A retry after a successful Vercel call should be idempotent for this project.
+        projectDomain = await getVercelProjectDomain(project.vercel_project_id, domain).catch(
+          () => {
+            throw error;
+          },
+        );
+      }
+
+      const configuration = await getVercelDomainConfiguration(
+        project.vercel_project_id,
+        domain,
+      ).catch(() => null);
+      const details: StudioCustomDomainDetails = {
+        domain,
+        status: deriveCustomDomainStatus(projectDomain, configuration),
+        verified: projectDomain.verified,
+        dnsRecords: domainDnsRecords(domain, projectDomain, configuration),
+        configuredBy: configuration?.configuredBy ?? null,
+      };
+      await persistCustomDomainDetails(project.id, details);
+      return { domain: details } as const;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Vercel could not add this domain.";
+      await db
+        .from("studio_projects")
+        .update({
+          custom_domain_status: "error",
+          custom_domain_verified: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", project.id);
+      return { error: "vercel_error", message } as const;
+    }
+  });
+
+/** Reads Vercel's live configuration; set verify=true for the user-triggered verification check. */
+export const getStudioCustomDomainStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => customDomainStatusInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const project = await findOwnedCustomDomainProject(data.project_id, context.userId);
+    if (!project) return { error: "not_found", message: "Studio project not found." } as const;
+    if (!(await hasCustomDomainEntitlement(context.userId))) return upgradeRequired();
+    if (!project.custom_domain || !project.vercel_project_id) {
+      return {
+        error: "domain_missing",
+        message: "No custom domain is connected to this project.",
+      } as const;
+    }
+
+    try {
+      const details = await readCustomDomainDetails(
+        project.vercel_project_id,
+        project.custom_domain,
+        data.verify,
+      );
+      await persistCustomDomainDetails(project.id, details);
+      return { domain: details } as const;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Vercel could not verify this domain.";
+      await db
+        .from("studio_projects")
+        .update({
+          custom_domain_status: "error",
+          custom_domain_verified: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", project.id);
+      return { error: "vercel_error", message } as const;
+    }
+  });
+
+export const removeStudioCustomDomain = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ project_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const project = await findOwnedCustomDomainProject(data.project_id, context.userId);
+    if (!project) return { error: "not_found", message: "Studio project not found." } as const;
+    if (!(await hasCustomDomainEntitlement(context.userId))) return upgradeRequired();
+    if (!project.custom_domain || !project.vercel_project_id) {
+      return {
+        error: "domain_missing",
+        message: "No custom domain is connected to this project.",
+      } as const;
+    }
+
+    try {
+      await removeVercelProjectDomain(project.vercel_project_id, project.custom_domain);
+      const { error } = await db
+        .from("studio_projects")
+        .update({
+          custom_domain: null,
+          custom_domain_status: null,
+          custom_domain_verified: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", project.id);
+      if (error) throw new Error(error.message);
+      return { success: true } as const;
+    } catch (error) {
+      return {
+        error: "vercel_error",
+        message: error instanceof Error ? error.message : "Vercel could not remove this domain.",
+      } as const;
+    }
   });
 
 // ── Messages ───────────────────────────────────────────────────────────────────
@@ -313,9 +635,7 @@ export const getStudioUsage = createServerFn({ method: "GET" })
       (sub as { status?: string } | null)?.status ?? "",
     );
     const LIMITS: Record<string, number> = { starter: 50, pro: 200, agency: 9999 };
-    const limit = active
-      ? (LIMITS[(sub as { plan?: string } | null)?.plan ?? ""] ?? 0)
-      : 0;
+    const limit = active ? (LIMITS[(sub as { plan?: string } | null)?.plan ?? ""] ?? 0) : 0;
 
     return {
       projectCount: projectCount ?? 0,
@@ -341,12 +661,13 @@ const websiteLeadSchema = z.object({
 });
 
 function slugify(value: string): string {
-  const stem = value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 42) || "business";
+  const stem =
+    value
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 42) || "business";
   return `${stem}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -372,22 +693,29 @@ async function findOwnedStudioProject(projectId: string, userId: string) {
   return project as Record<string, unknown> | null;
 }
 
-async function checkStudioAiCapacity(userId: string): Promise<{ allowed: boolean; used: number; limit: number }> {
+async function checkStudioAiCapacity(
+  userId: string,
+): Promise<{ allowed: boolean; used: number; limit: number }> {
   const { data: subscription } = await supabaseAdmin
     .from("subscriptions")
     .select("plan,status")
     .eq("user_id", userId)
     .maybeSingle();
   const subscriptionRow = subscription as { plan?: string; status?: string } | null;
-  if (!subscriptionRow || !["active", "canceling"].includes(subscriptionRow.status ?? "")) return { allowed: false, used: 0, limit: 0 };
+  if (!subscriptionRow || !["active", "canceling"].includes(subscriptionRow.status ?? ""))
+    return { allowed: false, used: 0, limit: 0 };
   const limits: Record<string, number> = { starter: 50, pro: 200, agency: 9999 };
   const limit = limits[subscriptionRow.plan ?? ""] ?? 0;
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const { data: projects } = await db.from("studio_projects").select("id").eq("user_id", userId);
   const ids = (projects ?? []).map((project: { id: string }) => project.id);
   if (!ids.length) return { allowed: true, used: 0, limit };
-  const { count } = await db.from("studio_messages").select("id", { count: "exact", head: true })
-    .in("project_id", ids).eq("role", "user").gte("created_at", monthStart);
+  const { count } = await db
+    .from("studio_messages")
+    .select("id", { count: "exact", head: true })
+    .in("project_id", ids)
+    .eq("role", "user")
+    .gte("created_at", monthStart);
   const used = count ?? 0;
   return { allowed: used < limit, used, limit };
 }
@@ -397,79 +725,133 @@ export const createWebsiteProjectFromLead = createServerFn({ method: "POST" })
   .inputValidator((data) => websiteLeadSchema.parse(data))
   .handler(async ({ data, context }) => {
     if (!(await hasPaidSubscription(context.userId))) {
-      return { error: "plan_required", message: "Choose a paid plan to use Kodarai Builder." } as const;
+      return {
+        error: "plan_required",
+        message: "Choose a paid plan to use Kodarai Builder.",
+      } as const;
     }
     if (data.hasWebsite) {
-      return { error: "website_exists", message: "This lead already has a website, so Kodarai Builder is unavailable." } as const;
+      return {
+        error: "website_exists",
+        message: "This lead already has a website, so Kodarai Builder is unavailable.",
+      } as const;
     }
 
     let lead: Record<string, unknown> | null = null;
     if (data.placeId) {
-      const { data: existing } = await db.from("saved_leads")
-        .select("*").eq("user_id", context.userId).eq("place_id", data.placeId).maybeSingle();
+      const { data: existing } = await db
+        .from("saved_leads")
+        .select("*")
+        .eq("user_id", context.userId)
+        .eq("place_id", data.placeId)
+        .maybeSingle();
       lead = existing as Record<string, unknown> | null;
     }
     if (!lead) {
-      const { data: existing } = await db.from("saved_leads")
-        .select("*").eq("user_id", context.userId).eq("business_name", data.name)
-        .eq("location", data.location ?? "").maybeSingle();
+      const { data: existing } = await db
+        .from("saved_leads")
+        .select("*")
+        .eq("user_id", context.userId)
+        .eq("business_name", data.name)
+        .eq("location", data.location ?? "")
+        .maybeSingle();
       lead = existing as Record<string, unknown> | null;
     }
     if (!lead) {
-      const { data: inserted, error } = await db.from("saved_leads").insert({
-        user_id: context.userId,
-        place_id: data.placeId ?? null,
-        business_name: data.name,
-        address: data.address ?? null,
-        phone: data.phone ?? null,
-        rating: data.rating ?? null,
-        review_count: data.reviewCount,
-        has_website: false,
-        website_url: data.websiteUrl ?? null,
-        maps_url: data.mapsUrl ?? null,
-        category: data.category ?? null,
-        location: data.location ?? null,
-      }).select("*").single();
-      if (error || !inserted) return { error: "lead_create_failed", message: "Could not save this lead for the website project." } as const;
+      const { data: inserted, error } = await db
+        .from("saved_leads")
+        .insert({
+          user_id: context.userId,
+          place_id: data.placeId ?? null,
+          business_name: data.name,
+          address: data.address ?? null,
+          phone: data.phone ?? null,
+          rating: data.rating ?? null,
+          review_count: data.reviewCount,
+          has_website: false,
+          website_url: data.websiteUrl ?? null,
+          maps_url: data.mapsUrl ?? null,
+          category: data.category ?? null,
+          location: data.location ?? null,
+        })
+        .select("*")
+        .single();
+      if (error || !inserted)
+        return {
+          error: "lead_create_failed",
+          message: "Could not save this lead for the website project.",
+        } as const;
       lead = inserted as Record<string, unknown>;
     }
 
     const business = businessFromLead(lead);
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const { data: project, error } = await db.from("studio_projects").insert({
-        user_id: context.userId,
-        lead_id: lead.id,
-        name: `${business.name} — Website`.slice(0, 120),
-        description: `${business.category || "Business"}${business.location ? ` in ${business.location}` : ""}`.slice(0, 500),
-        template: "business-website",
-        slug: slugify(business.name),
-        business_name: business.name,
-        business_category: business.category,
-        business_details_json: JSON.stringify(business),
-        files_json: serializeStudioFiles([]),
-        status: "draft",
-        generation_status: "idle",
-      }).select("*").single();
+      const { data: project, error } = await db
+        .from("studio_projects")
+        .insert({
+          user_id: context.userId,
+          lead_id: lead.id,
+          name: `${business.name} — Website`.slice(0, 120),
+          description:
+            `${business.category || "Business"}${business.location ? ` in ${business.location}` : ""}`.slice(
+              0,
+              500,
+            ),
+          template: "business-website",
+          slug: slugify(business.name),
+          business_name: business.name,
+          business_category: business.category,
+          business_details_json: JSON.stringify(business),
+          files_json: serializeStudioFiles([]),
+          status: "draft",
+          generation_status: "idle",
+        })
+        .select("*")
+        .single();
       if (project) return { project: project as StudioProject } as const;
       if (!error || !String(error.message).includes("slug")) break;
     }
-    return { error: "project_create_failed", message: "Could not create the website project. Please try again." } as const;
+    return {
+      error: "project_create_failed",
+      message: "Could not create the website project. Please try again.",
+    } as const;
   });
 
 export const saveStudioFiles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ project_id: z.string().uuid(), files: z.array(z.object({ path: z.string(), content: z.string(), language: z.string().optional() })).max(100) }).parse(data))
+  .inputValidator((data) =>
+    z
+      .object({
+        project_id: z.string().uuid(),
+        files: z
+          .array(
+            z.object({ path: z.string(), content: z.string(), language: z.string().optional() }),
+          )
+          .max(100),
+      })
+      .parse(data),
+  )
   .handler(async ({ data, context }) => {
     if (!(await hasPaidSubscription(context.userId))) {
-      return { error: "plan_required", message: "Choose a paid plan to use Kodarai Builder." } as const;
+      return {
+        error: "plan_required",
+        message: "Choose a paid plan to use Kodarai Builder.",
+      } as const;
     }
     let files: StudioFile[];
-    try { files = normalizeStudioFiles(data.files); } catch (error) {
-      return { error: "invalid_files", message: error instanceof Error ? error.message : "Invalid project files." } as const;
+    try {
+      files = normalizeStudioFiles(data.files);
+    } catch (error) {
+      return {
+        error: "invalid_files",
+        message: error instanceof Error ? error.message : "Invalid project files.",
+      } as const;
     }
-    const { error } = await db.from("studio_projects")
+    const { error } = await db
+      .from("studio_projects")
       .update({ files_json: serializeStudioFiles(files), updated_at: new Date().toISOString() })
-      .eq("id", data.project_id).eq("user_id", context.userId);
+      .eq("id", data.project_id)
+      .eq("user_id", context.userId);
     if (error) return { error: "save_failed", message: "Could not save website files." } as const;
     return { files } as const;
   });
@@ -478,61 +860,157 @@ export const generateBusinessWebsite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ project_id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    if (!(await hasPaidSubscription(context.userId))) return { error: "plan_required", message: "Choose a paid plan to generate a website." } as const;
+    if (!(await hasPaidSubscription(context.userId)))
+      return {
+        error: "plan_required",
+        message: "Choose a paid plan to generate a website.",
+      } as const;
     const capacity = await checkStudioAiCapacity(context.userId);
-    if (!capacity.allowed) return { error: "limit_reached", message: `You've used all ${capacity.limit} Studio AI messages this month. Upgrade to continue.` } as const;
+    if (!capacity.allowed)
+      return {
+        error: "limit_reached",
+        message: `You've used all ${capacity.limit} Studio AI messages this month. Upgrade to continue.`,
+      } as const;
     const project = await findOwnedStudioProject(data.project_id, context.userId);
     if (!project) return { error: "not_found", message: "Website project not found." } as const;
-    const business = (() => { try { return JSON.parse(String(project.business_details_json || "{}")); } catch { return {}; } })() as BusinessWebsiteInput;
-    if (!business.name) return { error: "invalid_business", message: "This project is missing business information." } as const;
+    const business = (() => {
+      try {
+        return JSON.parse(String(project.business_details_json || "{}"));
+      } catch {
+        return {};
+      }
+    })() as BusinessWebsiteInput;
+    if (!business.name)
+      return {
+        error: "invalid_business",
+        message: "This project is missing business information.",
+      } as const;
 
-    await db.from("studio_projects").update({ status: "generating", generation_status: "generating", updated_at: new Date().toISOString() })
-      .eq("id", data.project_id).eq("user_id", context.userId);
+    await db
+      .from("studio_projects")
+      .update({
+        status: "generating",
+        generation_status: "generating",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.project_id)
+      .eq("user_id", context.userId);
     try {
       const specification = await generateBusinessWebsiteSpec(business);
       const files = buildBusinessWebsiteFiles(business, specification);
-      const { error } = await db.from("studio_projects").update({
-        files_json: serializeStudioFiles(files), theme_json: JSON.stringify(specification.theme), template: specification.template,
-        status: "ready", generation_status: "ready", updated_at: new Date().toISOString(),
-      }).eq("id", data.project_id).eq("user_id", context.userId);
+      const { error } = await db
+        .from("studio_projects")
+        .update({
+          files_json: serializeStudioFiles(files),
+          theme_json: JSON.stringify(specification.theme),
+          template: specification.template,
+          status: "ready",
+          generation_status: "ready",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.project_id)
+        .eq("user_id", context.userId);
       if (error) throw new Error("Could not save generated website files.");
-      await db.from("studio_messages").insert({ project_id: data.project_id, role: "user", content: "Generate a professional business website from this lead." });
-      await db.from("studio_messages").insert({ project_id: data.project_id, role: "assistant", content: "Your business website is ready to preview and edit.", file_changes: JSON.stringify(files.map((file) => ({ path: file.path, action: "create" }))) });
+      await db
+        .from("studio_messages")
+        .insert({
+          project_id: data.project_id,
+          role: "user",
+          content: "Generate a professional business website from this lead.",
+        });
+      await db
+        .from("studio_messages")
+        .insert({
+          project_id: data.project_id,
+          role: "assistant",
+          content: "Your business website is ready to preview and edit.",
+          file_changes: JSON.stringify(
+            files.map((file) => ({ path: file.path, action: "create" })),
+          ),
+        });
       return { files, theme: specification.theme } as const;
     } catch (error) {
-      await db.from("studio_projects").update({ status: "failed", generation_status: "failed", updated_at: new Date().toISOString() })
-        .eq("id", data.project_id).eq("user_id", context.userId);
-      return { error: "generation_failed", message: error instanceof Error ? error.message : "Website generation failed." } as const;
+      await db
+        .from("studio_projects")
+        .update({
+          status: "failed",
+          generation_status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.project_id)
+        .eq("user_id", context.userId);
+      return {
+        error: "generation_failed",
+        message: error instanceof Error ? error.message : "Website generation failed.",
+      } as const;
     }
   });
 
 export const applyBusinessWebsiteEdit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ project_id: z.string().uuid(), request: z.string().min(3).max(2000) }).parse(data))
+  .inputValidator((data) =>
+    z.object({ project_id: z.string().uuid(), request: z.string().min(3).max(2000) }).parse(data),
+  )
   .handler(async ({ data, context }) => {
-    if (!(await hasPaidSubscription(context.userId))) return { error: "plan_required", message: "Choose a paid plan to use AI edits." } as const;
+    if (!(await hasPaidSubscription(context.userId)))
+      return { error: "plan_required", message: "Choose a paid plan to use AI edits." } as const;
     const capacity = await checkStudioAiCapacity(context.userId);
-    if (!capacity.allowed) return { error: "limit_reached", message: `You've used all ${capacity.limit} Studio AI messages this month. Upgrade to continue.` } as const;
+    if (!capacity.allowed)
+      return {
+        error: "limit_reached",
+        message: `You've used all ${capacity.limit} Studio AI messages this month. Upgrade to continue.`,
+      } as const;
     const project = await findOwnedStudioProject(data.project_id, context.userId);
     if (!project) return { error: "not_found", message: "Website project not found." } as const;
     const files = parseStudioFiles(String(project.files_json || ""));
-    if (files.length === 0) return { error: "no_files", message: "Generate the website before editing it." } as const;
-    const business = (() => { try { return JSON.parse(String(project.business_details_json || "{}")); } catch { return {}; } })() as BusinessWebsiteInput;
+    if (files.length === 0)
+      return { error: "no_files", message: "Generate the website before editing it." } as const;
+    const business = (() => {
+      try {
+        return JSON.parse(String(project.business_details_json || "{}"));
+      } catch {
+        return {};
+      }
+    })() as BusinessWebsiteInput;
     try {
       const result = await generateWebsiteEdit({ request: data.request, business, files });
       const nextFiles = applyStudioFileChanges(files, result.changes);
-      if (!nextFiles.some((file) => file.path === "index.html")) throw new Error("The edit would remove index.html.");
-      await db.from("studio_snapshots").insert({ project_id: data.project_id, label: `Before: ${data.request.slice(0, 150)}`, files_json: serializeStudioFiles(files), files_count: files.length });
-      const { error } = await db.from("studio_projects").update({ files_json: serializeStudioFiles(nextFiles), updated_at: new Date().toISOString() })
-        .eq("id", data.project_id).eq("user_id", context.userId);
+      if (!nextFiles.some((file) => file.path === "index.html"))
+        throw new Error("The edit would remove index.html.");
+      await db
+        .from("studio_snapshots")
+        .insert({
+          project_id: data.project_id,
+          label: `Before: ${data.request.slice(0, 150)}`,
+          files_json: serializeStudioFiles(files),
+          files_count: files.length,
+        });
+      const { error } = await db
+        .from("studio_projects")
+        .update({
+          files_json: serializeStudioFiles(nextFiles),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.project_id)
+        .eq("user_id", context.userId);
       if (error) throw new Error("Could not save the website edit.");
       await db.from("studio_messages").insert([
         { project_id: data.project_id, role: "user", content: data.request },
-        { project_id: data.project_id, role: "assistant", content: result.summary, file_changes: JSON.stringify(result.changes.map((change) => ({ path: change.path, action: change.action }))) },
+        {
+          project_id: data.project_id,
+          role: "assistant",
+          content: result.summary,
+          file_changes: JSON.stringify(
+            result.changes.map((change) => ({ path: change.path, action: change.action })),
+          ),
+        },
       ]);
       return { files: nextFiles, summary: result.summary } as const;
     } catch (error) {
-      return { error: "edit_failed", message: error instanceof Error ? error.message : "Could not apply this website edit." } as const;
+      return {
+        error: "edit_failed",
+        message: error instanceof Error ? error.message : "Could not apply this website edit.",
+      } as const;
     }
   });
 
@@ -541,17 +1019,34 @@ export const undoLastBusinessWebsiteEdit = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ project_id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     if (!(await hasPaidSubscription(context.userId))) {
-      return { error: "plan_required", message: "Choose a paid plan to use Kodarai Builder." } as const;
+      return {
+        error: "plan_required",
+        message: "Choose a paid plan to use Kodarai Builder.",
+      } as const;
     }
     const project = await findOwnedStudioProject(data.project_id, context.userId);
     if (!project) return { error: "not_found", message: "Website project not found." } as const;
-    const { data: snapshot } = await db.from("studio_snapshots").select("*").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (!snapshot) return { error: "no_snapshot", message: "There is no AI edit to undo yet." } as const;
+    const { data: snapshot } = await db
+      .from("studio_snapshots")
+      .select("*")
+      .eq("project_id", data.project_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!snapshot)
+      return { error: "no_snapshot", message: "There is no AI edit to undo yet." } as const;
     const files = parseStudioFiles((snapshot as { files_json?: string }).files_json || "");
-    const { error } = await db.from("studio_projects").update({ files_json: serializeStudioFiles(files), updated_at: new Date().toISOString() })
-      .eq("id", data.project_id).eq("user_id", context.userId);
-    if (error) return { error: "undo_failed", message: "Could not restore the previous version." } as const;
-    await db.from("studio_snapshots").delete().eq("id", (snapshot as { id: string }).id);
+    const { error } = await db
+      .from("studio_projects")
+      .update({ files_json: serializeStudioFiles(files), updated_at: new Date().toISOString() })
+      .eq("id", data.project_id)
+      .eq("user_id", context.userId);
+    if (error)
+      return { error: "undo_failed", message: "Could not restore the previous version." } as const;
+    await db
+      .from("studio_snapshots")
+      .delete()
+      .eq("id", (snapshot as { id: string }).id);
     return { files } as const;
   });
 
@@ -560,38 +1055,107 @@ export const deployBusinessWebsite = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ project_id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     if (!(await hasPaidSubscription(context.userId))) {
-      return { error: "plan_required", message: "Choose a paid plan to publish a website." } as const;
+      return {
+        error: "plan_required",
+        message: "Choose a paid plan to publish a website.",
+      } as const;
     }
     const project = await findOwnedStudioProject(data.project_id, context.userId);
     if (!project) return { error: "not_found", message: "Website project not found." } as const;
     const files = parseStudioFiles(String(project.files_json || ""));
-    if (!files.length) return { error: "no_files", message: "Generate and save a website before publishing." } as const;
-    const slug = typeof project.slug === "string" ? project.slug : slugify(String(project.business_name || project.name));
-    await db.from("studio_projects").update({ status: "publishing", deployment_status: "preparing", deployment_error: null, updated_at: new Date().toISOString() })
-      .eq("id", data.project_id).eq("user_id", context.userId);
+    if (!files.length)
+      return {
+        error: "no_files",
+        message: "Generate and save a website before publishing.",
+      } as const;
+    const slug =
+      typeof project.slug === "string"
+        ? project.slug
+        : slugify(String(project.business_name || project.name));
+    await db
+      .from("studio_projects")
+      .update({
+        status: "publishing",
+        deployment_status: "preparing",
+        deployment_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.project_id)
+      .eq("user_id", context.userId);
     try {
-      const vercelProject = await createVercelProject(slug, project.vercel_project_id as string | null, project.vercel_project_name as string | null);
-      await db.from("studio_projects").update({ vercel_project_id: vercelProject.id, vercel_project_name: vercelProject.name, slug, deployment_status: "uploading", updated_at: new Date().toISOString() })
-        .eq("id", data.project_id).eq("user_id", context.userId);
+      const vercelProject = await createVercelProject(
+        slug,
+        project.vercel_project_id as string | null,
+        project.vercel_project_name as string | null,
+      );
+      await db
+        .from("studio_projects")
+        .update({
+          vercel_project_id: vercelProject.id,
+          vercel_project_name: vercelProject.name,
+          slug,
+          deployment_status: "uploading",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.project_id)
+        .eq("user_id", context.userId);
       const deployment = await deployToVercel({ projectName: vercelProject.name, files });
-      await db.from("studio_projects").update({ vercel_deployment_id: deployment.id, deployment_status: "building", updated_at: new Date().toISOString() })
-        .eq("id", data.project_id).eq("user_id", context.userId);
+      await db
+        .from("studio_projects")
+        .update({
+          vercel_deployment_id: deployment.id,
+          deployment_status: "building",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.project_id)
+        .eq("user_id", context.userId);
       const complete = await waitForVercelDeployment(deployment.id);
       const url = publicVercelUrl(complete);
       if (complete.readyState !== "READY" || !url) {
-        return { deployment_id: deployment.id, status: "building", message: "Vercel is still building your website." } as const;
+        return {
+          deployment_id: deployment.id,
+          status: "building",
+          message: "Vercel is still building your website.",
+        } as const;
       }
-      await db.from("studio_projects").update({ status: "published", deployment_status: "ready", vercel_url: url, deployment_url: url, deployment_error: null, published_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq("id", data.project_id).eq("user_id", context.userId);
+      await db
+        .from("studio_projects")
+        .update({
+          status: "published",
+          deployment_status: "ready",
+          vercel_url: url,
+          deployment_url: url,
+          deployment_error: null,
+          published_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.project_id)
+        .eq("user_id", context.userId);
       return { deployment_id: deployment.id, status: "ready", url } as const;
     } catch (error) {
-      const message = error instanceof Error ? error.message.slice(0, 4000) : "Vercel deployment failed.";
-      await db.from("studio_projects").update({ status: "failed", deployment_status: "error", deployment_error: message, updated_at: new Date().toISOString() })
-        .eq("id", data.project_id).eq("user_id", context.userId);
+      const message =
+        error instanceof Error ? error.message.slice(0, 4000) : "Vercel deployment failed.";
+      await db
+        .from("studio_projects")
+        .update({
+          status: "failed",
+          deployment_status: "error",
+          deployment_error: message,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.project_id)
+        .eq("user_id", context.userId);
       if (message.includes("VERCEL_TOKEN")) {
-        return { error: "vercel_not_configured", message: "Kodarai's managed publishing service has not been configured yet." } as const;
+        return {
+          error: "vercel_not_configured",
+          message: "Kodarai's managed publishing service has not been configured yet.",
+        } as const;
       }
-      return { error: "deployment_failed", message: "Vercel deployment failed. Check the project for build errors.", detail: message } as const;
+      return {
+        error: "deployment_failed",
+        message: "Vercel deployment failed. Check the project for build errors.",
+        detail: message,
+      } as const;
     }
   });
 
@@ -600,28 +1164,56 @@ export const getBusinessWebsiteDeploymentStatus = createServerFn({ method: "GET"
   .inputValidator((data) => z.object({ project_id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     if (!(await hasPaidSubscription(context.userId))) {
-      return { error: "plan_required", message: "Choose a paid plan to use Kodarai Builder." } as const;
+      return {
+        error: "plan_required",
+        message: "Choose a paid plan to use Kodarai Builder.",
+      } as const;
     }
     const project = await findOwnedStudioProject(data.project_id, context.userId);
     if (!project) return { error: "not_found", message: "Website project not found." } as const;
     const deploymentId = project.vercel_deployment_id as string | null;
-    if (!deploymentId) return { status: project.deployment_status ?? "not_started", url: project.vercel_url ?? null } as const;
+    if (!deploymentId)
+      return {
+        status: project.deployment_status ?? "not_started",
+        url: project.vercel_url ?? null,
+      } as const;
     try {
       const deployment = await getVercelDeployment(deploymentId);
       const url = publicVercelUrl(deployment);
       if (deployment.readyState === "READY" && url) {
-        await db.from("studio_projects").update({ status: "published", deployment_status: "ready", vercel_url: url, deployment_url: url, published_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-          .eq("id", data.project_id).eq("user_id", context.userId);
+        await db
+          .from("studio_projects")
+          .update({
+            status: "published",
+            deployment_status: "ready",
+            vercel_url: url,
+            deployment_url: url,
+            published_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.project_id)
+          .eq("user_id", context.userId);
         return { status: "ready", url } as const;
       }
       if (deployment.readyState === "ERROR" || deployment.readyState === "CANCELED") {
         const detail = deployment.errorMessage || "Vercel could not build this website.";
-        await db.from("studio_projects").update({ status: "failed", deployment_status: "error", deployment_error: detail, updated_at: new Date().toISOString() })
-          .eq("id", data.project_id).eq("user_id", context.userId);
+        await db
+          .from("studio_projects")
+          .update({
+            status: "failed",
+            deployment_status: "error",
+            deployment_error: detail,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.project_id)
+          .eq("user_id", context.userId);
         return { status: "error", url: null, detail } as const;
       }
       return { status: "building", url: null } as const;
     } catch (error) {
-      return { error: "status_failed", message: error instanceof Error ? error.message : "Could not check deployment status." } as const;
+      return {
+        error: "status_failed",
+        message: error instanceof Error ? error.message : "Could not check deployment status.",
+      } as const;
     }
   });

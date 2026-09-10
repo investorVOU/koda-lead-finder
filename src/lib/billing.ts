@@ -11,10 +11,7 @@
 // Paystack handles subscriptions and one-time lead packs.
 
 export interface Plan {
-  id:
-    | "starter"
-    | "pro"
-    | "agency";
+  id: "starter" | "pro" | "agency";
 
   name: string;
 
@@ -30,23 +27,15 @@ export interface Plan {
   highlight?: boolean;
 }
 
-export type PaidPlanId =
-  Plan["id"];
+export type PaidPlanId = Plan["id"];
 
-export type BillingCycle =
-  | "monthly"
-  | "annually";
+export type BillingCycle = "monthly" | "annually";
 
-export type BillingPriceTier =
-  | "low"
-  | "high";
+export type BillingPriceTier = "low" | "high";
 
-export type StudioCreditAction =
-  | "website_build"
-  | "ai_edit";
+export type StudioCreditAction = "website_build" | "ai_edit";
 
-export const ANNUAL_DISCOUNT_PERCENT =
-  20;
+export const ANNUAL_DISCOUNT_PERCENT = 20;
 
 /*
  * Public build-time configuration.
@@ -54,22 +43,13 @@ export const ANNUAL_DISCOUNT_PERCENT =
  * low  = launch pricing
  * high = normal pricing
  */
-export const BILLING_PRICE_TIER:
-  BillingPriceTier =
-  import.meta.env
-    .VITE_BILLING_PRICE_TIER ===
-  "high"
-    ? "high"
-    : "low";
+export const BILLING_PRICE_TIER: BillingPriceTier =
+  import.meta.env.VITE_BILLING_PRICE_TIER === "high" ? "high" : "low";
 
 /*
  * null means unlimited.
  */
-export const STUDIO_CREDIT_LIMITS:
-  Record<
-    PaidPlanId,
-    number | null
-  > = {
+export const STUDIO_CREDIT_LIMITS: Record<PaidPlanId, number | null> = {
   starter: 50,
   pro: 200,
   agency: null,
@@ -78,49 +58,36 @@ export const STUDIO_CREDIT_LIMITS:
 /*
  * Cost of Studio actions.
  */
-export const STUDIO_CREDIT_COSTS: Record<
-  StudioCreditAction,
-  number
-> = {
+export const STUDIO_CREDIT_COSTS: Record<StudioCreditAction, number> = {
   website_build: 10,
   ai_edit: 1,
 };
 
-const PLAN_RANK: Record<
-  PaidPlanId,
-  number
-> = {
+const PLAN_RANK: Record<PaidPlanId, number> = {
   starter: 1,
   pro: 2,
   agency: 3,
 };
 
 export function hasPlanAccess(
-  plan:
-    | string
-    | null
-    | undefined,
+  plan: string | null | undefined,
 
-  minimumPlan:
-    PaidPlanId,
+  minimumPlan: PaidPlanId,
 ): boolean {
-  return (
-    (
-      PLAN_RANK[
-        plan as PaidPlanId
-      ] ?? 0
-    ) >=
-    PLAN_RANK[
-      minimumPlan
-    ]
-  );
+  return (PLAN_RANK[plan as PaidPlanId] ?? 0) >= PLAN_RANK[minimumPlan];
+}
+
+/**
+ * Custom domains are a hosting entitlement, not a Studio-credit action.
+ * Keep this helper client/server safe; server functions still retrieve the
+ * subscription from the database before authorizing any Vercel operation.
+ */
+export function canUseCustomDomain(plan: string | null | undefined): boolean {
+  return plan === "pro" || plan === "agency";
 }
 
 export interface Pack {
-  id:
-    | "pack_small"
-    | "pack_popular"
-    | "pack_power";
+  id: "pack_small" | "pack_popular" | "pack_power";
 
   name: string;
 
@@ -144,24 +111,17 @@ export interface FreePlan {
   features: string[];
 }
 
-export const FREE_PLAN: FreePlan =
-  {
-    id: "free",
+export const FREE_PLAN: FreePlan = {
+  id: "free",
 
-    name: "Free",
+  name: "Free",
 
-    tagline:
-      "Dashboard access, no searches",
+  tagline: "Dashboard access, no searches",
 
-    credits: 0,
+  credits: 0,
 
-    features: [
-      "0 lead searches",
-      "Full dashboard access",
-      "View saved leads",
-      "Upgrade any time",
-    ],
-  };
+  features: ["0 lead searches", "Full dashboard access", "View saved leads", "Upgrade any time"],
+};
 
 export const PLANS: Plan[] = [
   {
@@ -169,8 +129,7 @@ export const PLANS: Plan[] = [
 
     name: "Starter",
 
-    tagline:
-      "Land your first clients",
+    tagline: "Land your first clients",
 
     ngn: 6500,
 
@@ -192,8 +151,7 @@ export const PLANS: Plan[] = [
 
     name: "Pro",
 
-    tagline:
-      "For active freelancers",
+    tagline: "For active freelancers",
 
     ngn: 19000,
 
@@ -210,6 +168,7 @@ export const PLANS: Plan[] = [
       "Export lead lists to CSV",
       "3-email cold outreach sequences",
       "Branded PDF proposal builder",
+      "Custom domains for Studio websites",
     ],
   },
 
@@ -218,8 +177,7 @@ export const PLANS: Plan[] = [
 
     name: "Agency",
 
-    tagline:
-      "For studios & high-volume freelancers",
+    tagline: "For studios & high-volume freelancers",
 
     ngn: 46000,
 
@@ -236,25 +194,14 @@ export const PLANS: Plan[] = [
   },
 ];
 
-const LAUNCH_MONTHLY_PRICES:
-  Record<
-    PaidPlanId,
-    number
-  > = {
+const LAUNCH_MONTHLY_PRICES: Record<PaidPlanId, number> = {
   starter: 3500,
   pro: 9500,
   agency: 24000,
 };
 
-export function getPlanMonthlyPrice(
-  plan: Plan,
-): number {
-  return BILLING_PRICE_TIER ===
-    "low"
-    ? LAUNCH_MONTHLY_PRICES[
-        plan.id
-      ]
-    : plan.ngn;
+export function getPlanMonthlyPrice(plan: Plan): number {
+  return BILLING_PRICE_TIER === "low" ? LAUNCH_MONTHLY_PRICES[plan.id] : plan.ngn;
 }
 
 export function getPlanPrice(
@@ -262,39 +209,17 @@ export function getPlanPrice(
 
   cycle: BillingCycle,
 ): number {
-  const monthlyPrice =
-    getPlanMonthlyPrice(
-      plan,
-    );
+  const monthlyPrice = getPlanMonthlyPrice(plan);
 
-  if (
-    cycle === "monthly"
-  ) {
+  if (cycle === "monthly") {
     return monthlyPrice;
   }
 
-  return Math.round(
-    monthlyPrice *
-      12 *
-      (1 -
-        ANNUAL_DISCOUNT_PERCENT /
-          100),
-  );
+  return Math.round(monthlyPrice * 12 * (1 - ANNUAL_DISCOUNT_PERCENT / 100));
 }
 
-export function getAnnualSavings(
-  plan: Plan,
-): number {
-  return (
-    getPlanMonthlyPrice(
-      plan,
-    ) *
-      12 -
-    getPlanPrice(
-      plan,
-      "annually",
-    )
-  );
+export function getAnnualSavings(plan: Plan): number {
+  return getPlanMonthlyPrice(plan) * 12 - getPlanPrice(plan, "annually");
 }
 
 export const PACKS: Pack[] = [
@@ -331,74 +256,32 @@ export const PACKS: Pack[] = [
   },
 ];
 
-export const PLAN_LABELS:
-  Record<
-    string,
-    string
-  > = {
-  none:
-    "No active plan",
+export const PLAN_LABELS: Record<string, string> = {
+  none: "No active plan",
 
-  starter:
-    "Starter",
+  starter: "Starter",
 
-  pro:
-    "Pro",
+  pro: "Pro",
 
-  agency:
-    "Agency",
+  agency: "Agency",
 };
 
-export function findPlan(
-  id:
-    | string
-    | undefined
-    | null,
-): Plan | undefined {
-  return PLANS.find(
-    (plan) =>
-      plan.id === id,
-  );
+export function findPlan(id: string | undefined | null): Plan | undefined {
+  return PLANS.find((plan) => plan.id === id);
 }
 
-export function findPack(
-  id:
-    | string
-    | undefined
-    | null,
-): Pack | undefined {
-  return PACKS.find(
-    (pack) =>
-      pack.id === id,
-  );
+export function findPack(id: string | undefined | null): Pack | undefined {
+  return PACKS.find((pack) => pack.id === id);
 }
 
-export function getStudioCreditLimit(
-  plan:
-    | string
-    | null
-    | undefined,
-): number | null {
-  if (
-    plan !== "starter" &&
-    plan !== "pro" &&
-    plan !== "agency"
-  ) {
+export function getStudioCreditLimit(plan: string | null | undefined): number | null {
+  if (plan !== "starter" && plan !== "pro" && plan !== "agency") {
     return 0;
   }
 
-  return STUDIO_CREDIT_LIMITS[
-    plan
-  ];
+  return STUDIO_CREDIT_LIMITS[plan];
 }
 
-export function formatNgn(
-  value: number,
-): string {
-  return (
-    "₦" +
-    value.toLocaleString(
-      "en-NG",
-    )
-  );
+export function formatNgn(value: number): string {
+  return "₦" + value.toLocaleString("en-NG");
 }

@@ -1,13 +1,8 @@
-import {
-  createHash,
-} from "node:crypto";
+import { createHash } from "node:crypto";
 
-import type {
-  StudioFile,
-} from "@/lib/studio-files";
+import type { StudioFile } from "@/lib/studio-files";
 
-const API_BASE =
-  "https://api.vercel.com";
+const API_BASE = "https://api.vercel.com";
 
 type VercelProject = {
   id: string;
@@ -20,521 +15,355 @@ type VercelDeployment = {
 
   url?: string;
 
-  readyState?:
-    | "INITIALIZING"
-    | "BUILDING"
-    | "READY"
-    | "ERROR"
-    | "CANCELED"
-    | string;
+  readyState?: "INITIALIZING" | "BUILDING" | "READY" | "ERROR" | "CANCELED" | string;
 
   errorMessage?: string;
 
   alias?: string[];
 };
 
-function token():
-  string {
-  const value =
-    process.env
-      .VERCEL_TOKEN;
+export type VercelDomainVerification = {
+  type: string;
+  domain: string;
+  value: string;
+  reason?: string;
+};
+
+export type VercelProjectDomain = {
+  name: string;
+  apexName: string;
+  projectId: string;
+  verified: boolean;
+  verification?: VercelDomainVerification[];
+};
+
+export type VercelDomainConfiguration = {
+  configuredBy?: "A" | "CNAME" | "http" | "dns-01" | null | string;
+  acceptedChallenges?: string[];
+  recommendedIPv4?: Array<{ rank?: number; value?: string[] }>;
+  recommendedCNAME?: Array<{ rank?: number; value?: string }>;
+  misconfigured?: boolean;
+};
+
+export class VercelApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "VercelApiError";
+  }
+}
+
+function token(): string {
+  const value = process.env.VERCEL_TOKEN;
 
   if (!value) {
-    throw new Error(
-      "Vercel is not configured. Ask an administrator to set VERCEL_TOKEN.",
-    );
+    throw new Error("Vercel is not configured. Ask an administrator to set VERCEL_TOKEN.");
   }
 
   return value;
 }
 
-function withTeam(
-  path: string,
-): string {
-  const teamId =
-    process.env
-      .VERCEL_TEAM_ID;
+function withTeam(path: string): string {
+  const teamId = process.env.VERCEL_TEAM_ID;
 
   if (!teamId) {
     return `${API_BASE}${path}`;
   }
 
-  return `${API_BASE}${path}${
-    path.includes("?")
-      ? "&"
-      : "?"
-  }teamId=${encodeURIComponent(
-    teamId,
-  )}`;
+  return `${API_BASE}${path}${path.includes("?") ? "&" : "?"}teamId=${encodeURIComponent(teamId)}`;
 }
 
-async function request<
-  T,
->(
+async function request<T>(
   path: string,
 
   init?: RequestInit,
 ): Promise<T> {
-  const response =
-    await fetch(
-      withTeam(path),
-      {
-        ...init,
+  const response = await fetch(withTeam(path), {
+    ...init,
 
-        headers: {
-          Authorization:
-            `Bearer ${token()}`,
+    headers: {
+      Authorization: `Bearer ${token()}`,
 
-          ...(
-            init?.headers ??
-            {}
-          ),
-        },
+      ...(init?.headers ?? {}),
+    },
 
-        signal:
-          AbortSignal.timeout(
-            30_000,
-          ),
-      },
-    );
+    signal: AbortSignal.timeout(30_000),
+  });
 
-  const payload =
-    await response
-      .json()
-      .catch(
-        () => ({}),
-      ) as T & {
-        error?: {
-          message?: string;
-        };
+  const payload = (await response.json().catch(() => ({}))) as T & {
+    error?: {
+      message?: string;
+    };
 
-        message?: string;
-      };
+    message?: string;
+  };
 
-  if (
-    !response.ok
-  ) {
-    throw new Error(
-      payload.error
-        ?.message ||
-        payload.message ||
-        `Vercel API failed (${response.status}).`,
+  if (!response.ok) {
+    throw new VercelApiError(
+      payload.error?.message || payload.message || `Vercel API failed (${response.status}).`,
+      response.status,
     );
   }
 
   return payload;
 }
 
-function projectName(
-  slug: string,
-): string {
+function projectName(slug: string): string {
   return `kodarai-${slug}`
     .toLowerCase()
-    .replace(
-      /[^a-z0-9-]/g,
-      "-",
-    )
-    .slice(
-      0,
-      52,
-    );
+    .replace(/[^a-z0-9-]/g, "-")
+    .slice(0, 52);
 }
 
 export async function createVercelProject(
   slug: string,
 
-  existingId?:
-    | string
-    | null,
+  existingId?: string | null,
 
-  existingName?:
-    | string
-    | null,
+  existingName?: string | null,
 ): Promise<VercelProject> {
-  if (
-    existingId &&
-    existingName
-  ) {
+  if (existingId && existingName) {
     return {
-      id:
-        existingId,
+      id: existingId,
 
-      name:
-        existingName,
+      name: existingName,
     };
   }
 
-  const name =
-    projectName(
-      slug,
-    );
+  const name = projectName(slug);
 
   try {
-    return await request<VercelProject>(
-      "/v9/projects",
-      {
-        method:
-          "POST",
+    return await request<VercelProject>("/v9/projects", {
+      method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body:
-          JSON.stringify({
-            name,
-          }),
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
-  } catch (
-    error
-  ) {
-    const response =
-      await fetch(
-        withTeam(
-          `/v9/projects/${encodeURIComponent(
-            name,
-          )}`,
-        ),
-        {
-          headers: {
-            Authorization:
-              `Bearer ${token()}`,
-          },
 
-          signal:
-            AbortSignal.timeout(
-              30_000,
-            ),
-        },
-      );
+      body: JSON.stringify({
+        name,
+      }),
+    });
+  } catch (error) {
+    const response = await fetch(withTeam(`/v9/projects/${encodeURIComponent(name)}`), {
+      headers: {
+        Authorization: `Bearer ${token()}`,
+      },
 
-    if (
-      response.ok
-    ) {
-      return await response.json() as VercelProject;
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (response.ok) {
+      return (await response.json()) as VercelProject;
     }
 
     throw error;
   }
 }
 
-async function uploadFile(
-  file: StudioFile,
-): Promise<{
+async function uploadFile(file: StudioFile): Promise<{
   file: string;
 
   sha: string;
 
   size: number;
 }> {
-  const bytes =
-    new TextEncoder()
-      .encode(
-        file.content,
-      );
+  const bytes = new TextEncoder().encode(file.content);
 
-  const sha =
-    createHash(
-      "sha1",
-    )
-      .update(
-        bytes,
-      )
-      .digest(
-        "hex",
-      );
+  const sha = createHash("sha1").update(bytes).digest("hex");
 
-  const response =
-    await fetch(
-      withTeam(
-        "/v2/now/files",
-      ),
-      {
-        method:
-          "POST",
+  const response = await fetch(withTeam("/v2/now/files"), {
+    method: "POST",
 
-        headers: {
-          Authorization:
-            `Bearer ${token()}`,
+    headers: {
+      Authorization: `Bearer ${token()}`,
 
-          "Content-Type":
-            "application/octet-stream",
+      "Content-Type": "application/octet-stream",
 
-          "x-vercel-digest":
-            sha,
-        },
+      "x-vercel-digest": sha,
+    },
 
-        body:
-          bytes,
+    body: bytes,
 
-        signal:
-          AbortSignal.timeout(
-            30_000,
-          ),
-      },
-    );
+    signal: AbortSignal.timeout(30_000),
+  });
 
-  if (
-    !response.ok
-  ) {
-    const payload =
-      await response
-        .json()
-        .catch(
-          () => ({}),
-        ) as {
-          error?: {
-            message?: string;
-          };
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: {
+        message?: string;
+      };
 
-          message?: string;
-        };
+      message?: string;
+    };
 
     throw new Error(
-      payload.error
-        ?.message ||
+      payload.error?.message ||
         payload.message ||
         `Vercel file upload failed (${response.status}).`,
     );
   }
 
   return {
-    file:
-      file.path,
+    file: file.path,
 
     sha,
 
-    size:
-      bytes.byteLength,
+    size: bytes.byteLength,
   };
 }
 
-function isViteProject(
-  files:
-    StudioFile[],
-) {
-  const paths =
-    new Set(
-      files.map(
-        (file) =>
-          file.path,
-      ),
-    );
+function isViteProject(files: StudioFile[]) {
+  const paths = new Set(files.map((file) => file.path));
 
   return (
-    paths.has(
-      "package.json",
-    ) &&
-    (
-      paths.has(
-        "vite.config.js",
-      ) ||
-      paths.has(
-        "vite.config.ts",
-      ) ||
-      paths.has(
-        "vite.config.mjs",
-      )
-    )
+    paths.has("package.json") &&
+    (paths.has("vite.config.js") || paths.has("vite.config.ts") || paths.has("vite.config.mjs"))
   );
 }
 
-export async function deployToVercel(
-  input: {
-    projectName:
-      string;
+export async function deployToVercel(input: {
+  projectName: string;
 
-    files:
-      StudioFile[];
-  },
-): Promise<VercelDeployment> {
-  if (
-    !input.files.some(
-      (file) =>
-        file.path ===
-        "index.html",
-    )
-  ) {
-    throw new Error(
-      "A website project needs index.html before it can be published.",
-    );
+  files: StudioFile[];
+}): Promise<VercelDeployment> {
+  if (!input.files.some((file) => file.path === "index.html")) {
+    throw new Error("A website project needs index.html before it can be published.");
   }
 
-  const vite =
-    isViteProject(
-      input.files,
-    );
+  const vite = isViteProject(input.files);
 
-  const files =
-    await Promise.all(
-      input.files.map(
-        uploadFile,
-      ),
-    );
+  const files = await Promise.all(input.files.map(uploadFile));
 
-  return request<VercelDeployment>(
-    "/v13/deployments?forceNew=1",
-    {
-      method:
-        "POST",
+  return request<VercelDeployment>("/v13/deployments?forceNew=1", {
+    method: "POST",
 
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
-
-      body:
-        JSON.stringify({
-          name:
-            input.projectName,
-
-          files,
-
-          target:
-            "production",
-
-          projectSettings:
-            vite
-              ? {
-                  framework:
-                    "vite",
-
-                  buildCommand:
-                    "npm run build",
-
-                  installCommand:
-                    "npm install",
-
-                  outputDirectory:
-                    "dist",
-
-                  nodeVersion:
-                    "22.x",
-                }
-              : {
-                  framework:
-                    null,
-                },
-        }),
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+
+    body: JSON.stringify({
+      name: input.projectName,
+
+      files,
+
+      target: "production",
+
+      projectSettings: vite
+        ? {
+            framework: "vite",
+
+            buildCommand: "npm run build",
+
+            installCommand: "npm install",
+
+            outputDirectory: "dist",
+
+            nodeVersion: "22.x",
+          }
+        : {
+            framework: null,
+          },
+    }),
+  });
 }
 
-export async function getVercelDeployment(
-  id: string,
-): Promise<VercelDeployment> {
-  return request<VercelDeployment>(
-    `/v13/deployments/${encodeURIComponent(
-      id,
-    )}`,
-  );
+export async function getVercelDeployment(id: string): Promise<VercelDeployment> {
+  return request<VercelDeployment>(`/v13/deployments/${encodeURIComponent(id)}`);
 }
 
-export async function getVercelDeploymentLogs(
-  id: string,
-): Promise<string> {
-  const logs =
-    await request<
-      Array<{
-        text?: string;
-      }>
-    >(
-      `/v3/deployments/${encodeURIComponent(
-        id,
-      )}/events?direction=backward&limit=30`,
-    );
+export async function getVercelDeploymentLogs(id: string): Promise<string> {
+  const logs = await request<
+    Array<{
+      text?: string;
+    }>
+  >(`/v3/deployments/${encodeURIComponent(id)}/events?direction=backward&limit=30`);
 
   return logs
-    .map(
-      (entry) =>
-        entry.text,
-    )
-    .filter(
-      Boolean,
-    )
+    .map((entry) => entry.text)
+    .filter(Boolean)
     .join("\n")
-    .slice(
-      -4000,
-    );
+    .slice(-4000);
 }
 
 export async function waitForVercelDeployment(
   id: string,
 
-  timeoutMs =
-    95_000,
+  timeoutMs = 95_000,
 ): Promise<VercelDeployment> {
-  const started =
-    Date.now();
+  const started = Date.now();
 
-  let latest =
-    await getVercelDeployment(
-      id,
-    );
+  let latest = await getVercelDeployment(id);
 
-  while (
-    Date.now() -
-      started <
-    timeoutMs
-  ) {
-    if (
-      latest.readyState ===
-      "READY"
-    ) {
+  while (Date.now() - started < timeoutMs) {
+    if (latest.readyState === "READY") {
       return latest;
     }
 
-    if (
-      latest.readyState ===
-        "ERROR" ||
-      latest.readyState ===
-        "CANCELED"
-    ) {
-      const logs =
-        await getVercelDeploymentLogs(
-          id,
-        ).catch(
-          () => "",
-        );
+    if (latest.readyState === "ERROR" || latest.readyState === "CANCELED") {
+      const logs = await getVercelDeploymentLogs(id).catch(() => "");
 
-      throw new Error(
-        logs ||
-          latest.errorMessage ||
-          "Vercel could not build this website.",
-      );
+      throw new Error(logs || latest.errorMessage || "Vercel could not build this website.");
     }
 
-    await new Promise(
-      (resolve) =>
-        setTimeout(
-          resolve,
-          2500,
-        ),
-    );
+    await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    latest =
-      await getVercelDeployment(
-        id,
-      );
+    latest = await getVercelDeployment(id);
   }
 
   return latest;
 }
 
-export function publicVercelUrl(
-  deployment:
-    VercelDeployment,
-): string | null {
-  const hostname =
-    deployment.alias?.[0] ||
-    deployment.url;
+export function publicVercelUrl(deployment: VercelDeployment): string | null {
+  const hostname = deployment.alias?.[0] || deployment.url;
 
-  return hostname
-    ? `https://${hostname.replace(
-        /^https?:\/\//,
-        "",
-      )}`
-    : null;
+  return hostname ? `https://${hostname.replace(/^https?:\/\//, "")}` : null;
+}
+
+export async function addVercelProjectDomain(
+  projectId: string,
+  domain: string,
+): Promise<VercelProjectDomain> {
+  return request<VercelProjectDomain>(`/v10/projects/${encodeURIComponent(projectId)}/domains`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: domain }),
+  });
+}
+
+export async function getVercelProjectDomain(
+  projectId: string,
+  domain: string,
+): Promise<VercelProjectDomain> {
+  return request<VercelProjectDomain>(
+    `/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(domain)}`,
+  );
+}
+
+export async function verifyVercelProjectDomain(
+  projectId: string,
+  domain: string,
+): Promise<VercelProjectDomain> {
+  return request<VercelProjectDomain>(
+    `/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(domain)}/verify`,
+    { method: "POST", headers: { "Content-Type": "application/json" } },
+  );
+}
+
+export async function getVercelDomainConfiguration(
+  projectId: string,
+  domain: string,
+): Promise<VercelDomainConfiguration> {
+  return request<VercelDomainConfiguration>(
+    `/v6/domains/${encodeURIComponent(domain)}/config?projectIdOrName=${encodeURIComponent(projectId)}`,
+  );
+}
+
+export async function removeVercelProjectDomain(projectId: string, domain: string): Promise<void> {
+  await request<unknown>(
+    `/v9/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(domain)}`,
+    { method: "DELETE", headers: { "Content-Type": "application/json" } },
+  );
 }
