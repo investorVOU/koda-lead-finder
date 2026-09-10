@@ -10,11 +10,13 @@ import {
 } from "@tanstack/react-start";
 
 import {
-  useState,
-  useEffect,
-  useRef,
   lazy,
   Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 
 import {
@@ -23,31 +25,35 @@ import {
 } from "@tanstack/react-query";
 
 import {
-  toast,
-} from "sonner";
-
-import {
   formatDistanceToNow,
 } from "date-fns";
 
 import {
+  toast,
+} from "sonner";
+
+import {
   ArrowLeft,
-  Rocket,
-  History,
-  Send,
-  ExternalLink,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Code2,
+  Eye,
+  File,
   FileCode,
   FileJson,
   FileType2,
-  File,
-  X,
+  Folder,
+  FolderOpen,
+  History,
   Loader2,
-  Code2,
-  Eye,
-  FolderGit2,
-  Pencil,
   MessageSquare,
-  Check,
+  Pencil,
+  Plus,
+  Rocket,
+  Save,
+  Send,
+  X,
 } from "lucide-react";
 
 import {
@@ -57,12 +63,6 @@ import {
 import {
   Textarea,
 } from "@/components/ui/textarea";
-
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 
 import {
   StudioLivePreview,
@@ -85,23 +85,23 @@ import {
 } from "@/hooks/use-mobile";
 
 import {
-  getStudioProject,
-  listStudioMessages,
   createStudioMessage,
-  listStudioSnapshots,
-  updateStudioProject,
   createStudioSnapshot,
-  saveStudioFiles,
-  undoLastBusinessWebsiteEdit,
   deployBusinessWebsite,
   getBusinessWebsiteDeploymentStatus,
+  getStudioProject,
+  listStudioMessages,
+  listStudioSnapshots,
+  saveStudioFiles,
+  undoLastBusinessWebsiteEdit,
+  updateStudioProject,
   type StudioMessage,
   type StudioSnapshot,
 } from "@/lib/studio.functions";
 
 import {
-  generateBusinessWebsite,
   applyBusinessWebsiteEdit,
+  generateBusinessWebsite,
 } from "@/lib/studio-builder-v2.functions";
 
 import {
@@ -146,12 +146,8 @@ export const Route =
     }),
 
     component:
-      Builder,
+      StudioBuilder,
   });
-
-/* -------------------------------------------------------------------------- */
-/*                                STREAM TYPES                                */
-/* -------------------------------------------------------------------------- */
 
 type FileAction =
   | "create"
@@ -190,17 +186,11 @@ type StreamEvent =
       type:
         "done";
 
-      fullContent?:
-        string;
-
       summary?:
         string;
 
       fileChanges?:
         FileChange[];
-
-      filesChanged?:
-        string[];
     }
   | {
       type:
@@ -210,9 +200,47 @@ type StreamEvent =
         string;
     };
 
-/* -------------------------------------------------------------------------- */
-/*                                  HELPERS                                   */
-/* -------------------------------------------------------------------------- */
+type MobileTab =
+  | "chat"
+  | "code"
+  | "preview"
+  | "deploy";
+
+type TreeNode = {
+  name: string;
+
+  path: string;
+
+  kind:
+    | "file"
+    | "folder";
+
+  children:
+    TreeNode[];
+};
+
+const CHAT_PLACEHOLDERS = [
+  "Make the hero feel more premium...",
+  "Add a gallery section...",
+  "Change the color scheme...",
+  "Improve the mobile layout...",
+  "Add a WhatsApp call to action...",
+];
+
+const QUICK_ACTIONS = [
+  "Make the hero section more modern",
+  "Add a contact form",
+  "Change the color scheme",
+  "Add a gallery section",
+];
+
+const REQUIRED_FILES =
+  new Set([
+    "index.html",
+    "package.json",
+    "src/main.jsx",
+    "src/App.jsx",
+  ]);
 
 function applyStructuredChanges(
   current:
@@ -223,98 +251,153 @@ function applyStructuredChanges(
 
   changes:
     FileChange[],
-): Record<
-  string,
-  string
-> {
-  const result = {
+) {
+  const next = {
     ...current,
   };
 
   for (
-    const {
-      path,
-      action,
-      content,
-    } of changes
+    const change of
+    changes
   ) {
     if (
-      action ===
+      change.action ===
       "delete"
     ) {
-      delete result[
-        path
+      delete next[
+        change.path
       ];
     } else {
-      result[
-        path
+      next[
+        change.path
       ] =
-        content;
+        change.content;
     }
   }
 
-  return result;
+  return next;
 }
 
-const CHAT_PLACEHOLDERS =
-  [
-    "Ask Studio to build something...",
+function buildTree(
+  paths: string[],
+): TreeNode[] {
+  const root:
+    TreeNode[] =
+    [];
 
-    "Add a dark mode toggle...",
+  for (
+    const fullPath of
+    [...paths].sort()
+  ) {
+    const parts =
+      fullPath.split(
+        "/",
+      );
 
-    "Create a contact form with validation...",
+    let level =
+      root;
 
-    "Add a WhatsApp floating button...",
+    let currentPath =
+      "";
 
-    "Build a services section with icons...",
+    parts.forEach(
+      (
+        part,
+        index,
+      ) => {
+        currentPath =
+          currentPath
+            ? `${currentPath}/${part}`
+            : part;
 
-    "Fix the layout on mobile...",
+        const isFile =
+          index ===
+          parts.length -
+            1;
 
-    "Make the header sticky on scroll...",
+        let node =
+          level.find(
+            (item) =>
+              item.name ===
+                part &&
+              item.kind ===
+                (
+                  isFile
+                    ? "file"
+                    : "folder"
+                ),
+          );
 
-    "Add a Google Maps embed...",
-  ];
+        if (!node) {
+          node = {
+            name:
+              part,
 
-const QUICK_STARTS =
-  [
-    {
-      label:
-        "Add hero section",
+            path:
+              currentPath,
 
-      prompt:
-        "Add a stunning hero section with a headline, subheading, and call-to-action button.",
-    },
+            kind:
+              isFile
+                ? "file"
+                : "folder",
 
-    {
-      label:
-        "Contact section",
+            children:
+              [],
+          };
 
-      prompt:
-        "Add a contact section with phone, email, WhatsApp button, and a simple enquiry form.",
-    },
+          level.push(
+            node,
+          );
+        }
 
-    {
-      label:
-        "Make mobile-friendly",
+        level =
+          node.children;
+      },
+    );
+  }
 
-      prompt:
-        "Make the site fully responsive and mobile-friendly with a hamburger menu.",
-    },
+  const sort =
+    (
+      nodes:
+        TreeNode[],
+    ) => {
+      nodes.sort(
+        (
+          a,
+          b,
+        ) => {
+          if (
+            a.kind !==
+            b.kind
+          ) {
+            return a.kind ===
+              "folder"
+              ? -1
+              : 1;
+          }
 
-    {
-      label:
-        "Improve speed",
+          return a.name.localeCompare(
+            b.name,
+          );
+        },
+      );
 
-      prompt:
-        "Optimize the website for performance: lazy load images, clean up unused styles, and improve loading speed.",
-    },
-  ];
+      nodes.forEach(
+        (node) =>
+          sort(
+            node.children,
+          ),
+      );
+    };
 
-/* -------------------------------------------------------------------------- */
-/*                                  BUILDER                                   */
-/* -------------------------------------------------------------------------- */
+  sort(
+    root,
+  );
 
-function Builder() {
+  return root;
+}
+
+function StudioBuilder() {
   const {
     projectId,
   } =
@@ -339,11 +422,11 @@ function Builder() {
   } =
     useAuth();
 
-  const queryClient =
-    useQueryClient();
-
   const isMobile =
     useIsMobile();
+
+  const queryClient =
+    useQueryClient();
 
   const runGetProject =
     useServerFn(
@@ -355,19 +438,14 @@ function Builder() {
       listStudioMessages,
     );
 
-  const runCreateMessage =
-    useServerFn(
-      createStudioMessage,
-    );
-
   const runListSnapshots =
     useServerFn(
       listStudioSnapshots,
     );
 
-  const runUpdateProject =
+  const runCreateMessage =
     useServerFn(
-      updateStudioProject,
+      createStudioMessage,
     );
 
   const runCreateSnapshot =
@@ -375,21 +453,9 @@ function Builder() {
       createStudioSnapshot,
     );
 
-  /*
-   * Builder V2:
-   *
-   * - React/Vite websites
-   * - 10 credits per website
-   * - 1 credit per AI edit
-   */
-  const runGenerateWebsite =
+  const runUpdateProject =
     useServerFn(
-      generateBusinessWebsite,
-    );
-
-  const runApplyWebsiteEdit =
-    useServerFn(
-      applyBusinessWebsiteEdit,
+      updateStudioProject,
     );
 
   const runSaveFiles =
@@ -397,18 +463,34 @@ function Builder() {
       saveStudioFiles,
     );
 
-  const runUndoEdit =
+  const runUndo =
     useServerFn(
       undoLastBusinessWebsiteEdit,
     );
 
-  /* ------------------------------------------------------------------------ */
-  /*                                   DATA                                   */
-  /* ------------------------------------------------------------------------ */
+  const runGenerateWebsite =
+    useServerFn(
+      generateBusinessWebsite,
+    );
+
+  const runEditWebsite =
+    useServerFn(
+      applyBusinessWebsiteEdit,
+    );
+
+  const runDeploy =
+    useServerFn(
+      deployBusinessWebsite,
+    );
+
+  const runDeploymentStatus =
+    useServerFn(
+      getBusinessWebsiteDeploymentStatus,
+    );
 
   const {
     data:
-      projectRes,
+      projectResponse,
   } =
     useQuery({
       queryKey: [
@@ -426,20 +508,22 @@ function Builder() {
           }),
 
       enabled:
-        !!user &&
-        !!projectId,
+        Boolean(
+          user &&
+          projectId,
+        ),
     });
 
   const project =
-    projectRes &&
+    projectResponse &&
     "project" in
-      projectRes
-      ? projectRes.project
+      projectResponse
+      ? projectResponse.project
       : null;
 
   const {
     data:
-      messagesRes,
+      messageResponse,
 
     refetch:
       refetchMessages,
@@ -460,19 +544,21 @@ function Builder() {
           }),
 
       enabled:
-        !!user &&
-        !!projectId,
+        Boolean(
+          user &&
+          projectId,
+        ),
     });
 
   const messages:
     StudioMessage[] =
-      messagesRes
+      messageResponse
         ?.messages ??
       [];
 
   const {
     data:
-      snapshotsRes,
+      snapshotResponse,
 
     refetch:
       refetchSnapshots,
@@ -493,33 +579,17 @@ function Builder() {
           }),
 
       enabled:
-        !!user &&
-        !!projectId,
+        Boolean(
+          user &&
+          projectId,
+        ),
     });
 
   const snapshots:
     StudioSnapshot[] =
-      snapshotsRes
+      snapshotResponse
         ?.snapshots ??
       [];
-
-  /* ------------------------------------------------------------------------ */
-  /*                              LOCAL STATE                                 */
-  /* ------------------------------------------------------------------------ */
-
-  const [
-    projectName,
-    setProjectName,
-  ] =
-    useState("");
-
-  const [
-    isEditingName,
-    setIsEditingName,
-  ] =
-    useState(
-      false,
-    );
 
   const [
     files,
@@ -531,6 +601,20 @@ function Builder() {
         string
       >
     >({});
+
+  const [
+    projectName,
+    setProjectName,
+  ] =
+    useState("");
+
+  const [
+    editingName,
+    setEditingName,
+  ] =
+    useState(
+      false,
+    );
 
   const [
     currentFile,
@@ -549,31 +633,19 @@ function Builder() {
     >([]);
 
   const [
-    deploymentUrl,
-    setDeploymentUrl,
-  ] =
-    useState<
-      string | null
-    >(null);
-
-  const [
-    showDeploy,
-    setShowDeploy,
-  ] =
-    useState(
-      false,
-    );
-
-  const [
     mobileTab,
     setMobileTab,
   ] =
-    useState<
-      | "chat"
-      | "code"
-      | "preview"
-    >(
+    useState<MobileTab>(
       "chat",
+    );
+
+  const [
+    filesOpen,
+    setFilesOpen,
+  ] =
+    useState(
+      false,
     );
 
   const [
@@ -601,6 +673,22 @@ function Builder() {
     );
 
   const [
+    showDeploy,
+    setShowDeploy,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    deploymentUrl,
+    setDeploymentUrl,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
     optimisticMessages,
     setOptimisticMessages,
   ] =
@@ -608,15 +696,37 @@ function Builder() {
       StudioMessage[]
     >([]);
 
-  const allMessages =
-    [
-      ...messages,
-      ...optimisticMessages,
-    ];
+  const allMessages = [
+    ...messages,
+    ...optimisticMessages,
+  ];
 
-  /* ------------------------------------------------------------------------ */
-  /*                                 EFFECTS                                  */
-  /* ------------------------------------------------------------------------ */
+  const fileCount =
+    Object.keys(
+      files,
+    ).length;
+
+  const reactProject =
+    Boolean(
+      files[
+        "src/App.jsx"
+      ],
+    );
+
+  /*
+   * Once generation finishes the backend stores
+   * "restaurant", "salon", etc. in project.template.
+   *
+   * Therefore do NOT rely only on
+   * project.template === "business-website"
+   * when deciding whether to use Builder V2.
+   */
+  const kodaraiWebsite =
+    Boolean(
+      reactProject ||
+      project?.template ===
+        "business-website",
+    );
 
   useEffect(
     () => {
@@ -624,7 +734,6 @@ function Builder() {
         true,
       );
     },
-
     [],
   );
 
@@ -635,156 +744,138 @@ function Builder() {
       }
 
       if (
-        !isEditingName
+        !editingName
       ) {
         setProjectName(
           project.name,
         );
       }
 
+      setDeploymentUrl(
+        project.deployment_url ??
+          null,
+      );
+
+      const mapped =
+        toStudioFileMap(
+          parseStudioFiles(
+            project.files_json,
+          ),
+        );
+
+      setFiles(
+        mapped,
+      );
+
+      const paths =
+        Object.keys(
+          mapped,
+        );
+
       if (
-        project.deployment_url
+        paths.length ===
+        0
       ) {
-        setDeploymentUrl(
-          project.deployment_url,
-        );
+        return;
       }
 
-      try {
-        const parsed =
-          toStudioFileMap(
-            parseStudioFiles(
-              project.files_json,
-            ),
-          );
+      const preferred =
+        paths.includes(
+          "src/App.jsx",
+        )
+          ? "src/App.jsx"
+          : paths.includes(
+                "index.html",
+              )
+            ? "index.html"
+            : paths[0];
 
-        setFiles(
-          parsed,
-        );
+      setCurrentFile(
+        (current) =>
+          current &&
+          paths.includes(
+            current,
+          )
+            ? current
+            : preferred,
+      );
 
-        const paths =
-          Object.keys(
-            parsed,
-          );
+      /*
+       * Do not make App.jsx look like the only file.
+       * Open the three most useful project files first.
+       */
+      const initialOpen = [
+        "src/App.jsx",
+        "src/data/site.js",
+        "src/styles/global.css",
+      ].filter(
+        (path) =>
+          paths.includes(
+            path,
+          ),
+      );
 
-        if (
-          paths.length >
-            0 &&
-          !currentFile
-        ) {
-          const preferred =
-            paths.includes(
-              "src/App.jsx",
-            )
-              ? "src/App.jsx"
-              : paths.includes(
-                    "index.html",
-                  )
-                ? "index.html"
-                : paths[0];
+      setOpenFiles(
+        (current) => {
+          const stillValid =
+            current.filter(
+              (path) =>
+                paths.includes(
+                  path,
+                ),
+            );
 
-          setCurrentFile(
-            preferred,
-          );
+          if (
+            stillValid.length >
+            0
+          ) {
+            return stillValid;
+          }
 
-          setOpenFiles([
-            preferred,
-          ]);
-        }
-      } catch {
-        setFiles({});
-      }
+          return initialOpen.length >
+            0
+            ? initialOpen
+            : [
+                preferred,
+              ];
+        },
+      );
     },
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       project?.id,
       project?.files_json,
       project?.name,
       project?.deployment_url,
+      editingName,
     ],
   );
 
   /*
-   * Projects created by the generic Studio creation flow
-   * may contain an initial prompt in sessionStorage.
+   * Auto-generate a project opened from Finder.
    */
   useEffect(
     () => {
       if (
-        !projectId ||
-        !user ||
-        messages.length >
-          0 ||
+        !project ||
+        project.generation_status ===
+          "ready" ||
         isStreaming
       ) {
         return;
       }
 
-      const stored =
-        sessionStorage.getItem(
-          `studio_initial_prompt_${projectId}`,
-        );
-
       if (
-        stored
-      ) {
-        sessionStorage.removeItem(
-          `studio_initial_prompt_${projectId}`,
-        );
-
-        const timeout =
-          setTimeout(
-            () =>
-              handleSend(
-                stored,
-              ),
-
-            800,
-          );
-
-        return () =>
-          clearTimeout(
-            timeout,
-          );
-      }
-    },
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      projectId,
-      user,
-      messages.length,
-    ],
-  );
-
-  /*
-   * Automatic business website generation.
-   *
-   * This is triggered by:
-   *
-   * /studio/:id?generate=1
-   *
-   * Builder V2 now charges Studio credits server-side
-   * only after successful generation.
-   */
-  useEffect(
-    () => {
-      if (
-        (
-          generate !==
-            "1" &&
-          project
-            ?.generation_status !==
-            "idle"
-        ) ||
-        !project ||
         project.template !==
-          "business-website" ||
-        project
-          .generation_status ===
-          "ready" ||
-        isStreaming
+          "business-website"
+      ) {
+        return;
+      }
+
+      if (
+        generate !==
+          "1" &&
+        project.generation_status !==
+          "idle"
       ) {
         return;
       }
@@ -803,9 +894,7 @@ function Builder() {
         },
       })
         .then(
-          (
-            result,
-          ) => {
+          (result) => {
             if (
               cancelled
             ) {
@@ -832,48 +921,57 @@ function Builder() {
               mapped,
             );
 
+            const paths =
+              Object.keys(
+                mapped,
+              );
+
             const preferred =
-              mapped[
-                "src/App.jsx"
-              ] !==
-              undefined
+              paths.includes(
+                "src/App.jsx",
+              )
                 ? "src/App.jsx"
-                : result
-                    .files[0]
-                    ?.path;
+                : paths[0];
 
             if (
               preferred
             ) {
-              handleFileSelect(
+              setCurrentFile(
                 preferred,
               );
+
+              setOpenFiles(
+                [
+                  "src/App.jsx",
+                  "src/data/site.js",
+                  "src/styles/global.css",
+                ].filter(
+                  (path) =>
+                    paths.includes(
+                      path,
+                    ),
+                ),
+              );
             }
+
+            setMobileTab(
+              "preview",
+            );
 
             const remaining =
               result
                 .studioCredits
                 ?.remaining;
 
-            if (
+            toast.success(
               remaining ===
               null
-            ) {
-              toast.success(
-                "Website generated — Agency Studio credits are unlimited.",
-              );
-            } else if (
-              typeof remaining ===
-              "number"
-            ) {
-              toast.success(
-                `Website generated — ${result.studioCredits.charged} Studio credits used. ${remaining} remaining.`,
-              );
-            } else {
-              toast.success(
-                "Website generated — it is ready to preview.",
-              );
-            }
+                ? "Website ready — Studio credits are unlimited."
+                : typeof remaining ===
+                    "number"
+                  ? `Website ready — ${result.studioCredits.charged} Studio credits used. ${remaining} remaining.`
+                  : "Website ready.",
+            );
 
             queryClient.invalidateQueries(
               {
@@ -900,6 +998,8 @@ function Builder() {
                 ],
               },
             );
+
+            void refetchMessages();
           },
         )
         .catch(
@@ -908,7 +1008,7 @@ function Builder() {
               !cancelled
             ) {
               toast.error(
-                "Website generation failed. Please try again.",
+                "Website generation failed.",
               );
             }
           },
@@ -939,19 +1039,69 @@ function Builder() {
     ],
   );
 
-  /* ------------------------------------------------------------------------ */
-  /*                              PROJECT NAME                                */
-  /* ------------------------------------------------------------------------ */
+  /*
+   * Initial prompts used by generic Studio projects.
+   */
+  useEffect(
+    () => {
+      if (
+        !projectId ||
+        !user ||
+        messages.length >
+          0 ||
+        isStreaming
+      ) {
+        return;
+      }
 
-  const handleNameBlur =
+      const stored =
+        sessionStorage.getItem(
+          `studio_initial_prompt_${projectId}`,
+        );
+
+      if (!stored) {
+        return;
+      }
+
+      sessionStorage.removeItem(
+        `studio_initial_prompt_${projectId}`,
+      );
+
+      const timeout =
+        window.setTimeout(
+          () =>
+            void handleSend(
+              stored,
+            ),
+          700,
+        );
+
+      return () =>
+        window.clearTimeout(
+          timeout,
+        );
+    },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      projectId,
+      user,
+      messages.length,
+    ],
+  );
+
+  const saveProjectName =
     async () => {
-      setIsEditingName(
+      setEditingName(
         false,
       );
 
+      const value =
+        projectName.trim();
+
       if (
-        !projectName.trim() ||
-        projectName ===
+        !value ||
+        value ===
           project?.name
       ) {
         return;
@@ -963,7 +1113,7 @@ function Builder() {
             projectId,
 
           name:
-            projectName.trim(),
+            value,
         },
       });
 
@@ -985,34 +1135,84 @@ function Builder() {
       );
     };
 
-  /* ------------------------------------------------------------------------ */
-  /*                              FILE EDITING                                */
-  /* ------------------------------------------------------------------------ */
-
-  const handleManualFileChange =
+  const selectFile =
     (
       path: string,
-
-      content: string,
     ) => {
-      setFiles(
-        (
-          current,
-        ) => ({
-          ...current,
+      setCurrentFile(
+        path,
+      );
 
-          [path]:
-            content,
-        }),
+      setOpenFiles(
+        (current) =>
+          current.includes(
+            path,
+          )
+            ? current
+            : [
+                ...current,
+                path,
+              ],
+      );
+
+      if (
+        isMobile
+      ) {
+        setFilesOpen(
+          false,
+        );
+
+        setMobileTab(
+          "code",
+        );
+      }
+    };
+
+  const closeFile =
+    (
+      event:
+        ReactMouseEvent<
+          HTMLElement
+        >,
+
+      path: string,
+    ) => {
+      event.stopPropagation();
+
+      setOpenFiles(
+        (current) => {
+          const next =
+            current.filter(
+              (item) =>
+                item !==
+                path,
+            );
+
+          if (
+            currentFile ===
+            path
+          ) {
+            setCurrentFile(
+              next[
+                next.length -
+                  1
+              ] ??
+                null,
+            );
+          }
+
+          return next;
+        },
       );
     };
 
-  const handleCreateFile =
+  const createFile =
     () => {
       const path =
         window
           .prompt(
-            "New file path (for example: src/components/NewSection.jsx)",
+            "New file path",
+            "src/components/NewSection.jsx",
           )
           ?.trim();
 
@@ -1030,16 +1230,14 @@ function Builder() {
           undefined
       ) {
         toast.error(
-          "Use a new, relative file path without .. or backslashes.",
+          "Use a new safe relative file path.",
         );
 
         return;
       }
 
       setFiles(
-        (
-          current,
-        ) => ({
+        (current) => ({
           ...current,
 
           [path]:
@@ -1047,45 +1245,22 @@ function Builder() {
         }),
       );
 
-      handleFileSelect(
+      selectFile(
         path,
       );
     };
 
-  const handleDeleteFile =
+  const deleteFile =
     (
       path: string,
     ) => {
       if (
-        path ===
-        "index.html"
+        REQUIRED_FILES.has(
+          path,
+        )
       ) {
         toast.error(
-          "index.html is required by the Vite project.",
-        );
-
-        return;
-      }
-
-      if (
-        path ===
-        "package.json"
-      ) {
-        toast.error(
-          "package.json is required by the React/Vite project.",
-        );
-
-        return;
-      }
-
-      if (
-        path ===
-          "src/main.jsx" ||
-        path ===
-          "src/App.jsx"
-      ) {
-        toast.error(
-          `${path} is required by the React website.`,
+          `${path} is required.`,
         );
 
         return;
@@ -1100,9 +1275,7 @@ function Builder() {
       }
 
       setFiles(
-        (
-          current,
-        ) => {
+        (current) => {
           const next = {
             ...current,
           };
@@ -1116,14 +1289,10 @@ function Builder() {
       );
 
       setOpenFiles(
-        (
-          current,
-        ) =>
+        (current) =>
           current.filter(
-            (
-              file,
-            ) =>
-              file !==
+            (item) =>
+              item !==
               path,
           ),
       );
@@ -1138,10 +1307,22 @@ function Builder() {
       }
     };
 
-  const handleRenameFile =
+  const renameFile =
     (
       path: string,
     ) => {
+      if (
+        REQUIRED_FILES.has(
+          path,
+        )
+      ) {
+        toast.error(
+          `${path} is required and cannot be renamed.`,
+        );
+
+        return;
+      }
+
       const nextPath =
         window
           .prompt(
@@ -1159,23 +1340,6 @@ function Builder() {
       }
 
       if (
-        path ===
-          "index.html" ||
-        path ===
-          "package.json" ||
-        path ===
-          "src/main.jsx" ||
-        path ===
-          "src/App.jsx"
-      ) {
-        toast.error(
-          `${path} is a required project file and cannot be renamed.`,
-        );
-
-        return;
-      }
-
-      if (
         !isSafeStudioPath(
           nextPath,
         ) ||
@@ -1185,16 +1349,14 @@ function Builder() {
           undefined
       ) {
         toast.error(
-          "Use a new, relative file path without .. or backslashes.",
+          "Use a new safe relative file path.",
         );
 
         return;
       }
 
       setFiles(
-        (
-          current,
-        ) => {
+        (current) => {
           const next = {
             ...current,
 
@@ -1213,17 +1375,13 @@ function Builder() {
       );
 
       setOpenFiles(
-        (
-          current,
-        ) =>
+        (current) =>
           current.map(
-            (
-              file,
-            ) =>
-              file ===
+            (item) =>
+              item ===
               path
                 ? nextPath
-                : file,
+                : item,
           ),
       );
 
@@ -1237,7 +1395,7 @@ function Builder() {
       }
     };
 
-  const handleSaveFiles =
+  const saveFiles =
     async () => {
       setIsSaving(
         true,
@@ -1245,19 +1403,17 @@ function Builder() {
 
       try {
         const result =
-          await runSaveFiles(
-            {
-              data: {
-                project_id:
-                  projectId,
+          await runSaveFiles({
+            data: {
+              project_id:
+                projectId,
 
-                files:
-                  fromStudioFileMap(
-                    files,
-                  ),
-              },
+              files:
+                fromStudioFileMap(
+                  files,
+                ),
             },
-          );
+          });
 
         if (
           "error" in
@@ -1271,7 +1427,7 @@ function Builder() {
         }
 
         toast.success(
-          "Website saved.",
+          "Project saved.",
         );
 
         queryClient.invalidateQueries(
@@ -1284,7 +1440,7 @@ function Builder() {
         );
       } catch {
         toast.error(
-          "Could not save the website.",
+          "Could not save project.",
         );
       } finally {
         setIsSaving(
@@ -1293,18 +1449,16 @@ function Builder() {
       }
     };
 
-  const handleUndo =
+  const undoEdit =
     async () => {
       try {
         const result =
-          await runUndoEdit(
-            {
-              data: {
-                project_id:
-                  projectId,
-              },
+          await runUndo({
+            data: {
+              project_id:
+                projectId,
             },
-          );
+          });
 
         if (
           "error" in
@@ -1327,6 +1481,124 @@ function Builder() {
           "Last AI edit undone.",
         );
 
+        void refetchSnapshots();
+
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              "studio-project",
+              projectId,
+            ],
+          },
+        );
+      } catch {
+        toast.error(
+          "Could not undo the edit.",
+        );
+      }
+    };
+
+  const sendBusinessEdit =
+    async (
+      prompt: string,
+    ) => {
+      setIsStreaming(
+        true,
+      );
+
+      try {
+        const result =
+          fileCount ===
+          0
+            ? await runGenerateWebsite(
+                {
+                  data: {
+                    project_id:
+                      projectId,
+                  },
+                },
+              )
+            : await runEditWebsite(
+                {
+                  data: {
+                    project_id:
+                      projectId,
+
+                    request:
+                      prompt,
+                  },
+                },
+              );
+
+        if (
+          "error" in
+          result
+        ) {
+          toast.error(
+            result.message,
+          );
+
+          return;
+        }
+
+        const mapped =
+          toStudioFileMap(
+            result.files,
+          );
+
+        setFiles(
+          mapped,
+        );
+
+        const paths =
+          Object.keys(
+            mapped,
+          );
+
+        if (
+          paths.includes(
+            "src/App.jsx",
+          )
+        ) {
+          setCurrentFile(
+            "src/App.jsx",
+          );
+        }
+
+        setOpenFiles(
+          [
+            "src/App.jsx",
+            "src/data/site.js",
+            "src/styles/global.css",
+          ].filter(
+            (path) =>
+              paths.includes(
+                path,
+              ),
+          ),
+        );
+
+        const remaining =
+          result
+            .studioCredits
+            ?.remaining;
+
+        toast.success(
+          "summary" in
+          result
+            ? typeof remaining ===
+                "number"
+              ? `Website updated — ${remaining} Studio credits remaining.`
+              : "Website updated."
+            : typeof remaining ===
+                "number"
+              ? `Website generated — ${remaining} Studio credits remaining.`
+              : "Website generated.",
+        );
+
+        void refetchMessages();
+        void refetchSnapshots();
+
         queryClient.invalidateQueries(
           {
             queryKey: [
@@ -1336,307 +1608,32 @@ function Builder() {
           },
         );
 
-        refetchSnapshots();
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              "studio-usage",
+            ],
+          },
+        );
       } catch {
         toast.error(
-          "Could not undo the last edit.",
+          "Could not update this website.",
         );
-      }
-    };
-
-  /* ------------------------------------------------------------------------ */
-  /*                            FILE NAVIGATION                               */
-  /* ------------------------------------------------------------------------ */
-
-  const handleFileSelect =
-    (
-      path: string,
-    ) => {
-      if (
-        !openFiles.includes(
-          path,
-        )
-      ) {
-        setOpenFiles(
-          (
-            previous,
-          ) => [
-            ...previous,
-            path,
-          ],
-        );
-      }
-
-      setCurrentFile(
-        path,
-      );
-
-      if (
-        isMobile
-      ) {
-        setMobileTab(
-          "code",
-        );
-      }
-    };
-
-  const closeFile =
-    (
-      event:
-        React.MouseEvent,
-
-      path: string,
-    ) => {
-      event.stopPropagation();
-
-      const next =
-        openFiles.filter(
-          (
-            item,
-          ) =>
-            item !==
-            path,
-        );
-
-      setOpenFiles(
-        next,
-      );
-
-      if (
-        currentFile ===
-        path
-      ) {
-        setCurrentFile(
-          next.length >
-            0
-            ? next[
-                next.length -
-                  1
-              ]
-            : null,
-        );
-      }
-    };
-
-  /* ------------------------------------------------------------------------ */
-  /*                            AI GENERATION                                 */
-  /* ------------------------------------------------------------------------ */
-
-  const handleSend =
-    async (
-      promptText:
-        string,
-    ) => {
-      if (
-        !promptText.trim() ||
-        isStreaming ||
-        !user
-      ) {
-        return;
-      }
-
-      /*
-       * Business website projects use Builder V2.
-       *
-       * Initial build = 10 Studio credits.
-       * AI edits      = 1 Studio credit.
-       *
-       * Credit enforcement happens server-side.
-       */
-      if (
-        project?.template ===
-        "business-website"
-      ) {
+      } finally {
         setIsStreaming(
-          true,
+          false,
         );
-
-        try {
-          if (
-            Object.keys(
-              files,
-            ).length ===
-            0
-          ) {
-            const result =
-              await runGenerateWebsite(
-                {
-                  data: {
-                    project_id:
-                      projectId,
-                  },
-                },
-              );
-
-            if (
-              "error" in
-              result
-            ) {
-              toast.error(
-                result.message,
-              );
-
-              return;
-            }
-
-            const mapped =
-              toStudioFileMap(
-                result.files,
-              );
-
-            setFiles(
-              mapped,
-            );
-
-            const preferred =
-              mapped[
-                "src/App.jsx"
-              ] !==
-              undefined
-                ? "src/App.jsx"
-                : result
-                    .files[0]
-                    ?.path;
-
-            if (
-              preferred
-            ) {
-              handleFileSelect(
-                preferred,
-              );
-            }
-
-            const remaining =
-              result
-                .studioCredits
-                ?.remaining;
-
-            if (
-              remaining ===
-              null
-            ) {
-              toast.success(
-                "Website generated — Agency Studio credits are unlimited.",
-              );
-            } else if (
-              typeof remaining ===
-              "number"
-            ) {
-              toast.success(
-                `Website generated — ${result.studioCredits.charged} Studio credits used. ${remaining} remaining.`,
-              );
-            } else {
-              toast.success(
-                "Website generated — it is ready to preview.",
-              );
-            }
-          } else {
-            const result =
-              await runApplyWebsiteEdit(
-                {
-                  data: {
-                    project_id:
-                      projectId,
-
-                    request:
-                      promptText,
-                  },
-                },
-              );
-
-            if (
-              "error" in
-              result
-            ) {
-              toast.error(
-                result.message,
-              );
-
-              return;
-            }
-
-            setFiles(
-              toStudioFileMap(
-                result.files,
-              ),
-            );
-
-            const remaining =
-              result
-                .studioCredits
-                ?.remaining;
-
-            if (
-              remaining ===
-              null
-            ) {
-              toast.success(
-                "Website updated.",
-              );
-            } else if (
-              typeof remaining ===
-              "number"
-            ) {
-              toast.success(
-                `Website updated — 1 Studio credit used. ${remaining} remaining.`,
-              );
-            } else {
-              toast.success(
-                "Website updated.",
-              );
-            }
-          }
-
-          queryClient.invalidateQueries(
-            {
-              queryKey: [
-                "studio-project",
-                projectId,
-              ],
-            },
-          );
-
-          queryClient.invalidateQueries(
-            {
-              queryKey: [
-                "studio-messages",
-                projectId,
-              ],
-            },
-          );
-
-          queryClient.invalidateQueries(
-            {
-              queryKey: [
-                "studio-usage",
-              ],
-            },
-          );
-
-          refetchMessages();
-
-          refetchSnapshots();
-        } catch {
-          toast.error(
-            "Could not update this website. Please try again.",
-          );
-        } finally {
-          setIsStreaming(
-            false,
-          );
-        }
-
-        return;
       }
+    };
 
-      /*
-       * Legacy/general Studio projects still use
-       * the generic SSE generation route.
-       */
-      const tempUserMsg:
+  const sendGenericMessage =
+    async (
+      prompt: string,
+    ) => {
+      const temporaryUser:
         StudioMessage = {
         id:
-          `temp_${Date.now()}`,
+          `temporary-user-${Date.now()}`,
 
         project_id:
           projectId,
@@ -1645,7 +1642,7 @@ function Builder() {
           "user",
 
         content:
-          promptText,
+          prompt,
 
         file_changes:
           null,
@@ -1655,11 +1652,9 @@ function Builder() {
       };
 
       setOptimisticMessages(
-        (
-          previous,
-        ) => [
-          ...previous,
-          tempUserMsg,
+        (current) => [
+          ...current,
+          temporaryUser,
         ],
       );
 
@@ -1672,52 +1667,9 @@ function Builder() {
             "user",
 
           content:
-            promptText,
+            prompt,
         },
       });
-
-      queryClient.invalidateQueries(
-        {
-          queryKey: [
-            "studio-messages",
-            projectId,
-          ],
-        },
-      );
-
-      let leadContext:
-        | {
-            businessName:
-              string;
-
-            category:
-              string;
-
-            city:
-              string;
-
-            phone?:
-              string;
-          }
-        | undefined;
-
-      const storedLead =
-        sessionStorage.getItem(
-          `studio_lead_context_${projectId}`,
-        );
-
-      if (
-        storedLead
-      ) {
-        try {
-          leadContext =
-            JSON.parse(
-              storedLead,
-            );
-        } catch {
-          // Ignore invalid session data.
-        }
-      }
 
       const {
         data: {
@@ -1726,10 +1678,9 @@ function Builder() {
       } =
         await supabase.auth.getSession();
 
-      const token =
-        session?.access_token;
-
-      if (!token) {
+      if (
+        !session?.access_token
+      ) {
         toast.error(
           "Not authenticated.",
         );
@@ -1741,18 +1692,16 @@ function Builder() {
         true,
       );
 
-      const tempAsstId =
-        `streaming_${Date.now()}`;
+      const temporaryAssistantId =
+        `temporary-assistant-${Date.now()}`;
 
       setOptimisticMessages(
-        (
-          previous,
-        ) => [
-          ...previous,
+        (current) => [
+          ...current,
 
           {
             id:
-              tempAsstId,
+              temporaryAssistantId,
 
             project_id:
               projectId,
@@ -1772,35 +1721,6 @@ function Builder() {
         ],
       );
 
-      const historyForAI =
-        [
-          ...messages,
-          tempUserMsg,
-        ]
-          .filter(
-            (
-              message,
-            ) =>
-              message.id !==
-              tempAsstId,
-          )
-          .slice(
-            -10,
-          )
-          .map(
-            (
-              message,
-            ) => ({
-              role:
-                message.role as
-                  | "user"
-                  | "assistant",
-
-              content:
-                message.content,
-            }),
-          );
-
       try {
         const response =
           await fetch(
@@ -1814,15 +1734,12 @@ function Builder() {
                   "application/json",
 
                 Authorization:
-                  `Bearer ${token}`,
+                  `Bearer ${session.access_token}`,
               },
 
               body:
                 JSON.stringify({
                   projectId,
-
-                  messages:
-                    historyForAI,
 
                   files,
 
@@ -1830,66 +1747,34 @@ function Builder() {
                     currentFile ??
                     undefined,
 
-                  leadContext,
+                  messages:
+                    [
+                      ...messages,
+                      temporaryUser,
+                    ]
+                      .slice(
+                        -10,
+                      )
+                      .map(
+                        (message) => ({
+                          role:
+                            message.role,
+
+                          content:
+                            message.content,
+                        }),
+                      ),
                 }),
             },
           );
 
         if (
-          !response.ok
-        ) {
-          const error =
-            await response
-              .json()
-              .catch(
-                () => ({
-                  error:
-                    "Unknown error",
-                }),
-              );
-
-          if (
-            error.error ===
-            "limit_reached"
-          ) {
-            toast.error(
-              error.message ??
-                "Monthly AI limit reached. Upgrade to continue.",
-            );
-          } else {
-            toast.error(
-              error.error ||
-                error.message ||
-                "Generation failed. Please try again.",
-            );
-          }
-
-          setOptimisticMessages(
-            (
-              previous,
-            ) =>
-              previous.filter(
-                (
-                  message,
-                ) =>
-                  message.id !==
-                    tempAsstId &&
-                  message.id !==
-                    tempUserMsg.id,
-              ),
-          );
-
-          return;
-        }
-
-        if (
+          !response.ok ||
           !response.body
         ) {
-          toast.error(
-            "AI returned an empty response.",
+          throw new Error(
+            "Generation failed.",
           );
-
-          return;
         }
 
         const reader =
@@ -1898,15 +1783,15 @@ function Builder() {
         const decoder =
           new TextDecoder();
 
-        let finalSummary =
+        let buffer =
           "";
 
-        let finalFileChanges:
+        let assistantText =
+          "";
+
+        let changes:
           FileChange[] =
           [];
-
-        let sawError =
-          false;
 
         while (
           true
@@ -1917,13 +1802,11 @@ function Builder() {
           } =
             await reader.read();
 
-          if (
-            done
-          ) {
+          if (done) {
             break;
           }
 
-          const chunk =
+          buffer +=
             decoder.decode(
               value,
               {
@@ -1932,11 +1815,18 @@ function Builder() {
               },
             );
 
+          const lines =
+            buffer.split(
+              "\n",
+            );
+
+          buffer =
+            lines.pop() ??
+            "";
+
           for (
             const line of
-            chunk.split(
-              "\n",
-            )
+            lines
           ) {
             if (
               !line.startsWith(
@@ -1955,15 +1845,8 @@ function Builder() {
                   line.slice(
                     6,
                   ),
-                ) as StreamEvent;
+                );
             } catch {
-              continue;
-            }
-
-            if (
-              event.type ===
-              "progress"
-            ) {
               continue;
             }
 
@@ -1971,24 +1854,20 @@ function Builder() {
               event.type ===
               "text"
             ) {
-              finalSummary =
+              assistantText =
                 event.text;
 
               setOptimisticMessages(
-                (
-                  previous,
-                ) =>
-                  previous.map(
-                    (
-                      message,
-                    ) =>
+                (current) =>
+                  current.map(
+                    (message) =>
                       message.id ===
-                      tempAsstId
+                      temporaryAssistantId
                         ? {
                             ...message,
 
                             content:
-                              finalSummary,
+                              assistantText,
                           }
                         : message,
                   ),
@@ -1999,7 +1878,7 @@ function Builder() {
               event.type ===
               "files"
             ) {
-              finalFileChanges =
+              changes =
                 event.fileChanges ??
                 [];
             }
@@ -2011,14 +1890,14 @@ function Builder() {
               if (
                 event.summary
               ) {
-                finalSummary =
+                assistantText =
                   event.summary;
               }
 
               if (
                 event.fileChanges
               ) {
-                finalFileChanges =
+                changes =
                   event.fileChanges;
               }
             }
@@ -2027,87 +1906,38 @@ function Builder() {
               event.type ===
               "error"
             ) {
-              sawError =
-                true;
-
-              console.error(
-                "Studio generate stream error:",
+              throw new Error(
                 event.error,
               );
             }
           }
         }
 
-        if (
-          sawError &&
-          !finalSummary &&
-          finalFileChanges.length ===
-            0
-        ) {
-          toast.error(
-            "Generation failed. Please try again.",
-          );
-
-          setOptimisticMessages(
-            (
-              previous,
-            ) =>
-              previous.filter(
-                (
-                  message,
-                ) =>
-                  message.id !==
-                    tempAsstId &&
-                  message.id !==
-                    tempUserMsg.id,
-              ),
-          );
-
-          return;
-        }
-
-        const newFiles =
+        const nextFiles =
           applyStructuredChanges(
             files,
-            finalFileChanges,
+            changes,
           );
 
         setFiles(
-          newFiles,
+          nextFiles,
         );
 
         if (
-          finalFileChanges.length >
-          0
+          changes[
+            0
+          ]?.path
         ) {
-          handleFileSelect(
-            finalFileChanges[
+          selectFile(
+            changes[
               0
             ].path,
           );
         }
 
-        const summaryText =
-          finalSummary ||
-          "Done — I updated the site.";
-
-        const changesMarker =
-          finalFileChanges.length >
-          0
-            ? JSON.stringify(
-                finalFileChanges.map(
-                  (
-                    file,
-                  ) => ({
-                    path:
-                      file.path,
-
-                    action:
-                      file.action,
-                  }),
-                ),
-              )
-            : null;
+        const finalText =
+          assistantText ||
+          "Done — the project was updated.";
 
         await runCreateMessage({
           data: {
@@ -2118,10 +1948,22 @@ function Builder() {
               "assistant",
 
             content:
-              summaryText,
+              finalText,
 
             file_changes:
-              changesMarker,
+              changes.length
+                ? JSON.stringify(
+                    changes.map(
+                      (change) => ({
+                        path:
+                          change.path,
+
+                        action:
+                          change.action,
+                      }),
+                    ),
+                  )
+                : null,
           },
         });
 
@@ -2132,68 +1974,48 @@ function Builder() {
 
             files_json:
               JSON.stringify(
-                newFiles,
+                nextFiles,
               ),
           },
         });
 
         if (
-          changesMarker
+          changes.length
         ) {
-          await runCreateSnapshot(
-            {
-              data: {
-                project_id:
-                  projectId,
+          await runCreateSnapshot({
+            data: {
+              project_id:
+                projectId,
 
-                label:
-                  promptText.slice(
-                    0,
-                    80,
-                  ),
+              label:
+                prompt.slice(
+                  0,
+                  80,
+                ),
 
-                files_json:
-                  JSON.stringify(
-                    newFiles,
-                  ),
+              files_json:
+                JSON.stringify(
+                  nextFiles,
+                ),
 
-                files_count:
-                  Object.keys(
-                    newFiles,
-                  ).length,
-              },
+              files_count:
+                Object.keys(
+                  nextFiles,
+                ).length,
             },
-          );
-
-          refetchSnapshots();
+          });
         }
 
-        queryClient.invalidateQueries(
-          {
-            queryKey: [
-              "studio-messages",
-              projectId,
-            ],
-          },
-        );
-
-        queryClient.invalidateQueries(
-          {
-            queryKey: [
-              "studio-projects",
-            ],
-          },
-        );
+        void refetchMessages();
+        void refetchSnapshots();
       } catch (
         error
       ) {
-        console.error(
-          "Studio generate error:",
-          error,
-        );
-
         toast.error(
-          "Could not reach AI. Check your connection.",
+          error instanceof
+          Error
+            ? error.message
+            : "Studio generation failed.",
         );
       } finally {
         setIsStreaming(
@@ -2201,244 +2023,116 @@ function Builder() {
         );
 
         setOptimisticMessages(
-          (
-            previous,
-          ) =>
-            previous.filter(
-              (
-                message,
-              ) =>
+          (current) =>
+            current.filter(
+              (message) =>
                 message.id !==
-                  tempAsstId &&
+                  temporaryUser.id &&
                 message.id !==
-                  tempUserMsg.id,
+                  temporaryAssistantId,
             ),
         );
-
-        refetchMessages();
       }
     };
 
-  const fileCount =
-    Object.keys(
-      files,
-    ).length;
+  const handleSend =
+    async (
+      prompt: string,
+    ) => {
+      const clean =
+        prompt.trim();
 
-  /* ------------------------------------------------------------------------ */
-  /*                                  RENDER                                  */
-  /* ------------------------------------------------------------------------ */
+      if (
+        !clean ||
+        isStreaming ||
+        !user
+      ) {
+        return;
+      }
+
+      /*
+       * React project = Kodarai website, even if project.template
+       * has already changed to restaurant/salon/etc.
+       */
+      if (
+        kodaraiWebsite
+      ) {
+        await sendBusinessEdit(
+          clean,
+        );
+
+        return;
+      }
+
+      await sendGenericMessage(
+        clean,
+      );
+    };
+
+  if (!project) {
+    return (
+      <div className="flex h-[100dvh] items-center justify-center bg-[#080b0d]">
+        <Loader2 className="size-5 animate-spin text-zinc-600" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#0f0f12] text-foreground">
-      {/* Top bar */}
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#080b0d] text-zinc-100">
+      <StudioHeader
+        projectName={
+          projectName
+        }
+        editingName={
+          editingName
+        }
+        isSaving={
+          isSaving
+        }
+        isStreaming={
+          isStreaming
+        }
+        deploymentUrl={
+          deploymentUrl
+        }
+        onBack={() =>
+          navigate({
+            to:
+              "/studio",
+          })
+        }
+        onNameChange={
+          setProjectName
+        }
+        onStartRename={() =>
+          setEditingName(
+            true,
+          )
+        }
+        onCancelRename={() => {
+          setEditingName(
+            false,
+          );
 
-      <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#0f0f12]/95 px-3 backdrop-blur-sm">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <button
-            onClick={() =>
-              navigate({
-                to:
-                  "/studio",
-              })
-            }
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
-            title="Back to Studio"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-
-          <div className="h-4 w-px shrink-0 bg-white/8" />
-
-          <div className="flex shrink-0 select-none items-center gap-1.5">
-            <span className="flex size-6 items-center justify-center rounded-lg border border-primary/20 bg-primary/15 font-mono text-[10px] font-semibold text-primary">
-              K
-            </span>
-
-            <span className="hidden text-xs font-semibold tracking-tight text-zinc-300 sm:block">
-              Studio
-            </span>
-          </div>
-
-          <div className="hidden h-4 w-px shrink-0 bg-white/8 sm:block" />
-
-          <div className="flex min-w-0 items-center gap-1">
-            {isEditingName ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={
-                    projectName
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setProjectName(
-                      event
-                        .target
-                        .value,
-                    )
-                  }
-                  onBlur={
-                    handleNameBlur
-                  }
-                  onKeyDown={(
-                    event,
-                  ) => {
-                    if (
-                      event.key ===
-                      "Enter"
-                    ) {
-                      handleNameBlur();
-                    }
-
-                    if (
-                      event.key ===
-                      "Escape"
-                    ) {
-                      setIsEditingName(
-                        false,
-                      );
-
-                      setProjectName(
-                        project?.name ??
-                          "",
-                      );
-                    }
-                  }}
-                  autoFocus
-                  className="w-[140px] rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-sm font-medium text-zinc-100 outline-none transition-all focus:border-primary/50 focus:ring-1 focus:ring-primary/10 sm:w-[200px]"
-                />
-
-                <button
-                  onClick={
-                    handleNameBlur
-                  }
-                  className="flex h-6 w-6 items-center justify-center rounded text-emerald-400 transition-colors hover:bg-emerald-500/10"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() =>
-                  setIsEditingName(
-                    true,
-                  )
-                }
-                className="group flex max-w-[120px] items-center gap-1.5 rounded-lg px-2 py-1 transition-colors hover:bg-white/5 sm:max-w-[220px]"
-                title="Click to rename project"
-              >
-                <span className="truncate text-sm font-medium text-zinc-200">
-                  {project
-                    ?.name ||
-                    "Loading…"}
-                </span>
-
-                <Pencil className="h-3 w-3 shrink-0 text-zinc-700 transition-colors group-hover:text-zinc-400" />
-              </button>
-            )}
-          </div>
-
-          {isStreaming && (
-            <div className="ml-1 hidden shrink-0 items-center gap-1.5 sm:flex">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0ms]" />
-
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:120ms]" />
-
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:240ms]" />
-            </div>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={
-              handleSaveFiles
-            }
-            disabled={
-              isSaving ||
-              fileCount ===
-                0
-            }
-            className="h-8 border-white/10 bg-transparent px-2 text-xs text-zinc-200 hover:bg-white/5 sm:px-3"
-          >
-            {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              "Save"
-            )}
-          </Button>
-
-          {project?.template ===
-            "business-website" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={
-                handleUndo
-              }
-              className="hidden h-8 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-100 sm:inline-flex"
-            >
-              Undo AI edit
-            </Button>
-          )}
-
-          {deploymentUrl ? (
-            <a
-              href={
-                deploymentUrl
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/5 hover:text-emerald-300 sm:flex"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-
-              Live
-
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          ) : (
-            <div className="hidden items-center gap-1.5 px-2 text-xs text-zinc-600 sm:flex">
-              <div className="h-1.5 w-1.5 rounded-full bg-zinc-700" />
-
-              <span>
-                Draft
-              </span>
-            </div>
-          )}
-
-          <Button
-            size="sm"
-            onClick={() =>
-              setShowDeploy(
-                true,
-              )
-            }
-            className="h-8 gap-1.5 bg-primary px-3 text-xs text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90"
-          >
-            <Rocket className="h-3.5 w-3.5" />
-
-            <span className="hidden font-medium sm:inline">
-              Publish
-            </span>
-          </Button>
-        </div>
-      </header>
-
-      {/* Main workspace */}
+          setProjectName(
+            project.name,
+          );
+        }}
+        onSaveName={
+          saveProjectName
+        }
+        onSave={
+          saveFiles
+        }
+        onPublish={() =>
+          setShowDeploy(
+            true,
+          )
+        }
+      />
 
       {isMobile ? (
-        <MobileLayout
-          projectId={
-            projectId
-          }
+        <MobileStudio
           files={
             files
           }
@@ -2451,14 +2145,11 @@ function Builder() {
           tab={
             mobileTab
           }
-          deploymentUrl={
-            deploymentUrl
+          filesOpen={
+            filesOpen
           }
-          allMessages={
+          messages={
             allMessages
-          }
-          snapshots={
-            snapshots
           }
           isStreaming={
             isStreaming
@@ -2466,35 +2157,68 @@ function Builder() {
           mounted={
             mounted
           }
-          onFileSelect={
-            handleFileSelect
+          deploymentUrl={
+            deploymentUrl
+          }
+          reactProject={
+            reactProject
+          }
+          onTabChange={
+            setMobileTab
+          }
+          onToggleFiles={() =>
+            setFilesOpen(
+              (current) =>
+                !current,
+            )
+          }
+          onCloseFiles={() =>
+            setFilesOpen(
+              false,
+            )
+          }
+          onSelectFile={
+            selectFile
           }
           onCloseFile={
             closeFile
           }
-          onFileChange={
-            handleManualFileChange
+          onChangeFile={(
+            path,
+            content,
+          ) =>
+            setFiles(
+              (current) => ({
+                ...current,
+
+                [path]:
+                  content,
+              }),
+            )
           }
           onCreateFile={
-            handleCreateFile
+            createFile
           }
           onDeleteFile={
-            handleDeleteFile
+            deleteFile
           }
           onRenameFile={
-            handleRenameFile
+            renameFile
           }
           onSend={
             handleSend
           }
-          onDeploy={() =>
+          onPublish={() =>
             setShowDeploy(
               true,
             )
           }
+          onUndo={
+            undoEdit
+          }
         />
       ) : (
-        <DesktopLayout
+        <DesktopStudio
           files={
             files
           }
@@ -2504,10 +2228,7 @@ function Builder() {
           openFiles={
             openFiles
           }
-          deploymentUrl={
-            deploymentUrl
-          }
-          allMessages={
+          messages={
             allMessages
           }
           snapshots={
@@ -2516,131 +2237,83 @@ function Builder() {
           isStreaming={
             isStreaming
           }
-          fileCount={
-            fileCount
-          }
           mounted={
             mounted
           }
-          onFileSelect={
-            handleFileSelect
+          deploymentUrl={
+            deploymentUrl
+          }
+          reactProject={
+            reactProject
+          }
+          onSelectFile={
+            selectFile
           }
           onCloseFile={
             closeFile
           }
-          onFileChange={
-            handleManualFileChange
+          onChangeFile={(
+            path,
+            content,
+          ) =>
+            setFiles(
+              (current) => ({
+                ...current,
+
+                [path]:
+                  content,
+              }),
+            )
           }
           onCreateFile={
-            handleCreateFile
+            createFile
           }
           onDeleteFile={
-            handleDeleteFile
+            deleteFile
           }
           onRenameFile={
-            handleRenameFile
+            renameFile
           }
           onSend={
             handleSend
           }
-          onDeploy={() =>
+          onPublish={() =>
             setShowDeploy(
               true,
             )
           }
+          onUndo={
+            undoEdit
+          }
         />
       )}
 
-      {/* Mobile Studio tabs */}
-
-      {isMobile && (
-        <nav className="flex h-16 shrink-0 items-center gap-1 border-t border-white/5 bg-[#0f0f12] px-2">
-          {(
-            [
-              {
-                id:
-                  "chat" as const,
-
-                icon:
-                  MessageSquare,
-
-                label:
-                  "Chat",
-              },
-
-              {
-                id:
-                  "code" as const,
-
-                icon:
-                  Code2,
-
-                label:
-                  "Code",
-              },
-
-              {
-                id:
-                  "preview" as const,
-
-                icon:
-                  Eye,
-
-                label:
-                  "Preview",
-              },
-            ] as const
-          ).map(
-            (
-              tab,
-            ) => (
-              <button
-                key={
-                  tab.id
-                }
-                onClick={() =>
-                  setMobileTab(
-                    tab.id,
-                  )
-                }
-                className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 transition-all ${
-                  mobileTab ===
-                  tab.id
-                    ? "bg-primary/10 text-primary"
-                    : "text-zinc-600 hover:text-zinc-400"
-                }`}
-              >
-                <tab.icon className="h-5 w-5" />
-
-                <span className="text-[10px] font-medium">
-                  {
-                    tab.label
-                  }
-                </span>
-              </button>
-            ),
-          )}
-        </nav>
-      )}
-
       {showDeploy && (
-        <DeploySheet
+        <DeployDialog
           projectId={
             projectId
           }
           projectName={
-            project?.name ||
-            ""
+            projectName
           }
           fileCount={
             fileCount
+          }
+          reactProject={
+            reactProject
+          }
+          runDeploy={
+            runDeploy
+          }
+          runDeploymentStatus={
+            runDeploymentStatus
           }
           onClose={() =>
             setShowDeploy(
               false,
             )
           }
-          onDeployed={(
+          onReady={(
             url,
           ) => {
             setDeploymentUrl(
@@ -2650,6 +2323,15 @@ function Builder() {
             setShowDeploy(
               false,
             );
+
+            queryClient.invalidateQueries(
+              {
+                queryKey: [
+                  "studio-project",
+                  projectId,
+                ],
+              },
+            );
           }}
         />
       )}
@@ -2657,28 +2339,222 @@ function Builder() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                               DESKTOP LAYOUT                               */
-/* -------------------------------------------------------------------------- */
+function StudioHeader({
+  projectName,
+  editingName,
+  deploymentUrl,
+  isSaving,
+  isStreaming,
+  onBack,
+  onNameChange,
+  onStartRename,
+  onCancelRename,
+  onSaveName,
+  onSave,
+  onPublish,
+}: {
+  projectName:
+    string;
 
-function DesktopLayout({
+  editingName:
+    boolean;
+
+  deploymentUrl:
+    string | null;
+
+  isSaving:
+    boolean;
+
+  isStreaming:
+    boolean;
+
+  onBack:
+    () => void;
+
+  onNameChange:
+    (
+      value:
+        string,
+    ) => void;
+
+  onStartRename:
+    () => void;
+
+  onCancelRename:
+    () => void;
+
+  onSaveName:
+    () => void;
+
+  onSave:
+    () => void;
+
+  onPublish:
+    () => void;
+}) {
+  return (
+    <header className="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-white/[0.06] bg-[#080b0d] px-3 sm:h-[82px] sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          onClick={
+            onBack
+          }
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025] text-zinc-500 transition hover:bg-white/[0.05] hover:text-zinc-100"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+
+        <div className="hidden size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-lg font-bold text-[#04120c] sm:flex">
+          K°
+        </div>
+
+        <div className="min-w-0">
+          {editingName ? (
+            <div className="flex items-center gap-1">
+              <input
+                autoFocus
+                value={
+                  projectName
+                }
+                onChange={(
+                  event,
+                ) =>
+                  onNameChange(
+                    event
+                      .target
+                      .value,
+                  )
+                }
+                onKeyDown={(
+                  event,
+                ) => {
+                  if (
+                    event.key ===
+                    "Enter"
+                  ) {
+                    onSaveName();
+                  }
+
+                  if (
+                    event.key ===
+                    "Escape"
+                  ) {
+                    onCancelRename();
+                  }
+                }}
+                className="h-9 w-[180px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-zinc-100 outline-none focus:border-emerald-500/40"
+              />
+
+              <button
+                type="button"
+                onClick={
+                  onSaveName
+                }
+                className="flex size-8 items-center justify-center rounded-lg text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <Check className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={
+                onStartRename
+              }
+              className="group flex max-w-[205px] items-center gap-2 text-left sm:max-w-[380px]"
+            >
+              <span className="truncate text-[15px] font-semibold tracking-[-0.02em] text-zinc-100">
+                {projectName ||
+                  "Untitled website"}
+              </span>
+
+              <Pencil className="size-3.5 shrink-0 text-zinc-700 transition group-hover:text-zinc-400" />
+            </button>
+          )}
+
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className={`size-1.5 rounded-full ${
+                isStreaming
+                  ? "animate-pulse bg-amber-400"
+                  : deploymentUrl
+                    ? "bg-emerald-400"
+                    : "bg-zinc-700"
+              }`}
+            />
+
+            <span className="text-[10px] text-zinc-600">
+              {isStreaming
+                ? "KodarAI is working"
+                : deploymentUrl
+                  ? "Live website"
+                  : "Draft project"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={
+            onSave
+          }
+          disabled={
+            isSaving
+          }
+          className="h-9 gap-2 border-white/[0.08] bg-white/[0.025] px-3 text-xs text-zinc-300 hover:bg-white/[0.05]"
+        >
+          {isSaving ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Save className="size-3.5" />
+          )}
+
+          <span className="hidden sm:inline">
+            Save
+          </span>
+        </Button>
+
+        <Button
+          size="sm"
+          onClick={
+            onPublish
+          }
+          className="h-9 gap-2 bg-emerald-500 px-3 text-xs font-semibold text-[#04120c] hover:bg-emerald-400 sm:px-4"
+        >
+          <Rocket className="size-3.5" />
+
+          <span className="hidden sm:inline">
+            Deploy
+          </span>
+        </Button>
+      </div>
+    </header>
+  );
+}
+
+function DesktopStudio({
   files,
   currentFile,
   openFiles,
-  deploymentUrl,
-  allMessages,
+  messages,
   snapshots,
   isStreaming,
-  fileCount,
   mounted,
-  onFileSelect,
+  deploymentUrl,
+  reactProject,
+  onSelectFile,
   onCloseFile,
-  onFileChange,
+  onChangeFile,
   onCreateFile,
   onDeleteFile,
   onRenameFile,
   onSend,
-  onDeploy,
+  onPublish,
+  onUndo,
 }: {
   files:
     Record<
@@ -2692,10 +2568,7 @@ function DesktopLayout({
   openFiles:
     string[];
 
-  deploymentUrl:
-    string | null;
-
-  allMessages:
+  messages:
     StudioMessage[];
 
   snapshots:
@@ -2704,13 +2577,16 @@ function DesktopLayout({
   isStreaming:
     boolean;
 
-  fileCount:
-    number;
-
   mounted:
     boolean;
 
-  onFileSelect:
+  deploymentUrl:
+    string | null;
+
+  reactProject:
+    boolean;
+
+  onSelectFile:
     (
       path:
         string,
@@ -2719,13 +2595,15 @@ function DesktopLayout({
   onCloseFile:
     (
       event:
-        React.MouseEvent,
+        ReactMouseEvent<
+          HTMLElement
+        >,
 
       path:
         string,
     ) => void;
 
-  onFileChange:
+  onChangeFile:
     (
       path:
         string,
@@ -2755,127 +2633,242 @@ function DesktopLayout({
         string,
     ) => void;
 
-  onDeploy:
+  onPublish:
+    () => void;
+
+  onUndo:
     () => void;
 }) {
+  const [
+    sidebar,
+    setSidebar,
+  ] =
+    useState<
+      | "files"
+      | "chat"
+      | "history"
+    >(
+      "files",
+    );
+
   return (
-    <div className="flex-1 overflow-hidden">
-      <ResizablePanelGroup
-        orientation="horizontal"
-        className="h-full"
-      >
-        <ResizablePanel
-          defaultSize={
-            34
-          }
-          minSize={
-            26
-          }
-          maxSize={
-            46
-          }
-          className="flex min-h-0 flex-col"
-        >
-          <ChatPanel
-            allMessages={
-              allMessages
-            }
-            isStreaming={
-              isStreaming
-            }
-            onSend={
-              onSend
-            }
-          />
-        </ResizablePanel>
+    <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(360px,1fr)_minmax(400px,0.95fr)] overflow-hidden bg-[#080b0d]">
+      {/* Left panel */}
 
-        <ResizableHandle className="w-px cursor-col-resize bg-white/5 transition-colors duration-200 hover:bg-primary/30" />
+      <aside className="flex min-h-0 flex-col border-r border-white/[0.06] bg-[#0b0e11]">
+        <div className="flex h-11 shrink-0 items-center border-b border-white/[0.06] p-1.5">
+          {(
+            [
+              [
+                "files",
+                "Files",
+              ],
 
-        <ResizablePanel
-          defaultSize={
-            66
+              [
+                "chat",
+                "Chat",
+              ],
+
+              [
+                "history",
+                "History",
+              ],
+            ] as const
+          ).map(
+            ([
+              id,
+              label,
+            ]) => (
+              <button
+                key={
+                  id
+                }
+                type="button"
+                onClick={() =>
+                  setSidebar(
+                    id,
+                  )
+                }
+                className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition ${
+                  sidebar ===
+                  id
+                    ? "bg-white/[0.07] text-zinc-100"
+                    : "text-zinc-600 hover:text-zinc-300"
+                }`}
+              >
+                {
+                  label
+                }
+              </button>
+            ),
+          )}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {sidebar ===
+            "files" && (
+            <FileExplorer
+              files={
+                files
+              }
+              currentFile={
+                currentFile
+              }
+              onSelect={
+                onSelectFile
+              }
+              onCreate={
+                onCreateFile
+              }
+              onDelete={
+                onDeleteFile
+              }
+              onRename={
+                onRenameFile
+              }
+            />
+          )}
+
+          {sidebar ===
+            "chat" && (
+            <ChatPanel
+              messages={
+                messages
+              }
+              isStreaming={
+                isStreaming
+              }
+              onSend={
+                onSend
+              }
+              compact
+            />
+          )}
+
+          {sidebar ===
+            "history" && (
+            <HistoryPanel
+              snapshots={
+                snapshots
+              }
+            />
+          )}
+        </div>
+      </aside>
+
+      {/* Code */}
+
+      <section className="flex min-h-0 min-w-0 flex-col border-r border-white/[0.06] bg-[#090c0f]">
+        <EditorTabs
+          openFiles={
+            openFiles
           }
-          minSize={
-            40
+          currentFile={
+            currentFile
           }
-          className="flex min-h-0 flex-col"
-        >
-          <WorkspacePanel
+          onSelect={
+            onSelectFile
+          }
+          onClose={
+            onCloseFile
+          }
+        />
+
+        <div className="min-h-0 flex-1">
+          <CodeEditor
             files={
               files
             }
             currentFile={
               currentFile
             }
-            openFiles={
-              openFiles
-            }
-            deploymentUrl={
-              deploymentUrl
-            }
-            snapshots={
-              snapshots
-            }
-            fileCount={
-              fileCount
-            }
             mounted={
               mounted
             }
-            onFileSelect={
-              onFileSelect
-            }
-            onCloseFile={
-              onCloseFile
-            }
-            onFileChange={
-              onFileChange
-            }
-            onCreateFile={
-              onCreateFile
-            }
-            onDeleteFile={
-              onDeleteFile
-            }
-            onRenameFile={
-              onRenameFile
-            }
-            onDeploy={
-              onDeploy
+            onChange={
+              onChangeFile
             }
           />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </div>
+
+        <div className="flex h-9 shrink-0 items-center justify-between border-t border-white/[0.05] bg-[#0b0e11] px-3">
+          <div className="flex items-center gap-3 text-[10px] text-zinc-600">
+            <span>
+              {
+                Object.keys(
+                  files,
+                ).length
+              }{" "}
+              files
+            </span>
+
+            <span>
+              {reactProject
+                ? "React (Vite)"
+                : "Static"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              onUndo
+            }
+            className="text-[10px] text-zinc-600 transition hover:text-zinc-300"
+          >
+            Undo AI edit
+          </button>
+        </div>
+      </section>
+
+      {/* Live preview */}
+
+      <section className="flex min-h-0 min-w-0 flex-col bg-[#0b0e11]">
+        <StudioLivePreview
+          files={
+            files
+          }
+          deploymentUrl={
+            deploymentUrl
+          }
+          onDeploy={
+            onPublish
+          }
+          fileCount={
+            Object.keys(
+              files,
+            ).length
+          }
+        />
+      </section>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                MOBILE LAYOUT                               */
-/* -------------------------------------------------------------------------- */
-
-function MobileLayout({
+function MobileStudio({
   files,
   currentFile,
   openFiles,
   tab,
-  deploymentUrl,
-  allMessages,
-  snapshots,
+  filesOpen,
+  messages,
   isStreaming,
   mounted,
-  onFileSelect,
+  deploymentUrl,
+  reactProject,
+  onTabChange,
+  onToggleFiles,
+  onCloseFiles,
+  onSelectFile,
   onCloseFile,
-  onFileChange,
+  onChangeFile,
   onCreateFile,
   onDeleteFile,
   onRenameFile,
   onSend,
-  onDeploy,
+  onPublish,
+  onUndo,
 }: {
-  projectId:
-    string;
-
   files:
     Record<
       string,
@@ -2889,18 +2882,13 @@ function MobileLayout({
     string[];
 
   tab:
-    | "chat"
-    | "code"
-    | "preview";
+    MobileTab;
 
-  deploymentUrl:
-    string | null;
+  filesOpen:
+    boolean;
 
-  allMessages:
+  messages:
     StudioMessage[];
-
-  snapshots:
-    StudioSnapshot[];
 
   isStreaming:
     boolean;
@@ -2908,7 +2896,25 @@ function MobileLayout({
   mounted:
     boolean;
 
-  onFileSelect:
+  deploymentUrl:
+    string | null;
+
+  reactProject:
+    boolean;
+
+  onTabChange:
+    (
+      tab:
+        MobileTab,
+    ) => void;
+
+  onToggleFiles:
+    () => void;
+
+  onCloseFiles:
+    () => void;
+
+  onSelectFile:
     (
       path:
         string,
@@ -2917,13 +2923,15 @@ function MobileLayout({
   onCloseFile:
     (
       event:
-        React.MouseEvent,
+        ReactMouseEvent<
+          HTMLElement
+        >,
 
       path:
         string,
     ) => void;
 
-  onFileChange:
+  onChangeFile:
     (
       path:
         string,
@@ -2953,179 +2961,182 @@ function MobileLayout({
         string,
     ) => void;
 
-  onDeploy:
+  onPublish:
+    () => void;
+
+  onUndo:
     () => void;
 }) {
   return (
-    <div className="flex-1 overflow-hidden">
-      {tab ===
-        "chat" && (
-        <ChatPanel
-          allMessages={
-            allMessages
-          }
-          isStreaming={
-            isStreaming
-          }
-          onSend={
-            onSend
-          }
-        />
-      )}
+    <div className="flex min-h-0 flex-1 flex-col bg-[#080b0d]">
+      <MobileTabs
+        tab={
+          tab
+        }
+        onChange={
+          onTabChange
+        }
+      />
 
-      {tab ===
-        "code" && (
-        <div className="flex h-full flex-col bg-[#09090b]">
-          {openFiles.length >
-            0 && (
-            <div
-              className="flex shrink-0 overflow-x-auto border-b border-white/5 bg-[#0f0f12]"
-              style={{
-                scrollbarWidth:
-                  "none",
-              }}
-            >
-              {openFiles.map(
-                (
-                  path,
-                ) => (
-                  <div
-                    key={
-                      path
-                    }
-                    onClick={() =>
-                      onFileSelect(
-                        path,
-                      )
-                    }
-                    className={`group flex h-9 shrink-0 cursor-pointer items-center border-r border-white/5 px-3 font-mono text-xs transition-colors ${
-                      currentFile ===
-                      path
-                        ? "border-t border-t-primary bg-[#09090b] text-zinc-100"
-                        : "text-zinc-500 hover:text-zinc-300"
-                    }`}
-                  >
-                    <FileIcon
-                      path={
-                        path
-                      }
-                      className="mr-1.5 h-3.5 w-3.5"
-                    />
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {tab ===
+          "chat" && (
+          <ChatPanel
+            messages={
+              messages
+            }
+            isStreaming={
+              isStreaming
+            }
+            onSend={
+              onSend
+            }
+          />
+        )}
 
-                    {path
-                      .split(
-                        "/",
-                      )
-                      .pop()}
-
-                    <button
-                      onClick={(
-                        event,
-                      ) =>
-                        onCloseFile(
-                          event,
-                          path,
-                        )
-                      }
-                      className="ml-2 text-zinc-600 transition-colors hover:text-zinc-300"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ),
-              )}
-            </div>
-          )}
-
-          {mounted &&
-          currentFile &&
-          files[
-            currentFile
-          ] !==
-            undefined ? (
-            <div className="flex-1">
-              <Suspense
-                fallback={
-                  <EditorSkeleton />
+        {tab ===
+          "code" && (
+          <div className="flex h-full min-h-0 flex-col bg-[#090c0f]">
+            <div className="flex h-11 shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#0b0e11] px-2">
+              <button
+                type="button"
+                onClick={
+                  onToggleFiles
                 }
+                className="flex h-8 items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 text-[11px] text-zinc-400"
               >
-                <MonacoEditor
-                  key={
-                    currentFile
-                  }
-                  height="100%"
-                  path={
-                    currentFile
-                  }
-                  value={
-                    files[
-                      currentFile
-                    ] ||
-                    ""
-                  }
-                  onChange={(
-                    value,
-                  ) =>
-                    onFileChange(
-                      currentFile,
-                      value ??
-                        "",
-                    )
-                  }
-                  theme="vs-dark"
-                  options={{
-                    minimap: {
-                      enabled:
-                        false,
-                    },
+                <Folder className="size-3.5 text-blue-400" />
 
-                    fontSize:
-                      13,
+                Files
+              </button>
 
-                    fontFamily:
-                      "monospace",
+              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-500">
+                {currentFile ??
+                  "Select a file"}
+              </span>
 
-                    padding: {
-                      top:
-                        12,
-                    },
-
-                    scrollBeyondLastLine:
-                      false,
-
-                    automaticLayout:
-                      true,
-                  }}
-                />
-              </Suspense>
+              <button
+                type="button"
+                onClick={
+                  onUndo
+                }
+                className="px-2 text-[10px] text-zinc-600"
+              >
+                Undo
+              </button>
             </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
-              <FilesTab
+
+            <EditorTabs
+              openFiles={
+                openFiles
+              }
+              currentFile={
+                currentFile
+              }
+              onSelect={
+                onSelectFile
+              }
+              onClose={
+                onCloseFile
+              }
+            />
+
+            <div className="min-h-0 flex-1">
+              <CodeEditor
                 files={
                   files
                 }
-                onFileSelect={
-                  onFileSelect
+                currentFile={
+                  currentFile
                 }
-                onCreateFile={
-                  onCreateFile
+                mounted={
+                  mounted
                 }
-                onDeleteFile={
-                  onDeleteFile
-                }
-                onRenameFile={
-                  onRenameFile
+                onChange={
+                  onChangeFile
                 }
               />
             </div>
-          )}
-        </div>
-      )}
 
-      {tab ===
-        "preview" && (
-        <div className="flex h-full flex-col">
+            <div className="flex h-8 shrink-0 items-center justify-between border-t border-white/[0.05] px-3 text-[9px] text-zinc-700">
+              <span>
+                {
+                  Object.keys(
+                    files,
+                  ).length
+                }{" "}
+                files
+              </span>
+
+              <span>
+                {reactProject
+                  ? "React (Vite)"
+                  : "Static"}
+              </span>
+            </div>
+
+            {filesOpen && (
+              <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-[2px]">
+                <div className="absolute inset-x-2 bottom-2 top-3 flex flex-col overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0b0e11] shadow-2xl">
+                  <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
+                    <span className="text-sm font-semibold text-zinc-100">
+                      Files
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={
+                          onCreateFile
+                        }
+                        className="flex size-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-white/5"
+                      >
+                        <Plus className="size-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={
+                          onCloseFiles
+                        }
+                        className="flex size-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-white/5"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <FileExplorer
+                      files={
+                        files
+                      }
+                      currentFile={
+                        currentFile
+                      }
+                      onSelect={
+                        onSelectFile
+                      }
+                      onCreate={
+                        onCreateFile
+                      }
+                      onDelete={
+                        onDeleteFile
+                      }
+                      onRename={
+                        onRenameFile
+                      }
+                      hideHeader
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab ===
+          "preview" && (
           <StudioLivePreview
             files={
               files
@@ -3134,7 +3145,7 @@ function MobileLayout({
               deploymentUrl
             }
             onDeploy={
-              onDeploy
+              onPublish
             }
             fileCount={
               Object.keys(
@@ -3142,22 +3153,136 @@ function MobileLayout({
               ).length
             }
           />
-        </div>
-      )}
+        )}
+
+        {tab ===
+          "deploy" && (
+          <MobileDeploy
+            fileCount={
+              Object.keys(
+                files,
+              ).length
+            }
+            reactProject={
+              reactProject
+            }
+            deploymentUrl={
+              deploymentUrl
+            }
+            onPublish={
+              onPublish
+            }
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                 CHAT PANEL                                 */
-/* -------------------------------------------------------------------------- */
+function MobileTabs({
+  tab,
+  onChange,
+}: {
+  tab:
+    MobileTab;
+
+  onChange:
+    (
+      tab:
+        MobileTab,
+    ) => void;
+}) {
+  const items = [
+    {
+      id:
+        "chat" as const,
+
+      label:
+        "Chat",
+
+      icon:
+        MessageSquare,
+    },
+
+    {
+      id:
+        "code" as const,
+
+      label:
+        "Code",
+
+      icon:
+        Code2,
+    },
+
+    {
+      id:
+        "preview" as const,
+
+      label:
+        "Preview",
+
+      icon:
+        Eye,
+    },
+
+    {
+      id:
+        "deploy" as const,
+
+      label:
+        "Deploy",
+
+      icon:
+        Rocket,
+    },
+  ];
+
+  return (
+    <nav className="grid h-16 shrink-0 grid-cols-4 border-b border-white/[0.06] bg-[#080b0d] px-2">
+      {items.map(
+        (item) => (
+          <button
+            key={
+              item.id
+            }
+            type="button"
+            onClick={() =>
+              onChange(
+                item.id,
+              )
+            }
+            className={`relative flex flex-col items-center justify-center gap-1 text-[10px] transition ${
+              tab ===
+              item.id
+                ? "text-emerald-400"
+                : "text-zinc-600"
+            }`}
+          >
+            <item.icon className="size-[18px]" />
+
+            {
+              item.label
+            }
+
+            {tab ===
+              item.id && (
+              <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-emerald-400" />
+            )}
+          </button>
+        ),
+      )}
+    </nav>
+  );
+}
 
 function ChatPanel({
-  allMessages,
+  messages,
   isStreaming,
   onSend,
+  compact = false,
 }: {
-  allMessages:
+  messages:
     StudioMessage[];
 
   isStreaming:
@@ -3168,6 +3293,8 @@ function ChatPanel({
       prompt:
         string,
     ) => void;
+
+  compact?: boolean;
 }) {
   const [
     prompt,
@@ -3178,87 +3305,108 @@ function ChatPanel({
   const placeholder =
     useAnimatedPlaceholder(
       CHAT_PLACEHOLDERS,
-      2800,
+      2600,
     );
 
-  const messagesEndRef =
-    useRef<HTMLDivElement>(
-      null,
-    );
-
-  const textareaRef =
-    useRef<HTMLTextAreaElement>(
-      null,
-    );
+  const bottomRef =
+    useRef<
+      HTMLDivElement | null
+    >(null);
 
   useEffect(
     () => {
-      messagesEndRef.current?.scrollIntoView(
+      bottomRef.current?.scrollIntoView(
         {
           behavior:
             "smooth",
         },
       );
     },
-
     [
-      allMessages,
+      messages.length,
+      isStreaming,
     ],
   );
 
-  const handleSend =
+  const send =
     () => {
+      const clean =
+        prompt.trim();
+
       if (
-        !prompt.trim() ||
+        !clean ||
         isStreaming
       ) {
         return;
       }
 
-      onSend(
-        prompt.trim(),
-      );
-
       setPrompt("");
-    };
 
-  const handleQuickStart =
-    (
-      value: string,
-    ) => {
       onSend(
-        value,
+        clean,
       );
     };
 
   return (
-    <div className="flex h-full flex-col bg-[#0d0d10]">
-      <div
-        className="flex-1 overflow-y-auto"
-        style={{
-          scrollbarWidth:
-            "thin",
-
-          scrollbarColor:
-            "rgba(255,255,255,0.07) transparent",
-        }}
-      >
-        {allMessages.length ===
+    <div className="flex h-full min-h-0 flex-col bg-[#0b0e11]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        {messages.length ===
         0 ? (
-          <ChatEmptyState
-            onQuickStart={
-              handleQuickStart
-            }
-            isStreaming={
-              isStreaming
-            }
-          />
+          <div className={`mx-auto flex h-full max-w-[330px] flex-col justify-center ${
+            compact
+              ? "px-2"
+              : "px-3"
+          }`}>
+            <div className="mb-5 flex size-10 items-center justify-center rounded-xl border border-emerald-500/15 bg-emerald-500/[0.07] font-semibold text-emerald-400">
+              K
+            </div>
+
+            <h2 className={`${compact
+              ? "text-base"
+              : "text-2xl"
+            } font-semibold tracking-[-0.035em] text-zinc-100`}>
+              Let&apos;s improve
+              your website
+            </h2>
+
+            <p className="mt-2 text-xs leading-5 text-zinc-500">
+              Describe what
+              you want changed.
+              Kodarai will
+              update the
+              project files.
+            </p>
+
+            <div className="mt-5 space-y-2">
+              {QUICK_ACTIONS.map(
+                (action) => (
+                  <button
+                    key={
+                      action
+                    }
+                    type="button"
+                    disabled={
+                      isStreaming
+                    }
+                    onClick={() =>
+                      onSend(
+                        action,
+                      )
+                    }
+                    className="w-full rounded-full border border-white/[0.09] px-3 py-2 text-left text-[11px] text-zinc-300 transition hover:border-emerald-500/25 hover:bg-emerald-500/[0.04]"
+                  >
+                    {
+                      action
+                    }
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
         ) : (
-          <div className="space-y-6 px-4 py-5">
-            {allMessages.map(
-              (
-                message,
-              ) => (
+          <div className="space-y-5">
+            {messages.map(
+              (message) => (
                 <MessageBubble
                   key={
                     message.id
@@ -3275,25 +3423,16 @@ function ChatPanel({
 
             <div
               ref={
-                messagesEndRef
+                bottomRef
               }
             />
           </div>
         )}
       </div>
 
-      <div className="shrink-0 border-t border-white/5 bg-[#0d0d10] p-3">
-        <div
-          className={`relative rounded-xl border transition-all duration-200 ${
-            isStreaming
-              ? "border-primary/20 bg-white/[0.02]"
-              : "border-white/8 bg-white/[0.02] focus-within:border-primary/30"
-          }`}
-        >
+      <div className="shrink-0 border-t border-white/[0.06] p-3">
+        <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-2 focus-within:border-emerald-500/30">
           <Textarea
-            ref={
-              textareaRef
-            }
             value={
               prompt
             }
@@ -3301,7 +3440,8 @@ function ChatPanel({
               event,
             ) =>
               setPrompt(
-                event.target
+                event
+                  .target
                   .value,
               )
             }
@@ -3314,54 +3454,40 @@ function ChatPanel({
                 (
                   event.metaKey ||
                   event.ctrlKey
-                ) &&
-                prompt.trim() &&
-                !isStreaming
+                )
               ) {
                 event.preventDefault();
 
-                handleSend();
+                send();
               }
             }}
-            placeholder={
-              isStreaming
-                ? "Studio is writing…"
-                : placeholder
-            }
-            className="min-h-[80px] max-h-[180px] resize-none border-0 bg-transparent px-4 py-3.5 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-0"
             disabled={
               isStreaming
             }
+            placeholder={
+              isStreaming
+                ? "KodarAI is working…"
+                : placeholder
+            }
+            className="min-h-[72px] resize-none border-0 bg-transparent px-2 py-2 text-sm text-zinc-100 placeholder:text-zinc-700 focus-visible:ring-0"
           />
 
-          <div className="flex items-center justify-between px-3 pb-3">
-            <span className="select-none text-[11px] text-zinc-700">
-              ⌘↵ to send
-            </span>
-
+          <div className="flex justify-end">
             <Button
               size="sm"
               onClick={
-                handleSend
+                send
               }
               disabled={
                 !prompt.trim() ||
                 isStreaming
               }
-              className="h-8 gap-1.5 bg-primary px-4 text-xs font-medium text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-30"
+              className="size-9 rounded-full bg-emerald-500 p-0 text-[#04120c] hover:bg-emerald-400"
             >
               {isStreaming ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-
-                  Writing…
-                </>
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <>
-                  <Send className="h-3.5 w-3.5" />
-
-                  Send
-                </>
+                <Send className="size-4" />
               )}
             </Button>
           </div>
@@ -3370,89 +3496,6 @@ function ChatPanel({
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*                              CHAT EMPTY STATE                              */
-/* -------------------------------------------------------------------------- */
-
-function ChatEmptyState({
-  onQuickStart,
-  isStreaming,
-}: {
-  onQuickStart:
-    (
-      prompt:
-        string,
-    ) => void;
-
-  isStreaming:
-    boolean;
-}) {
-  return (
-    <div className="flex h-full min-h-[420px] flex-col items-center justify-center px-6 py-8">
-      <div className="mb-5 flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 font-mono text-sm font-semibold tracking-[0.18em] text-primary shadow-xl shadow-primary/10">
-        01
-      </div>
-
-      <h3 className="mb-1.5 text-sm font-semibold text-zinc-100">
-        What are we
-        building?
-      </h3>
-
-      <p className="mb-7 max-w-[220px] text-center text-xs leading-relaxed text-zinc-500">
-        Describe a website
-        or pick a quick
-        action to get
-        started.
-      </p>
-
-      <div className="w-full max-w-[280px] space-y-2">
-        {QUICK_STARTS.map(
-          (
-            quickStart,
-            index,
-          ) => (
-            <button
-              key={
-                quickStart.label
-              }
-              onClick={() =>
-                !isStreaming &&
-                onQuickStart(
-                  quickStart.prompt,
-                )
-              }
-              disabled={
-                isStreaming
-              }
-              className="group flex w-full items-center gap-3 rounded-xl border border-white/6 bg-white/[0.02] px-4 py-3 text-left transition-all hover:border-white/10 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <span className="shrink-0 font-mono text-[10px] text-zinc-600">
-                {String(
-                  index +
-                    1,
-                ).padStart(
-                  2,
-                  "0",
-                )}
-              </span>
-
-              <span className="flex-1 text-xs font-medium text-zinc-400 transition-colors group-hover:text-zinc-200">
-                {
-                  quickStart.label
-                }
-              </span>
-            </button>
-          ),
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                              MESSAGE BUBBLE                                */
-/* -------------------------------------------------------------------------- */
 
 function MessageBubble({
   message,
@@ -3464,17 +3507,13 @@ function MessageBubble({
   isStreaming:
     boolean;
 }) {
-  const isUser =
+  if (
     message.role ===
-    "user";
-
-  const isEmpty =
-    !message.content;
-
-  if (isUser) {
+    "user"
+  ) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[88%] break-words rounded-2xl rounded-tr-md border border-primary/20 bg-primary/15 px-4 py-3 text-sm leading-relaxed text-zinc-100">
+        <div className="max-w-[88%] rounded-2xl rounded-br-md bg-emerald-500/10 px-3 py-2.5 text-xs leading-5 text-zinc-200">
           {
             message.content
           }
@@ -3484,60 +3523,131 @@ function MessageBubble({
   }
 
   return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 font-mono text-[10px] font-semibold text-primary">
+    <div className="flex gap-2.5">
+      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-emerald-500/15 bg-emerald-500/[0.07] text-[10px] font-semibold text-emerald-400">
         K
-      </span>
+      </div>
 
-      <div className="min-w-0 flex-1 pt-0.5">
-        {isEmpty &&
+      <div className="min-w-0 flex-1">
+        {!message.content &&
         isStreaming ? (
-          <div className="flex items-center gap-1.5 py-1">
-            <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-600 [animation-delay:0ms]" />
+          <div className="flex gap-1 py-2">
+            <span className="size-1.5 animate-bounce rounded-full bg-zinc-600" />
 
-            <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-600 [animation-delay:150ms]" />
+            <span className="size-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:120ms]" />
 
-            <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-600 [animation-delay:300ms]" />
+            <span className="size-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:240ms]" />
           </div>
         ) : (
-          <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-300">
+          <p className="whitespace-pre-wrap text-xs leading-5 text-zinc-400">
             {
               message.content
             }
-          </div>
-        )}
-
-        {message.file_changes && (
-          <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-1.5 text-[11px] font-medium text-emerald-400">
-            <FileCode className="h-3 w-3" />
-
-            Files updated
-          </div>
+          </p>
         )}
       </div>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                             WORKSPACE PANEL                                */
-/* -------------------------------------------------------------------------- */
+function EditorTabs({
+  openFiles,
+  currentFile,
+  onSelect,
+  onClose,
+}: {
+  openFiles:
+    string[];
 
-function WorkspacePanel({
+  currentFile:
+    string | null;
+
+  onSelect:
+    (
+      path:
+        string,
+    ) => void;
+
+  onClose:
+    (
+      event:
+        ReactMouseEvent<
+          HTMLElement
+        >,
+
+      path:
+        string,
+    ) => void;
+}) {
+  return (
+    <div
+      className="flex h-10 shrink-0 overflow-x-auto border-b border-white/[0.06] bg-[#0b0e11]"
+      style={{
+        scrollbarWidth:
+          "none",
+      }}
+    >
+      {openFiles.map(
+        (path) => (
+          <button
+            key={
+              path
+            }
+            type="button"
+            onClick={() =>
+              onSelect(
+                path,
+              )
+            }
+            className={`group flex h-full shrink-0 items-center border-r border-white/[0.05] px-3 font-mono text-[11px] transition ${
+              currentFile ===
+              path
+                ? "border-t border-t-emerald-400 bg-[#090c0f] text-zinc-100"
+                : "text-zinc-600 hover:bg-white/[0.02] hover:text-zinc-300"
+            }`}
+          >
+            <FileIcon
+              path={
+                path
+              }
+              className="mr-1.5 size-3.5"
+            />
+
+            {path
+              .split(
+                "/",
+              )
+              .pop()}
+
+            <span
+              role="button"
+              tabIndex={
+                0
+              }
+              onClick={(
+                event,
+              ) =>
+                onClose(
+                  event,
+                  path,
+                )
+              }
+              className="ml-2 rounded p-0.5 text-zinc-700 opacity-0 group-hover:opacity-100"
+            >
+              <X className="size-3" />
+            </span>
+          </button>
+        ),
+      )}
+    </div>
+  );
+}
+
+function CodeEditor({
   files,
   currentFile,
-  openFiles,
-  deploymentUrl,
-  snapshots,
-  fileCount,
   mounted,
-  onFileSelect,
-  onCloseFile,
-  onDeploy,
-  onFileChange,
-  onCreateFile,
-  onDeleteFile,
-  onRenameFile,
+  onChange,
 }: {
   files:
     Record<
@@ -3548,37 +3658,10 @@ function WorkspacePanel({
   currentFile:
     string | null;
 
-  openFiles:
-    string[];
-
-  deploymentUrl:
-    string | null;
-
-  snapshots:
-    StudioSnapshot[];
-
-  fileCount:
-    number;
-
   mounted:
     boolean;
 
-  onFileSelect:
-    (
-      path:
-        string,
-    ) => void;
-
-  onCloseFile:
-    (
-      event:
-        React.MouseEvent,
-
-      path:
-        string,
-    ) => void;
-
-  onFileChange:
+  onChange:
     (
       path:
         string,
@@ -3586,367 +3669,111 @@ function WorkspacePanel({
       content:
         string,
     ) => void;
-
-  onCreateFile:
-    () => void;
-
-  onDeleteFile:
-    (
-      path:
-        string,
-    ) => void;
-
-  onRenameFile:
-    (
-      path:
-        string,
-    ) => void;
-
-  onDeploy:
-    () => void;
 }) {
-  const [
-    activeTab,
-    setActiveTab,
-  ] =
-    useState<
-      | "preview"
-      | "code"
-      | "files"
-      | "history"
-    >(
-      "preview",
+  if (!mounted) {
+    return (
+      <EditorSkeleton />
     );
+  }
 
-  const tabs =
-    [
-      {
-        id:
-          "preview" as const,
+  if (
+    !currentFile ||
+    files[
+      currentFile
+    ] ===
+      undefined
+  ) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[#090c0f]">
+        <div className="text-center">
+          <Code2 className="mx-auto mb-3 size-8 text-zinc-800" />
 
-        icon:
-          Eye,
-
-        label:
-          "Preview",
-      },
-
-      {
-        id:
-          "code" as const,
-
-        icon:
-          Code2,
-
-        label:
-          "Code",
-      },
-
-      {
-        id:
-          "files" as const,
-
-        icon:
-          FolderGit2,
-
-        label:
-          "Files",
-      },
-
-      {
-        id:
-          "history" as const,
-
-        icon:
-          History,
-
-        label:
-          "History",
-      },
-    ];
+          <p className="text-xs text-zinc-600">
+            Select a file
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-full flex-col bg-[#0f0f12]">
-      <div className="flex h-10 shrink-0 items-center border-b border-white/5 bg-[#0f0f12] px-1">
-        <div className="flex h-full flex-1 items-center">
-          {tabs.map(
-            (
-              tab,
-            ) => (
-              <button
-                key={
-                  tab.id
-                }
-                onClick={() =>
-                  setActiveTab(
-                    tab.id,
-                  )
-                }
-                className={`relative flex h-full items-center gap-1.5 px-3.5 text-xs font-medium transition-colors ${
-                  activeTab ===
-                  tab.id
-                    ? "text-zinc-100"
-                    : "text-zinc-600 hover:text-zinc-400"
-                }`}
-              >
-                <tab.icon className="h-3.5 w-3.5" />
+    <Suspense
+      fallback={
+        <EditorSkeleton />
+      }
+    >
+      <MonacoEditor
+        key={
+          currentFile
+        }
+        height="100%"
+        path={
+          currentFile
+        }
+        value={
+          files[
+            currentFile
+          ]
+        }
+        onChange={(
+          value,
+        ) =>
+          onChange(
+            currentFile,
 
-                {
-                  tab.label
-                }
+            value ??
+              "",
+          )
+        }
+        theme="vs-dark"
+        options={{
+          minimap: {
+            enabled:
+              false,
+          },
 
-                {activeTab ===
-                  tab.id && (
-                  <span className="absolute bottom-0 left-2 right-2 h-px rounded-full bg-primary" />
-                )}
-              </button>
-            ),
-          )}
-        </div>
+          automaticLayout:
+            true,
 
-        {deploymentUrl && (
-          <a
-            href={
-              deploymentUrl
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 pr-3 text-xs font-medium text-emerald-400 transition-colors hover:text-emerald-300"
-          >
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          fontSize:
+            13,
 
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            </span>
+          lineHeight:
+            23,
 
-            Live
+          fontFamily:
+            "Geist Mono, JetBrains Mono, SFMono-Regular, Menlo, monospace",
 
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
-      </div>
+          padding: {
+            top:
+              14,
+          },
 
-      <div className="flex-1 overflow-hidden">
-        {activeTab ===
-          "preview" && (
-          <StudioLivePreview
-            files={
-              files
-            }
-            deploymentUrl={
-              deploymentUrl
-            }
-            onDeploy={
-              onDeploy
-            }
-            fileCount={
-              fileCount
-            }
-          />
-        )}
+          scrollBeyondLastLine:
+            false,
 
-        {activeTab ===
-          "code" && (
-          <div className="flex h-full flex-col bg-[#09090b]">
-            {openFiles.length >
-              0 && (
-              <div
-                className="flex shrink-0 overflow-x-auto border-b border-white/5 bg-[#0f0f12]"
-                style={{
-                  scrollbarWidth:
-                    "none",
-                }}
-              >
-                {openFiles.map(
-                  (
-                    path,
-                  ) => (
-                    <div
-                      key={
-                        path
-                      }
-                      onClick={() =>
-                        onFileSelect(
-                          path,
-                        )
-                      }
-                      className={`group flex h-9 shrink-0 cursor-pointer items-center border-r border-white/5 px-3.5 font-mono text-xs transition-colors ${
-                        currentFile ===
-                        path
-                          ? "border-t border-t-primary bg-[#09090b] text-zinc-100"
-                          : "text-zinc-500 hover:bg-white/3 hover:text-zinc-300"
-                      }`}
-                    >
-                      <FileIcon
-                        path={
-                          path
-                        }
-                        className="mr-1.5 h-3.5 w-3.5"
-                      />
+          smoothScrolling:
+            true,
 
-                      {path
-                        .split(
-                          "/",
-                        )
-                        .pop()}
+          cursorBlinking:
+            "smooth",
 
-                      <button
-                        onClick={(
-                          event,
-                        ) =>
-                          onCloseFile(
-                            event,
-                            path,
-                          )
-                        }
-                        className="ml-2.5 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-60 hover:!opacity-100"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ),
-                )}
-              </div>
-            )}
-
-            <div className="relative flex-1 overflow-hidden">
-              {mounted &&
-              currentFile &&
-              files[
-                currentFile
-              ] !==
-                undefined ? (
-                <Suspense
-                  fallback={
-                    <EditorSkeleton />
-                  }
-                >
-                  <MonacoEditor
-                    key={
-                      currentFile
-                    }
-                    height="100%"
-                    path={
-                      currentFile
-                    }
-                    value={
-                      files[
-                        currentFile
-                      ] ||
-                      ""
-                    }
-                    onChange={(
-                      value,
-                    ) =>
-                      onFileChange(
-                        currentFile,
-                        value ??
-                          "",
-                      )
-                    }
-                    theme="vs-dark"
-                    options={{
-                      minimap: {
-                        enabled:
-                          false,
-                      },
-
-                      fontSize:
-                        13,
-
-                      fontFamily:
-                        "Geist Mono, JetBrains Mono, monospace",
-
-                      padding: {
-                        top:
-                          16,
-                      },
-
-                      scrollBeyondLastLine:
-                        false,
-
-                      lineHeight:
-                        24,
-
-                      smoothScrolling:
-                        true,
-
-                      cursorBlinking:
-                        "smooth",
-
-                      automaticLayout:
-                        true,
-                    }}
-                  />
-                </Suspense>
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-                  <Code2 className="mb-3 h-10 w-10 text-zinc-800" />
-
-                  <p className="text-sm text-zinc-600">
-                    Select a
-                    file from
-                    the Files
-                    tab
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab ===
-          "files" && (
-          <FilesTab
-            files={
-              files
-            }
-            onFileSelect={(
-              path,
-            ) => {
-              onFileSelect(
-                path,
-              );
-
-              setActiveTab(
-                "code",
-              );
-            }}
-            onCreateFile={
-              onCreateFile
-            }
-            onDeleteFile={
-              onDeleteFile
-            }
-            onRenameFile={
-              onRenameFile
-            }
-          />
-        )}
-
-        {activeTab ===
-          "history" && (
-          <HistoryTab
-            snapshots={
-              snapshots
-            }
-          />
-        )}
-      </div>
-    </div>
+          wordWrap:
+            "off",
+        }}
+      />
+    </Suspense>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                  FILES TAB                                 */
-/* -------------------------------------------------------------------------- */
-
-function FilesTab({
+function FileExplorer({
   files,
-  onFileSelect,
-  onCreateFile,
-  onDeleteFile,
-  onRenameFile,
+  currentFile,
+  onSelect,
+  onCreate,
+  onDelete,
+  onRename,
+  hideHeader = false,
 }: {
   files:
     Record<
@@ -3954,235 +3781,340 @@ function FilesTab({
       string
     >;
 
-  onFileSelect:
+  currentFile:
+    string | null;
+
+  onSelect:
     (
       path:
         string,
     ) => void;
 
-  onCreateFile:
+  onCreate:
     () => void;
 
-  onDeleteFile:
+  onDelete:
     (
       path:
         string,
     ) => void;
 
-  onRenameFile:
+  onRename:
+    (
+      path:
+        string,
+    ) => void;
+
+  hideHeader?: boolean;
+}) {
+  const tree =
+    useMemo(
+      () =>
+        buildTree(
+          Object.keys(
+            files,
+          ),
+        ),
+      [files],
+    );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {!hideHeader && (
+        <div className="flex h-10 shrink-0 items-center justify-between px-3">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">
+            Files
+          </span>
+
+          <button
+            type="button"
+            onClick={
+              onCreate
+            }
+            className="flex size-7 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"
+          >
+            <Plus className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-3">
+        {tree.length ===
+        0 ? (
+          <div className="px-4 py-10 text-center text-xs text-zinc-700">
+            No files yet
+          </div>
+        ) : (
+          tree.map(
+            (node) => (
+              <TreeItem
+                key={
+                  node.path
+                }
+                node={
+                  node
+                }
+                currentFile={
+                  currentFile
+                }
+                depth={
+                  0
+                }
+                onSelect={
+                  onSelect
+                }
+                onDelete={
+                  onDelete
+                }
+                onRename={
+                  onRename
+                }
+              />
+            ),
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TreeItem({
+  node,
+  currentFile,
+  depth,
+  onSelect,
+  onDelete,
+  onRename,
+}: {
+  node:
+    TreeNode;
+
+  currentFile:
+    string | null;
+
+  depth:
+    number;
+
+  onSelect:
+    (
+      path:
+        string,
+    ) => void;
+
+  onDelete:
+    (
+      path:
+        string,
+    ) => void;
+
+  onRename:
     (
       path:
         string,
     ) => void;
 }) {
-  const paths =
-    Object.keys(
-      files,
-    ).sort();
+  const [
+    open,
+    setOpen,
+  ] =
+    useState(
+      true,
+    );
 
-  const protectedFiles =
-    new Set([
-      "index.html",
-      "package.json",
-      "src/main.jsx",
-      "src/App.jsx",
-    ]);
+  if (
+    node.kind ===
+    "folder"
+  ) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() =>
+            setOpen(
+              (current) =>
+                !current,
+            )
+          }
+          className="flex h-8 w-full items-center rounded-md pr-2 text-left text-[11px] text-zinc-500 transition hover:bg-white/[0.035] hover:text-zinc-300"
+          style={{
+            paddingLeft:
+              `${
+                8 +
+                depth *
+                  12
+              }px`,
+          }}
+        >
+          {open ? (
+            <ChevronDown className="mr-1 size-3 shrink-0" />
+          ) : (
+            <ChevronRight className="mr-1 size-3 shrink-0" />
+          )}
+
+          {open ? (
+            <FolderOpen className="mr-1.5 size-3.5 shrink-0 text-blue-400" />
+          ) : (
+            <Folder className="mr-1.5 size-3.5 shrink-0 text-blue-400" />
+          )}
+
+          <span className="truncate">
+            {
+              node.name
+            }
+          </span>
+        </button>
+
+        {open &&
+          node.children.map(
+            (child) => (
+              <TreeItem
+                key={
+                  child.path
+                }
+                node={
+                  child
+                }
+                currentFile={
+                  currentFile
+                }
+                depth={
+                  depth +
+                  1
+                }
+                onSelect={
+                  onSelect
+                }
+                onDelete={
+                  onDelete
+                }
+                onRename={
+                  onRename
+                }
+              />
+            ),
+          )}
+      </div>
+    );
+  }
+
+  const protectedFile =
+    REQUIRED_FILES.has(
+      node.path,
+    );
 
   return (
     <div
-      className="h-full overflow-y-auto bg-[#0f0f12]"
+      className={`group flex h-8 items-center rounded-md pr-1 transition ${
+        currentFile ===
+        node.path
+          ? "bg-white/[0.07]"
+          : "hover:bg-white/[0.035]"
+      }`}
       style={{
-        scrollbarWidth:
-          "thin",
-
-        scrollbarColor:
-          "rgba(255,255,255,0.07) transparent",
+        paddingLeft:
+          `${
+            24 +
+            depth *
+              12
+          }px`,
       }}
     >
-      <div className="flex items-center justify-between px-3 pb-1 pt-3">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-          Project files
-        </span>
-
-        <button
-          type="button"
-          onClick={
-            onCreateFile
+      <button
+        type="button"
+        onClick={() =>
+          onSelect(
+            node.path,
+          )
+        }
+        className="flex min-w-0 flex-1 items-center text-left"
+      >
+        <FileIcon
+          path={
+            node.path
           }
-          className="rounded px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/10"
+          className="mr-1.5 size-3.5 shrink-0"
+        />
+
+        <span
+          className={`truncate font-mono text-[11px] ${
+            currentFile ===
+            node.path
+              ? "text-zinc-100"
+              : "text-zinc-500"
+          }`}
         >
-          New file
-        </button>
-      </div>
+          {
+            node.name
+          }
+        </span>
+      </button>
 
-      {paths.length ===
-      0 ? (
-        <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-          <FolderGit2 className="mb-3 h-10 w-10 text-zinc-800" />
+      {!protectedFile && (
+        <div className="hidden shrink-0 items-center group-hover:flex">
+          <button
+            type="button"
+            onClick={() =>
+              onRename(
+                node.path,
+              )
+            }
+            className="rounded p-1 text-zinc-700 hover:bg-white/5 hover:text-zinc-300"
+          >
+            <Pencil className="size-3" />
+          </button>
 
-          <p className="max-w-[180px] text-xs leading-relaxed text-zinc-600">
-            No files yet
-            — ask Studio
-            to build
-            something.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-1 space-y-px px-1 pb-3">
-          {paths.map(
-            (
-              path,
-            ) => {
-              const parts =
-                path.split(
-                  "/",
-                );
-
-              const name =
-                parts.pop() ||
-                path;
-
-              const protectedFile =
-                protectedFiles.has(
-                  path,
-                );
-
-              return (
-                <div
-                  key={
-                    path
-                  }
-                  onClick={() =>
-                    onFileSelect(
-                      path,
-                    )
-                  }
-                  className="group flex cursor-pointer items-center rounded-md py-1.5 transition-colors hover:bg-white/5"
-                  style={{
-                    paddingLeft:
-                      `${parts.length * 14 + 10}px`,
-
-                    paddingRight:
-                      "10px",
-                  }}
-                >
-                  <FileIcon
-                    path={
-                      path
-                    }
-                    className="mr-2 h-3.5 w-3.5 shrink-0"
-                  />
-
-                  <span className="truncate font-mono text-[12px] text-zinc-500 transition-colors group-hover:text-zinc-200">
-                    {
-                      name
-                    }
-                  </span>
-
-                  {!protectedFile && (
-                    <div className="ml-auto hidden items-center gap-1 group-hover:flex">
-                      <button
-                        type="button"
-                        onClick={(
-                          event,
-                        ) => {
-                          event.stopPropagation();
-
-                          onRenameFile(
-                            path,
-                          );
-                        }}
-                        className="rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
-                      >
-                        Rename
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(
-                          event,
-                        ) => {
-                          event.stopPropagation();
-
-                          onDeleteFile(
-                            path,
-                          );
-                        }}
-                        className="rounded px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-red-500/10"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            },
-          )}
+          <button
+            type="button"
+            onClick={() =>
+              onDelete(
+                node.path,
+              )
+            }
+            className="rounded p-1 text-zinc-700 hover:bg-red-500/10 hover:text-red-400"
+          >
+            <X className="size-3" />
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                 HISTORY TAB                                */
-/* -------------------------------------------------------------------------- */
-
-function HistoryTab({
+function HistoryPanel({
   snapshots,
 }: {
   snapshots:
     StudioSnapshot[];
 }) {
   return (
-    <div
-      className="h-full overflow-y-auto bg-[#0f0f12] p-4"
-      style={{
-        scrollbarWidth:
-          "thin",
-
-        scrollbarColor:
-          "rgba(255,255,255,0.07) transparent",
-      }}
-    >
-      <div className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-        Snapshots
-      </div>
-
+    <div className="h-full overflow-y-auto px-3 py-4">
       {snapshots.length ===
       0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <History className="mb-3 h-10 w-10 text-zinc-800" />
+        <div className="py-10 text-center">
+          <History className="mx-auto mb-3 size-7 text-zinc-800" />
 
-          <p className="max-w-[180px] text-xs leading-relaxed text-zinc-600">
-            Each AI edit
-            creates a
-            snapshot you
-            can browse
-            here.
+          <p className="text-xs text-zinc-700">
+            No snapshots
+            yet
           </p>
         </div>
       ) : (
-        <div className="relative space-y-5 border-l border-white/6 pl-4">
+        <div className="space-y-4">
           {snapshots.map(
-            (
-              snapshot,
-            ) => (
+            (snapshot) => (
               <div
                 key={
                   snapshot.id
                 }
-                className="group relative"
+                className="border-l border-white/[0.07] pl-3"
               >
-                <div className="absolute -left-[17px] top-1 h-2.5 w-2.5 rounded-full border-2 border-zinc-700 bg-[#0f0f12] transition-colors group-hover:border-primary" />
-
-                <p className="line-clamp-2 text-sm font-medium leading-snug text-zinc-300">
+                <p className="line-clamp-2 text-[11px] leading-4 text-zinc-400">
                   {
                     snapshot.label
                   }
                 </p>
 
-                <p className="mt-1 text-[11px] text-zinc-600">
+                <p className="mt-1 text-[9px] text-zinc-700">
                   {formatDistanceToNow(
                     new Date(
                       snapshot.created_at,
@@ -4192,19 +4124,6 @@ function HistoryTab({
                         true,
                     },
                   )}
-
-                  <span className="mx-1.5 text-zinc-700">
-                    ·
-                  </span>
-
-                  {
-                    snapshot.files_count
-                  }{" "}
-                  file
-                  {snapshot.files_count !==
-                  1
-                    ? "s"
-                    : ""}
                 </p>
               </div>
             ),
@@ -4215,16 +4134,126 @@ function HistoryTab({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                DEPLOY SHEET                                */
-/* -------------------------------------------------------------------------- */
+function MobileDeploy({
+  fileCount,
+  reactProject,
+  deploymentUrl,
+  onPublish,
+}: {
+  fileCount:
+    number;
 
-function DeploySheet({
+  reactProject:
+    boolean;
+
+  deploymentUrl:
+    string | null;
+
+  onPublish:
+    () => void;
+}) {
+  return (
+    <div className="flex h-full items-center justify-center overflow-y-auto bg-[#0b0e11] px-5 py-8">
+      <div className="w-full max-w-[340px]">
+        <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-[20px] border border-white/[0.07] bg-white/[0.035]">
+          <Rocket className="size-7 text-zinc-200" />
+        </div>
+
+        <h2 className="text-center text-2xl font-semibold tracking-[-0.04em] text-zinc-100">
+          Ready to
+          publish?
+        </h2>
+
+        <p className="mx-auto mt-2 max-w-[280px] text-center text-sm leading-6 text-zinc-500">
+          Deploy the
+          website and
+          share it with
+          your client.
+        </p>
+
+        <div className="mt-7 overflow-hidden rounded-2xl border border-white/[0.07]">
+          <StatusRow
+            label="Project files"
+            value={`${fileCount} files`}
+          />
+
+          <StatusRow
+            label="Framework"
+            value={
+              reactProject
+                ? "React + Vite"
+                : "Static"
+            }
+          />
+
+          <StatusRow
+            label="Status"
+            value={
+              deploymentUrl
+                ? "Live"
+                : fileCount >
+                    0
+                  ? "Ready"
+                  : "Waiting"
+            }
+          />
+        </div>
+
+        <Button
+          onClick={
+            onPublish
+          }
+          disabled={
+            fileCount ===
+            0
+          }
+          className="mt-6 h-12 w-full rounded-xl bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
+        >
+          <Rocket className="mr-2 size-4" />
+
+          Publish to web
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function StatusRow({
+  label,
+  value,
+}: {
+  label:
+    string;
+
+  value:
+    string;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5 last:border-b-0">
+      <span className="text-xs text-zinc-500">
+        {
+          label
+        }
+      </span>
+
+      <span className="text-xs font-medium text-zinc-300">
+        {
+          value
+        }
+      </span>
+    </div>
+  );
+}
+
+function DeployDialog({
   projectId,
   projectName,
   fileCount,
+  reactProject,
+  runDeploy,
+  runDeploymentStatus,
   onClose,
-  onDeployed,
+  onReady,
 }: {
   projectId:
     string;
@@ -4235,26 +4264,43 @@ function DeploySheet({
   fileCount:
     number;
 
+  reactProject:
+    boolean;
+
+  runDeploy:
+    (
+      input:
+        any,
+    ) =>
+      Promise<any>;
+
+  runDeploymentStatus:
+    (
+      input:
+        any,
+    ) =>
+      Promise<any>;
+
   onClose:
     () => void;
 
-  onDeployed:
+  onReady:
     (
       url:
         string,
     ) => void;
 }) {
   const [
-    deploying,
-    setDeploying,
+    publishing,
+    setPublishing,
   ] =
     useState(
       false,
     );
 
   const [
-    waitingForDeployment,
-    setWaitingForDeployment,
+    checking,
+    setChecking,
   ] =
     useState(
       false,
@@ -4268,28 +4314,16 @@ function DeploySheet({
       string | null
     >(null);
 
-  const runDeploy =
-    useServerFn(
-      deployBusinessWebsite,
-    );
-
-  const runDeploymentStatus =
-    useServerFn(
-      getBusinessWebsiteDeploymentStatus,
-    );
-
   useEffect(
     () => {
-      if (
-        !waitingForDeployment
-      ) {
+      if (!checking) {
         return;
       }
 
       let cancelled =
         false;
 
-      const checkStatus =
+      const check =
         async () => {
           try {
             const result =
@@ -4312,41 +4346,33 @@ function DeploySheet({
               "error" in
               result
             ) {
-              setWaitingForDeployment(
+              setChecking(
                 false,
               );
 
               setError(
-                result.message ||
-                  "Could not check the website status.",
+                result.message,
               );
 
               return;
             }
 
-            const url =
-              (
-                result as {
-                  url?: unknown;
-                }
-              ).url;
-
             if (
               result.status ===
                 "ready" &&
-              typeof url ===
+              typeof result.url ===
                 "string"
             ) {
-              setWaitingForDeployment(
+              setChecking(
                 false,
               );
 
               toast.success(
-                "Your website is live!",
+                "Website published.",
               );
 
-              onDeployed(
-                url,
+              onReady(
+                result.url,
               );
 
               return;
@@ -4356,47 +4382,37 @@ function DeploySheet({
               result.status ===
               "error"
             ) {
-              setWaitingForDeployment(
+              setChecking(
                 false,
               );
 
-              const detail =
-                (
-                  result as {
-                    detail?: unknown;
-                  }
-                ).detail;
-
               setError(
-                typeof detail ===
-                  "string"
-                  ? detail
-                  : "Vercel could not build this website.",
+                result.detail ||
+                  "Vercel could not build this project.",
               );
             }
           } catch {
             if (
               !cancelled
             ) {
-              setWaitingForDeployment(
+              setChecking(
                 false,
               );
 
               setError(
-                "Could not check the website status. Try again shortly.",
+                "Could not check deployment status.",
               );
             }
           }
         };
 
-      void checkStatus();
+      void check();
 
       const interval =
         window.setInterval(
           () =>
-            void checkStatus(),
-
-          5000,
+            void check(),
+          4500,
         );
 
       return () => {
@@ -4408,18 +4424,17 @@ function DeploySheet({
         );
       };
     },
-
     [
-      onDeployed,
+      checking,
       projectId,
       runDeploymentStatus,
-      waitingForDeployment,
+      onReady,
     ],
   );
 
-  const handleDeploy =
+  const publish =
     async () => {
-      setDeploying(
+      setPublishing(
         true,
       );
 
@@ -4428,143 +4443,110 @@ function DeploySheet({
       );
 
       try {
-        const data =
-          await runDeploy(
-            {
-              data: {
-                project_id:
-                  projectId,
-              },
+        const result =
+          await runDeploy({
+            data: {
+              project_id:
+                projectId,
             },
-          );
+          });
 
         if (
           "error" in
-          data
+          result
         ) {
           setError(
-            data.error ===
-            "vercel_not_configured"
-              ? "Kodarai's managed publishing service has not been configured yet."
-              : data.message ||
-                  "Deployment failed.",
+            result.message ||
+              "Deployment failed.",
           );
 
           return;
         }
 
         if (
-          data.status ===
+          result.status ===
             "ready" &&
-          data.url
+          result.url
         ) {
           toast.success(
-            "Your website is live!",
+            "Website published.",
           );
 
-          onDeployed(
-            data.url,
+          onReady(
+            result.url,
           );
-        } else {
-          setWaitingForDeployment(
-            true,
-          );
+
+          return;
         }
+
+        setChecking(
+          true,
+        );
       } catch {
         setError(
-          "Network error. Try again.",
+          "Could not publish this website.",
         );
       } finally {
-        setDeploying(
+        setPublishing(
           false,
         );
       }
     };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-md"
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-5">
+      <button
+        type="button"
+        aria-label="Close"
         onClick={
           onClose
         }
+        className="absolute inset-0"
       />
 
-      <div className="relative w-full max-w-md rounded-2xl border border-white/8 bg-[#18181f] p-6 shadow-2xl shadow-black/50">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/5">
-              <svg
-                viewBox="0 0 76 65"
-                className="h-4 w-4 fill-zinc-50"
-              >
-                <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
-              </svg>
-            </div>
+      <div className="relative z-10 w-full max-w-[430px] rounded-t-[26px] border border-white/[0.08] bg-[#101418] p-5 shadow-2xl sm:rounded-[22px]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold tracking-[-0.03em] text-zinc-100">
+              Publish website
+            </h2>
 
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-100">
-                Publish
-                Website
-              </h2>
-
-              <p className="mt-0.5 max-w-[200px] truncate text-xs text-zinc-500">
-                {
-                  projectName
-                }
-              </p>
-            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              {
+                projectName
+              }
+            </p>
           </div>
 
           <button
+            type="button"
             onClick={
               onClose
             }
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+            className="flex size-8 items-center justify-center rounded-full text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
           >
-            <X className="h-4 w-4" />
+            <X className="size-4" />
           </button>
         </div>
 
-        <div className="mb-6 space-y-2.5">
-          <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 p-3.5">
-            <span className="text-sm text-zinc-400">
-              Project
-              files
-            </span>
+        <div className="mt-5 overflow-hidden rounded-xl border border-white/[0.07]">
+          <StatusRow
+            label="Files"
+            value={`${fileCount}`}
+          />
 
-            <span className="font-mono text-sm font-medium text-zinc-100">
-              {
-                fileCount
-              }
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 p-3.5">
-            <span className="text-sm text-zinc-400">
-              Framework
-            </span>
-
-            <span className="text-xs text-zinc-500">
-              React +
-              Vite
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 p-3.5">
-            <span className="text-sm text-zinc-400">
-              Publishing
-            </span>
-
-            <span className="text-xs text-zinc-500">
-              Managed by
-              Kodarai
-            </span>
-          </div>
+          <StatusRow
+            label="Framework"
+            value={
+              reactProject
+                ? "React + Vite"
+                : "Static"
+            }
+          />
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="mt-4 rounded-xl border border-red-500/15 bg-red-500/[0.06] px-3 py-2.5 text-xs leading-5 text-red-300">
             {
               error
             }
@@ -4573,58 +4555,43 @@ function DeploySheet({
 
         <Button
           onClick={
-            handleDeploy
+            publish
           }
           disabled={
-            deploying ||
-            waitingForDeployment ||
+            publishing ||
+            checking ||
             fileCount ===
               0
           }
-          className="h-10 w-full gap-2 bg-zinc-50 font-semibold text-zinc-950 shadow-lg shadow-black/30 transition-all hover:bg-white"
+          className="mt-5 h-11 w-full rounded-xl bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
         >
-          {deploying ||
-          waitingForDeployment ? (
+          {publishing ||
+          checking ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 size-4 animate-spin" />
 
-              {waitingForDeployment
-                ? "Building React website…"
+              {checking
+                ? "Building website…"
                 : "Publishing…"}
             </>
           ) : (
             <>
-              <Rocket className="h-4 w-4" />
+              <Rocket className="mr-2 size-4" />
 
-              Publish
-              Website
+              Publish to web
             </>
           )}
         </Button>
 
-        <p className="mt-3 text-center text-xs text-zinc-600">
-          No GitHub or
-          Vercel account
-          is needed.
-          Kodarai
-          publishes
-          through its
-          managed
-          deployment
-          service.
-        </p>
+        <div className="h-[max(2px,env(safe-area-inset-bottom))] sm:hidden" />
       </div>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                              SHARED HELPERS                                */
-/* -------------------------------------------------------------------------- */
-
 function FileIcon({
   path,
-  className,
+  className = "",
 }: {
   path:
     string;
@@ -4633,13 +4600,13 @@ function FileIcon({
     string;
 }) {
   if (
-    /\.(tsx?|jsx?)$/.test(
+    /\.(jsx?|tsx?)$/i.test(
       path,
     )
   ) {
     return (
       <FileCode
-        className={`${className ?? ""} text-blue-400`}
+        className={`${className} text-cyan-400`}
       />
     );
   }
@@ -4651,7 +4618,7 @@ function FileIcon({
   ) {
     return (
       <FileJson
-        className={`${className ?? ""} text-yellow-400`}
+        className={`${className} text-amber-400`}
       />
     );
   }
@@ -4663,21 +4630,21 @@ function FileIcon({
   ) {
     return (
       <FileType2
-        className={`${className ?? ""} text-emerald-400`}
+        className={`${className} text-blue-400`}
       />
     );
   }
 
   return (
     <File
-      className={`${className ?? ""} text-zinc-500`}
+      className={`${className} text-zinc-500`}
     />
   );
 }
 
 function EditorSkeleton() {
   return (
-    <div className="flex h-full items-center justify-center bg-[#09090b]">
+    <div className="flex h-full items-center justify-center bg-[#090c0f]">
       <Loader2 className="size-5 animate-spin text-zinc-700" />
     </div>
   );
