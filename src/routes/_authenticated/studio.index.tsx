@@ -2,21 +2,23 @@ import {
   createFileRoute,
   Link,
 } from "@tanstack/react-router";
+import {
+  useMemo,
+  useState,
+} from "react";
 
 import {
   ArrowRight,
   ClipboardList,
   FolderOpen,
-  LayoutTemplate,
+  Globe2,
   PenLine,
+  Plus,
   Search,
   Send,
   Settings2,
   Video,
-  Plus,
-  Globe2,
-  Sparkles,
-  FileText,
+  X,
 } from "lucide-react";
 
 import type {
@@ -42,9 +44,7 @@ export const Route =
         },
       ],
     }),
-
-    component:
-      StudioPage,
+    component: StudioPage,
   });
 
 type StudioTool = {
@@ -55,101 +55,139 @@ type StudioTool = {
   icon: LucideIcon;
 };
 
-const PROJECT_TOOLS: StudioTool[] =
-  [
-    {
-      title:
-        "New Website",
-      description:
-        "Create a client-ready sample website.",
-      href: "/studio/new",
-      category:
-        "Website",
-      icon: Globe2,
-    },
-    {
-      title:
-        "Content Studio",
-      description:
-        "Draft scripts, titles and creative briefs.",
-      href: "/studio/content",
-      category:
-        "Content",
-      icon: PenLine,
-    },
-    {
-      title:
-        "Channel Review",
-      description:
-        "Review a channel and find opportunities.",
-      href: "/studio/channel-review",
-      category:
-        "Strategy",
-      icon: ClipboardList,
-    },
-  ];
+const QUICK_PROJECTS: StudioTool[] = [
+  {
+    title: "New Website",
+    description:
+      "Create a client-ready sample website.",
+    href: "/studio/new",
+    category: "Website",
+    icon: Globe2,
+  },
+  {
+    title: "Content Studio",
+    description:
+      "Draft scripts, titles and creative briefs.",
+    href: "/studio/content",
+    category: "Content",
+    icon: PenLine,
+  },
+  {
+    title: "Channel Review",
+    description:
+      "Review a channel and find opportunities.",
+    href: "/studio/channel-review",
+    category: "Strategy",
+    icon: ClipboardList,
+  },
+];
 
-const CONTENT_TOOLS: StudioTool[] =
-  [
-    {
-      title:
-        "Social Content",
-      description:
-        "Plan useful posts for your platforms.",
-      href: "/social-content",
-      category:
-        "Publishing",
-      icon: Send,
-    },
-    {
-      title:
-        "Video Ideas",
-      description:
-        "Generate topics, hooks and titles.",
-      href: "/studio/ideas",
-      category:
-        "Planning",
-      icon: Video,
-    },
-    {
-      title:
-        "Channel Search",
-      description:
-        "Research channels, videos and competitors.",
-      href: "/studio/scraper",
-      category:
-        "Research",
-      icon: Search,
-    },
-    {
-      title:
-        "Automations",
-      description:
-        "Create repeatable research workflows.",
-      href: "/studio/automations",
-      category:
-        "Systems",
-      icon: Settings2,
-    },
-    {
-      title:
-        "My Research",
-      description:
-        "Return to saved research and ideas.",
-      href: "/studio/research",
-      category:
-        "Library",
-      icon: FolderOpen,
-    },
-  ];
+const STUDIO_TOOLS: StudioTool[] = [
+  {
+    title: "Social Content",
+    description:
+      "Plan useful posts for your platforms.",
+    href: "/social-content",
+    category: "Publishing",
+    icon: Send,
+  },
+  {
+    title: "Video Ideas",
+    description:
+      "Generate topics, hooks and titles.",
+    href: "/studio/ideas",
+    category: "Planning",
+    icon: Video,
+  },
+  {
+    title: "Channel Search",
+    description:
+      "Research channels, videos and competitors.",
+    href: "/studio/scraper",
+    category: "Research",
+    icon: Search,
+  },
+  {
+    title: "Automations",
+    description:
+      "Create repeatable research workflows.",
+    href: "/studio/automations",
+    category: "Systems",
+    icon: Settings2,
+  },
+  {
+    title: "My Research",
+    description:
+      "Return to saved research and ideas.",
+    href: "/studio/research",
+    category: "Library",
+    icon: FolderOpen,
+  },
+];
 
 function StudioPage() {
+  const [searchQuery, setSearchQuery] =
+    useState("");
+
+  const normalizedSearch =
+    searchQuery
+      .trim()
+      .toLowerCase();
+
+  const filteredQuickProjects =
+    useMemo(() => {
+      if (!normalizedSearch) {
+        return QUICK_PROJECTS;
+      }
+
+      return QUICK_PROJECTS.filter(
+        (tool) =>
+          [
+            tool.title,
+            tool.description,
+            tool.category,
+          ].some((value) =>
+            value
+              .toLowerCase()
+              .includes(
+                normalizedSearch,
+              ),
+          ),
+      );
+    }, [normalizedSearch]);
+
+  const filteredTools = useMemo(() => {
+    if (!normalizedSearch) {
+      return STUDIO_TOOLS;
+    }
+
+    return STUDIO_TOOLS.filter(
+      (tool) =>
+        [
+          tool.title,
+          tool.description,
+          tool.category,
+        ].some((value) =>
+          value
+            .toLowerCase()
+            .includes(
+              normalizedSearch,
+            ),
+        ),
+    );
+  }, [normalizedSearch]);
+
+  const hasResults =
+    filteredQuickProjects.length >
+      0 ||
+    filteredTools.length > 0;
+
   return (
     <DashboardShell>
       <div className="mx-auto w-full max-w-5xl pb-6">
         {/* HEADER */}
 
-        <div
+        <header
           className="
             flex
             items-start
@@ -158,22 +196,20 @@ function StudioPage() {
           "
         >
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               Studio
             </h1>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Build, research
-              and prepare work
-              for your leads.
+              Build, research and prepare
+              work for your leads.
             </p>
           </div>
 
           <Link
             to="/studio/new"
             search={{
-              leadId:
-                undefined,
+              leadId: undefined,
             }}
             className="
               inline-flex
@@ -184,12 +220,13 @@ function StudioPage() {
               gap-2
               rounded-xl
               bg-primary
-              px-4
+              px-3.5
               text-sm
               font-semibold
               text-primary-foreground
               transition
               hover:bg-primary/90
+              sm:px-4
             "
           >
             <Plus className="size-4" />
@@ -202,47 +239,16 @@ function StudioPage() {
               New
             </span>
           </Link>
-        </div>
-
-        {/* TABS */}
-
-        <div
-          className="
-            mt-5
-            flex
-            gap-1
-            overflow-x-auto
-            rounded-xl
-            border
-            border-border
-            bg-muted/40
-            p-1
-          "
-        >
-          <StudioTab active>
-            Projects
-          </StudioTab>
-
-          <StudioTab>
-            Content
-          </StudioTab>
-
-          <StudioTab>
-            Research
-          </StudioTab>
-
-          <StudioTab>
-            Templates
-          </StudioTab>
-        </div>
+        </header>
 
         {/* SEARCH */}
 
-        <div className="relative mt-4">
+        <div className="relative mt-5">
           <Search
             className="
+              pointer-events-none
               absolute
-              left-4
+              left-3.5
               top-1/2
               size-4
               -translate-y-1/2
@@ -250,264 +256,143 @@ function StudioPage() {
             "
           />
 
-          <div
+          <input
+            value={searchQuery}
+            onChange={(event) =>
+              setSearchQuery(
+                event.target.value,
+              )
+            }
+            placeholder="Search Studio tools..."
             className="
-              flex
-              h-12
-              items-center
+              h-11
+              w-full
               rounded-xl
               border
               border-border
               bg-card
-              pl-11
-              pr-4
+              pl-10
+              pr-10
               text-sm
-              text-muted-foreground
+              text-foreground
+              outline-none
+              transition
+              placeholder:text-muted-foreground
+              focus:border-primary/50
+              focus:ring-2
+              focus:ring-primary/10
             "
-          >
-            Search your Studio
-            workspace
-          </div>
+          />
+
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() =>
+                setSearchQuery("")
+              }
+              className="
+                absolute
+                right-3
+                top-1/2
+                -translate-y-1/2
+                rounded-lg
+                p-1
+                text-muted-foreground
+                transition
+                hover:text-foreground
+              "
+              aria-label="Clear search"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
 
-        {/* FEATURED PROJECT */}
+        {/* QUICK PROJECTS */}
 
-        <section
-          className="
-            mt-5
-            overflow-hidden
-            rounded-[24px]
-            border
-            border-border
-            bg-card
-            shadow-sm
-          "
-        >
-          <div
-            className="
-              grid
-              sm:grid-cols-[1fr_auto]
-              sm:items-center
-            "
-          >
-            <div className="p-5 sm:p-6">
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-2
-                  text-xs
-                  font-semibold
-                  text-primary
-                "
-              >
-                <Sparkles className="size-4" />
-                Start from a lead
-              </div>
-
-              <h2 className="mt-3 text-xl font-semibold text-foreground">
-                Build a sample
-                website for your
-                next prospect.
-              </h2>
-
-              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                Pick a business,
-                create the site,
-                customise it,
-                then send the
-                preview directly
-                to your prospect.
-              </p>
-
-              <div
-                className="
-                  mt-5
-                  flex
-                  flex-wrap
-                  gap-2
-                "
-              >
-                <Link
-                  to="/dashboard"
-                  className="
-                    inline-flex
-                    h-10
-                    items-center
-                    gap-2
-                    rounded-xl
-                    border
-                    border-border
-                    bg-background
-                    px-4
-                    text-sm
-                    font-medium
-                    text-foreground
-                  "
-                >
-                  <Search className="size-4" />
-                  Find a lead
-                </Link>
-
-                <Link
-                  to="/studio/new"
-                  search={{
-                    leadId:
-                      undefined,
-                  }}
-                  className="
-                    inline-flex
-                    h-10
-                    items-center
-                    gap-2
-                    rounded-xl
-                    bg-primary
-                    px-4
-                    text-sm
-                    font-semibold
-                    text-primary-foreground
-                  "
-                >
-                  Open builder
-                  <ArrowRight className="size-4" />
-                </Link>
-              </div>
-            </div>
-
-            <div
-              className="
-                hidden
-                h-full
-                min-w-[170px]
-                items-center
-                justify-center
-                border-l
-                border-border
-                bg-muted/25
-                sm:flex
-              "
-            >
-              <span
-                className="
-                  flex
-                  size-20
-                  items-center
-                  justify-center
-                  rounded-[22px]
-                  bg-primary/10
-                  text-primary
-                "
-              >
-                <LayoutTemplate className="size-9" />
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* RECENT / PROJECT STYLE CARDS */}
-
-        <section className="mt-7">
-          <div
-            className="
-              mb-3
-              flex
-              items-end
-              justify-between
-            "
-          >
-            <div>
+        {filteredQuickProjects.length >
+          0 && (
+          <section className="mt-6">
+            <div className="mb-3">
               <h2 className="text-sm font-semibold text-foreground">
                 Quick projects
               </h2>
 
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Start the work
-                you need right
-                now.
+                Start the work you need
+                right now.
               </p>
             </div>
-          </div>
 
-          <div
-            className="
-              grid
-              gap-3
-              sm:grid-cols-3
-            "
-          >
-            {PROJECT_TOOLS.map(
-              (tool) => (
-                <ProjectCard
-                  key={
-                    tool.href
-                  }
-                  tool={tool}
-                />
-              ),
-            )}
-          </div>
-        </section>
+            <div
+              className="
+                grid
+                gap-3
+                sm:grid-cols-3
+              "
+            >
+              {filteredQuickProjects.map(
+                (tool) => (
+                  <ProjectCard
+                    key={tool.href}
+                    tool={tool}
+                  />
+                ),
+              )}
+            </div>
+          </section>
+        )}
 
-        {/* TEMPLATES */}
+        {/* STUDIO TOOLS */}
 
-        <section className="mt-7">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Templates &
-              tools
-            </h2>
+        {filteredTools.length > 0 && (
+          <section className="mt-7">
+            <div className="mb-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Tools
+              </h2>
 
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Research,
-              content and
-              workflow tools.
-            </p>
-          </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Content, research and
+                workflow tools.
+              </p>
+            </div>
 
-          <div
-            className="
-              mt-3
-              overflow-hidden
-              rounded-2xl
-              border
-              border-border
-              bg-card
-            "
-          >
-            {CONTENT_TOOLS.map(
-              (
-                tool,
-                index,
-              ) => (
-                <div
-                  key={
-                    tool.href
-                  }
-                  className={
-                    index > 0
-                      ? "border-t border-border"
-                      : ""
-                  }
-                >
+            <div
+              className="
+                overflow-hidden
+                rounded-2xl
+                border
+                border-border
+                bg-card
+              "
+            >
+              {filteredTools.map(
+                (tool, index) => (
                   <Link
-                    to={
-                      tool.href
-                    }
-                    className="
+                    key={tool.href}
+                    to={tool.href}
+                    className={`
                       group
                       flex
                       items-center
                       gap-3
                       px-4
-                      py-4
+                      py-3.5
                       transition
                       hover:bg-muted/40
-                    "
+
+                      ${
+                        index > 0
+                          ? "border-t border-border"
+                          : ""
+                      }
+                    `}
                   >
                     <span
                       className="
                         flex
-                        size-10
+                        size-9
                         shrink-0
                         items-center
                         justify-center
@@ -516,14 +401,12 @@ function StudioPage() {
                         text-primary
                       "
                     >
-                      <tool.icon className="size-[18px]" />
+                      <tool.icon className="size-[17px]" />
                     </span>
 
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-foreground">
-                        {
-                          tool.title
-                        }
+                        {tool.title}
                       </span>
 
                       <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -533,10 +416,20 @@ function StudioPage() {
                       </span>
                     </span>
 
-                    <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:block">
-                      {
-                        tool.category
-                      }
+                    <span
+                      className="
+                        hidden
+                        rounded-full
+                        bg-muted
+                        px-2
+                        py-1
+                        text-[10px]
+                        font-medium
+                        text-muted-foreground
+                        sm:inline
+                      "
+                    >
+                      {tool.category}
                     </span>
 
                     <ArrowRight
@@ -550,73 +443,44 @@ function StudioPage() {
                       "
                     />
                   </Link>
-                </div>
-              ),
-            )}
-          </div>
-        </section>
+                ),
+              )}
+            </div>
+          </section>
+        )}
 
-        {/* FLOW */}
+        {/* NOTHING FOUND */}
 
-        <section
-          className="
-            mt-7
-            rounded-2xl
-            border
-            border-primary/15
-            bg-primary/[0.05]
-            p-4
-          "
-        >
-          <div className="flex items-center gap-3">
-            <FileText className="size-5 shrink-0 text-primary" />
+        {!hasResults && (
+          <div
+            className="
+              mt-6
+              flex
+              min-h-[200px]
+              flex-col
+              items-center
+              justify-center
+              rounded-2xl
+              border
+              border-dashed
+              border-border
+              px-5
+              text-center
+            "
+          >
+            <Search className="size-5 text-muted-foreground" />
 
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">
-                Kodarai flow:
-              </span>{" "}
-              Find a lead →
-              build a sample →
-              contact them →
-              close the client.
+            <h2 className="mt-3 text-sm font-semibold text-foreground">
+              No tools found
+            </h2>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Try another search.
             </p>
           </div>
-        </section>
+        )}
       </div>
     </DashboardShell>
-  );
-}
-
-function StudioTab({
-  children,
-  active = false,
-}: {
-  children:
-    React.ReactNode;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      className={`
-        min-w-max
-        flex-1
-        rounded-lg
-        px-3
-        py-2.5
-        text-xs
-        font-semibold
-        transition
-
-        ${
-          active
-            ? "bg-background text-primary shadow-sm"
-            : "text-muted-foreground hover:text-foreground"
-        }
-      `}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -630,23 +494,20 @@ function ProjectCard({
       to={tool.href}
       className="
         group
+        flex
+        min-h-[142px]
+        flex-col
         rounded-2xl
         border
         border-border
         bg-card
         p-4
         transition
-        hover:border-primary/25
-        hover:shadow-sm
+        hover:border-primary/30
+        hover:bg-muted/20
       "
     >
-      <div
-        className="
-          flex
-          items-start
-          justify-between
-        "
-      >
+      <div className="flex items-start justify-between gap-3">
         <span
           className="
             flex
@@ -672,29 +533,15 @@ function ProjectCard({
         />
       </div>
 
-      <h3 className="mt-4 text-sm font-semibold text-foreground">
-        {tool.title}
-      </h3>
+      <div className="mt-auto pt-4">
+        <h3 className="text-sm font-semibold text-foreground">
+          {tool.title}
+        </h3>
 
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        {tool.description}
-      </p>
-
-      <span
-        className="
-          mt-4
-          inline-block
-          rounded-full
-          bg-muted
-          px-2
-          py-1
-          text-[10px]
-          font-medium
-          text-muted-foreground
-        "
-      >
-        {tool.category}
-      </span>
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+          {tool.description}
+        </p>
+      </div>
     </Link>
   );
 }
