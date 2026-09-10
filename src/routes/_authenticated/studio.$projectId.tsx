@@ -17,7 +17,12 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from "react";
+
+import {
+  createPortal,
+} from "react-dom";
 
 import {
   useQuery,
@@ -35,9 +40,12 @@ import {
 import {
   ArrowLeft,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Code2,
+  Copy,
+  ExternalLink,
   Eye,
   File,
   FileCode,
@@ -149,18 +157,26 @@ export const Route =
       StudioBuilder,
   });
 
+type MobileTab =
+  | "chat"
+  | "code"
+  | "preview"
+  | "deploy";
+
 type FileAction =
   | "create"
   | "update"
   | "delete";
 
 type FileChange = {
-  path: string;
+  path:
+    string;
 
   action:
     FileAction;
 
-  content: string;
+  content:
+    string;
 };
 
 type StreamEvent =
@@ -200,16 +216,12 @@ type StreamEvent =
         string;
     };
 
-type MobileTab =
-  | "chat"
-  | "code"
-  | "preview"
-  | "deploy";
-
 type TreeNode = {
-  name: string;
+  name:
+    string;
 
-  path: string;
+  path:
+    string;
 
   kind:
     | "file"
@@ -218,6 +230,14 @@ type TreeNode = {
   children:
     TreeNode[];
 };
+
+const REQUIRED_FILES =
+  new Set([
+    "index.html",
+    "package.json",
+    "src/main.jsx",
+    "src/App.jsx",
+  ]);
 
 const CHAT_PLACEHOLDERS = [
   "Make the hero feel more premium...",
@@ -233,14 +253,6 @@ const QUICK_ACTIONS = [
   "Change the color scheme",
   "Add a gallery section",
 ];
-
-const REQUIRED_FILES =
-  new Set([
-    "index.html",
-    "package.json",
-    "src/main.jsx",
-    "src/App.jsx",
-  ]);
 
 function applyStructuredChanges(
   current:
@@ -279,7 +291,8 @@ function applyStructuredChanges(
 }
 
 function buildTree(
-  paths: string[],
+  paths:
+    string[],
 ): TreeNode[] {
   const root:
     TreeNode[] =
@@ -689,6 +702,14 @@ function StudioBuilder() {
     >(null);
 
   const [
+    deploySuccessUrl,
+    setDeploySuccessUrl,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
     optimisticMessages,
     setOptimisticMessages,
   ] =
@@ -713,20 +734,15 @@ function StudioBuilder() {
       ],
     );
 
-  /*
-   * Once generation finishes the backend stores
-   * "restaurant", "salon", etc. in project.template.
-   *
-   * Therefore do NOT rely only on
-   * project.template === "business-website"
-   * when deciding whether to use Builder V2.
-   */
   const kodaraiWebsite =
     Boolean(
       reactProject ||
       project?.template ===
         "business-website",
     );
+
+  const previewUrl =
+    `/studio/preview/${projectId}`;
 
   useEffect(
     () => {
@@ -800,10 +816,6 @@ function StudioBuilder() {
             : preferred,
       );
 
-      /*
-       * Do not make App.jsx look like the only file.
-       * Open the three most useful project files first.
-       */
       const initialOpen = [
         "src/App.jsx",
         "src/data/site.js",
@@ -817,7 +829,7 @@ function StudioBuilder() {
 
       setOpenFiles(
         (current) => {
-          const stillValid =
+          const valid =
             current.filter(
               (path) =>
                 paths.includes(
@@ -826,14 +838,13 @@ function StudioBuilder() {
             );
 
           if (
-            stillValid.length >
+            valid.length >
             0
           ) {
-            return stillValid;
+            return valid;
           }
 
-          return initialOpen.length >
-            0
+          return initialOpen.length
             ? initialOpen
             : [
                 preferred,
@@ -851,7 +862,7 @@ function StudioBuilder() {
   );
 
   /*
-   * Auto-generate a project opened from Finder.
+   * Finder → Studio automatic generation
    */
   useEffect(
     () => {
@@ -939,24 +950,28 @@ function StudioBuilder() {
               setCurrentFile(
                 preferred,
               );
-
-              setOpenFiles(
-                [
-                  "src/App.jsx",
-                  "src/data/site.js",
-                  "src/styles/global.css",
-                ].filter(
-                  (path) =>
-                    paths.includes(
-                      path,
-                    ),
-                ),
-              );
             }
 
-            setMobileTab(
-              "preview",
+            setOpenFiles(
+              [
+                "src/App.jsx",
+                "src/data/site.js",
+                "src/styles/global.css",
+              ].filter(
+                (path) =>
+                  paths.includes(
+                    path,
+                  ),
+              ),
             );
+
+            if (
+              isMobile
+            ) {
+              setMobileTab(
+                "preview",
+              );
+            }
 
             const remaining =
               result
@@ -978,23 +993,6 @@ function StudioBuilder() {
                 queryKey: [
                   "studio-project",
                   projectId,
-                ],
-              },
-            );
-
-            queryClient.invalidateQueries(
-              {
-                queryKey: [
-                  "studio-messages",
-                  projectId,
-                ],
-              },
-            );
-
-            queryClient.invalidateQueries(
-              {
-                queryKey: [
-                  "studio-usage",
                 ],
               },
             );
@@ -1039,57 +1037,6 @@ function StudioBuilder() {
     ],
   );
 
-  /*
-   * Initial prompts used by generic Studio projects.
-   */
-  useEffect(
-    () => {
-      if (
-        !projectId ||
-        !user ||
-        messages.length >
-          0 ||
-        isStreaming
-      ) {
-        return;
-      }
-
-      const stored =
-        sessionStorage.getItem(
-          `studio_initial_prompt_${projectId}`,
-        );
-
-      if (!stored) {
-        return;
-      }
-
-      sessionStorage.removeItem(
-        `studio_initial_prompt_${projectId}`,
-      );
-
-      const timeout =
-        window.setTimeout(
-          () =>
-            void handleSend(
-              stored,
-            ),
-          700,
-        );
-
-      return () =>
-        window.clearTimeout(
-          timeout,
-        );
-    },
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      projectId,
-      user,
-      messages.length,
-    ],
-  );
-
   const saveProjectName =
     async () => {
       setEditingName(
@@ -1125,19 +1072,12 @@ function StudioBuilder() {
           ],
         },
       );
-
-      queryClient.invalidateQueries(
-        {
-          queryKey: [
-            "studio-projects",
-          ],
-        },
-      );
     };
 
   const selectFile =
     (
-      path: string,
+      path:
+        string,
     ) => {
       setCurrentFile(
         path,
@@ -1175,7 +1115,8 @@ function StudioBuilder() {
           HTMLElement
         >,
 
-      path: string,
+      path:
+        string,
     ) => {
       event.stopPropagation();
 
@@ -1252,7 +1193,8 @@ function StudioBuilder() {
 
   const deleteFile =
     (
-      path: string,
+      path:
+        string,
     ) => {
       if (
         REQUIRED_FILES.has(
@@ -1287,29 +1229,12 @@ function StudioBuilder() {
           return next;
         },
       );
-
-      setOpenFiles(
-        (current) =>
-          current.filter(
-            (item) =>
-              item !==
-              path,
-          ),
-      );
-
-      if (
-        currentFile ===
-        path
-      ) {
-        setCurrentFile(
-          null,
-        );
-      }
     };
 
   const renameFile =
     (
-      path: string,
+      path:
+        string,
     ) => {
       if (
         REQUIRED_FILES.has(
@@ -1317,7 +1242,7 @@ function StudioBuilder() {
         )
       ) {
         toast.error(
-          `${path} is required and cannot be renamed.`,
+          `${path} cannot be renamed.`,
         );
 
         return;
@@ -1349,7 +1274,7 @@ function StudioBuilder() {
           undefined
       ) {
         toast.error(
-          "Use a new safe relative file path.",
+          "Use a safe new file path.",
         );
 
         return;
@@ -1372,17 +1297,6 @@ function StudioBuilder() {
 
           return next;
         },
-      );
-
-      setOpenFiles(
-        (current) =>
-          current.map(
-            (item) =>
-              item ===
-              path
-                ? nextPath
-                : item,
-          ),
       );
 
       if (
@@ -1429,19 +1343,6 @@ function StudioBuilder() {
         toast.success(
           "Project saved.",
         );
-
-        queryClient.invalidateQueries(
-          {
-            queryKey: [
-              "studio-project",
-              projectId,
-            ],
-          },
-        );
-      } catch {
-        toast.error(
-          "Could not save project.",
-        );
       } finally {
         setIsSaving(
           false,
@@ -1451,226 +1352,123 @@ function StudioBuilder() {
 
   const undoEdit =
     async () => {
-      try {
-        const result =
-          await runUndo({
-            data: {
-              project_id:
-                projectId,
-            },
-          });
-
-        if (
-          "error" in
-          result
-        ) {
-          toast.error(
-            result.message,
-          );
-
-          return;
-        }
-
-        setFiles(
-          toStudioFileMap(
-            result.files,
-          ),
-        );
-
-        toast.success(
-          "Last AI edit undone.",
-        );
-
-        void refetchSnapshots();
-
-        queryClient.invalidateQueries(
-          {
-            queryKey: [
-              "studio-project",
+      const result =
+        await runUndo({
+          data: {
+            project_id:
               projectId,
-            ],
           },
-        );
-      } catch {
-        toast.error(
-          "Could not undo the edit.",
-        );
-      }
-    };
+        });
 
-  const sendBusinessEdit =
-    async (
-      prompt: string,
-    ) => {
-      setIsStreaming(
-        true,
+      if (
+        "error" in
+        result
+      ) {
+        toast.error(
+          result.message,
+        );
+
+        return;
+      }
+
+      setFiles(
+        toStudioFileMap(
+          result.files,
+        ),
       );
 
-      try {
-        const result =
-          fileCount ===
-          0
-            ? await runGenerateWebsite(
-                {
-                  data: {
-                    project_id:
-                      projectId,
-                  },
-                },
-              )
-            : await runEditWebsite(
-                {
-                  data: {
-                    project_id:
-                      projectId,
+      toast.success(
+        "Last AI edit undone.",
+      );
 
-                    request:
-                      prompt,
-                  },
-                },
-              );
+      void refetchSnapshots();
+    };
 
-        if (
-          "error" in
-          result
-        ) {
-          toast.error(
-            result.message,
-          );
+  const handleSend =
+    async (
+      prompt:
+        string,
+    ) => {
+      const clean =
+        prompt.trim();
 
-          return;
-        }
+      if (
+        !clean ||
+        isStreaming
+      ) {
+        return;
+      }
 
-        const mapped =
-          toStudioFileMap(
-            result.files,
-          );
-
-        setFiles(
-          mapped,
-        );
-
-        const paths =
-          Object.keys(
-            mapped,
-          );
-
-        if (
-          paths.includes(
-            "src/App.jsx",
-          )
-        ) {
-          setCurrentFile(
-            "src/App.jsx",
-          );
-        }
-
-        setOpenFiles(
-          [
-            "src/App.jsx",
-            "src/data/site.js",
-            "src/styles/global.css",
-          ].filter(
-            (path) =>
-              paths.includes(
-                path,
-              ),
-          ),
-        );
-
-        const remaining =
-          result
-            .studioCredits
-            ?.remaining;
-
-        toast.success(
-          "summary" in
-          result
-            ? typeof remaining ===
-                "number"
-              ? `Website updated — ${remaining} Studio credits remaining.`
-              : "Website updated."
-            : typeof remaining ===
-                "number"
-              ? `Website generated — ${remaining} Studio credits remaining.`
-              : "Website generated.",
-        );
-
-        void refetchMessages();
-        void refetchSnapshots();
-
-        queryClient.invalidateQueries(
-          {
-            queryKey: [
-              "studio-project",
-              projectId,
-            ],
-          },
-        );
-
-        queryClient.invalidateQueries(
-          {
-            queryKey: [
-              "studio-usage",
-            ],
-          },
-        );
-      } catch {
-        toast.error(
-          "Could not update this website.",
-        );
-      } finally {
+      if (
+        kodaraiWebsite
+      ) {
         setIsStreaming(
-          false,
+          true,
         );
+
+        try {
+          const result =
+            fileCount ===
+            0
+              ? await runGenerateWebsite(
+                  {
+                    data: {
+                      project_id:
+                        projectId,
+                    },
+                  },
+                )
+              : await runEditWebsite(
+                  {
+                    data: {
+                      project_id:
+                        projectId,
+
+                      request:
+                        clean,
+                    },
+                  },
+                );
+
+          if (
+            "error" in
+            result
+          ) {
+            toast.error(
+              result.message,
+            );
+
+            return;
+          }
+
+          setFiles(
+            toStudioFileMap(
+              result.files,
+            ),
+          );
+
+          toast.success(
+            "summary" in
+            result
+              ? "Website updated."
+              : "Website generated.",
+          );
+
+          void refetchMessages();
+
+          void refetchSnapshots();
+
+          return;
+        } finally {
+          setIsStreaming(
+            false,
+          );
+        }
       }
-    };
 
-  const sendGenericMessage =
-    async (
-      prompt: string,
-    ) => {
-      const temporaryUser:
-        StudioMessage = {
-        id:
-          `temporary-user-${Date.now()}`,
-
-        project_id:
-          projectId,
-
-        role:
-          "user",
-
-        content:
-          prompt,
-
-        file_changes:
-          null,
-
-        created_at:
-          new Date().toISOString(),
-      };
-
-      setOptimisticMessages(
-        (current) => [
-          ...current,
-          temporaryUser,
-        ],
-      );
-
-      await runCreateMessage({
-        data: {
-          project_id:
-            projectId,
-
-          role:
-            "user",
-
-          content:
-            prompt,
-        },
-      });
-
+      /*
+       * Generic legacy Studio flow.
+       */
       const {
         data: {
           session,
@@ -1688,37 +1486,49 @@ function StudioBuilder() {
         return;
       }
 
-      setIsStreaming(
-        true,
-      );
+      const userMessage:
+        StudioMessage = {
+        id:
+          `tmp-${Date.now()}`,
 
-      const temporaryAssistantId =
-        `temporary-assistant-${Date.now()}`;
+        project_id:
+          projectId,
+
+        role:
+          "user",
+
+        content:
+          clean,
+
+        file_changes:
+          null,
+
+        created_at:
+          new Date().toISOString(),
+      };
 
       setOptimisticMessages(
         (current) => [
           ...current,
-
-          {
-            id:
-              temporaryAssistantId,
-
-            project_id:
-              projectId,
-
-            role:
-              "assistant",
-
-            content:
-              "",
-
-            file_changes:
-              null,
-
-            created_at:
-              new Date().toISOString(),
-          },
+          userMessage,
         ],
+      );
+
+      await runCreateMessage({
+        data: {
+          project_id:
+            projectId,
+
+          role:
+            "user",
+
+          content:
+            clean,
+        },
+      });
+
+      setIsStreaming(
+        true,
       );
 
       try {
@@ -1743,15 +1553,10 @@ function StudioBuilder() {
 
                   files,
 
-                  currentFile:
-                    currentFile ??
-                    undefined,
+                  currentFile,
 
                   messages:
-                    [
-                      ...messages,
-                      temporaryUser,
-                    ]
+                    messages
                       .slice(
                         -10,
                       )
@@ -1786,7 +1591,7 @@ function StudioBuilder() {
         let buffer =
           "";
 
-        let assistantText =
+        let responseText =
           "";
 
         let changes:
@@ -1854,24 +1659,8 @@ function StudioBuilder() {
               event.type ===
               "text"
             ) {
-              assistantText =
+              responseText =
                 event.text;
-
-              setOptimisticMessages(
-                (current) =>
-                  current.map(
-                    (message) =>
-                      message.id ===
-                      temporaryAssistantId
-                        ? {
-                            ...message,
-
-                            content:
-                              assistantText,
-                          }
-                        : message,
-                  ),
-              );
             }
 
             if (
@@ -1879,65 +1668,33 @@ function StudioBuilder() {
               "files"
             ) {
               changes =
-                event.fileChanges ??
-                [];
+                event.fileChanges;
             }
 
             if (
               event.type ===
               "done"
             ) {
-              if (
-                event.summary
-              ) {
-                assistantText =
-                  event.summary;
-              }
+              responseText =
+                event.summary ??
+                responseText;
 
-              if (
-                event.fileChanges
-              ) {
-                changes =
-                  event.fileChanges;
-              }
-            }
-
-            if (
-              event.type ===
-              "error"
-            ) {
-              throw new Error(
-                event.error,
-              );
+              changes =
+                event.fileChanges ??
+                changes;
             }
           }
         }
 
-        const nextFiles =
+        const next =
           applyStructuredChanges(
             files,
             changes,
           );
 
         setFiles(
-          nextFiles,
+          next,
         );
-
-        if (
-          changes[
-            0
-          ]?.path
-        ) {
-          selectFile(
-            changes[
-              0
-            ].path,
-          );
-        }
-
-        const finalText =
-          assistantText ||
-          "Done — the project was updated.";
 
         await runCreateMessage({
           data: {
@@ -1948,65 +1705,43 @@ function StudioBuilder() {
               "assistant",
 
             content:
-              finalText,
+              responseText ||
+              "Done.",
 
             file_changes:
               changes.length
                 ? JSON.stringify(
-                    changes.map(
-                      (change) => ({
-                        path:
-                          change.path,
-
-                        action:
-                          change.action,
-                      }),
-                    ),
+                    changes,
                   )
                 : null,
           },
         });
 
-        await runUpdateProject({
+        await runCreateSnapshot({
           data: {
-            id:
+            project_id:
               projectId,
+
+            label:
+              clean.slice(
+                0,
+                80,
+              ),
 
             files_json:
               JSON.stringify(
-                nextFiles,
+                next,
               ),
+
+            files_count:
+              Object.keys(
+                next,
+              ).length,
           },
         });
 
-        if (
-          changes.length
-        ) {
-          await runCreateSnapshot({
-            data: {
-              project_id:
-                projectId,
-
-              label:
-                prompt.slice(
-                  0,
-                  80,
-                ),
-
-              files_json:
-                JSON.stringify(
-                  nextFiles,
-                ),
-
-              files_count:
-                Object.keys(
-                  nextFiles,
-                ).length,
-            },
-          });
-        }
-
         void refetchMessages();
+
         void refetchSnapshots();
       } catch (
         error
@@ -2023,50 +1758,9 @@ function StudioBuilder() {
         );
 
         setOptimisticMessages(
-          (current) =>
-            current.filter(
-              (message) =>
-                message.id !==
-                  temporaryUser.id &&
-                message.id !==
-                  temporaryAssistantId,
-            ),
+          [],
         );
       }
-    };
-
-  const handleSend =
-    async (
-      prompt: string,
-    ) => {
-      const clean =
-        prompt.trim();
-
-      if (
-        !clean ||
-        isStreaming ||
-        !user
-      ) {
-        return;
-      }
-
-      /*
-       * React project = Kodarai website, even if project.template
-       * has already changed to restaurant/salon/etc.
-       */
-      if (
-        kodaraiWebsite
-      ) {
-        await sendBusinessEdit(
-          clean,
-        );
-
-        return;
-      }
-
-      await sendGenericMessage(
-        clean,
-      );
     };
 
   if (!project) {
@@ -2079,57 +1773,153 @@ function StudioBuilder() {
 
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#080b0d] text-zinc-100">
-      <StudioHeader
-        projectName={
-          projectName
-        }
-        editingName={
-          editingName
-        }
-        isSaving={
-          isSaving
-        }
-        isStreaming={
-          isStreaming
-        }
-        deploymentUrl={
-          deploymentUrl
-        }
-        onBack={() =>
-          navigate({
-            to:
-              "/studio",
-          })
-        }
-        onNameChange={
-          setProjectName
-        }
-        onStartRename={() =>
-          setEditingName(
-            true,
-          )
-        }
-        onCancelRename={() => {
-          setEditingName(
-            false,
-          );
+      {/* HEADER */}
 
-          setProjectName(
-            project.name,
-          );
-        }}
-        onSaveName={
-          saveProjectName
-        }
-        onSave={
-          saveFiles
-        }
-        onPublish={() =>
-          setShowDeploy(
-            true,
-          )
-        }
-      />
+      <header className="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-white/[0.06] px-3 sm:h-[82px] sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              navigate({
+                to:
+                  "/studio",
+              })
+            }
+            className="flex size-9 items-center justify-center rounded-xl border border-white/[0.06] text-zinc-500 hover:bg-white/[0.04] hover:text-white"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+
+          <div className="hidden size-10 items-center justify-center rounded-xl bg-emerald-500 font-bold text-[#04120c] sm:flex">
+            K°
+          </div>
+
+          <div className="min-w-0">
+            {editingName ? (
+              <div className="flex items-center gap-1">
+                <input
+                  value={
+                    projectName
+                  }
+                  autoFocus
+                  onChange={(
+                    event,
+                  ) =>
+                    setProjectName(
+                      event
+                        .target
+                        .value,
+                    )
+                  }
+                  onKeyDown={(
+                    event,
+                  ) => {
+                    if (
+                      event.key ===
+                      "Enter"
+                    ) {
+                      void saveProjectName();
+                    }
+                  }}
+                  className="h-9 w-[180px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm outline-none"
+                />
+
+                <button
+                  onClick={() =>
+                    void saveProjectName()
+                  }
+                  className="flex size-8 items-center justify-center text-emerald-400"
+                >
+                  <Check className="size-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  setEditingName(
+                    true,
+                  )
+                }
+                className="group flex max-w-[210px] items-center gap-2"
+              >
+                <span className="truncate text-sm font-semibold">
+                  {
+                    projectName
+                  }
+                </span>
+
+                <Pencil className="size-3 text-zinc-700 group-hover:text-zinc-400" />
+              </button>
+            )}
+
+            <p className="mt-1 text-[10px] text-zinc-600">
+              {isStreaming
+                ? "KodarAI is working"
+                : deploymentUrl
+                  ? "Live website"
+                  : "Draft project"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* NEW EXTERNAL PREVIEW */}
+
+          <a
+            href={
+              previewUrl
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden h-9 items-center gap-1.5 rounded-lg border border-white/[0.07] px-3 text-xs text-zinc-400 transition hover:bg-white/[0.04] hover:text-white sm:flex"
+          >
+            <Eye className="size-3.5" />
+
+            Preview
+
+            <ExternalLink className="size-3" />
+          </a>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              void saveFiles()
+            }
+            disabled={
+              isSaving
+            }
+            className="h-9 border-white/[0.07] bg-transparent"
+          >
+            {isSaving ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Save className="size-3.5" />
+            )}
+
+            <span className="hidden sm:inline">
+              Save
+            </span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() =>
+              setShowDeploy(
+                true,
+              )
+            }
+            className="h-9 bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
+          >
+            <Rocket className="size-3.5" />
+
+            <span className="hidden sm:inline">
+              Deploy
+            </span>
+          </Button>
+        </div>
+      </header>
 
       {isMobile ? (
         <MobileStudio
@@ -2162,6 +1952,9 @@ function StudioBuilder() {
           }
           reactProject={
             reactProject
+          }
+          previewUrl={
+            previewUrl
           }
           onTabChange={
             setMobileTab
@@ -2208,7 +2001,7 @@ function StudioBuilder() {
           onSend={
             handleSend
           }
-          onPublish={() =>
+          onDeploy={() =>
             setShowDeploy(
               true,
             )
@@ -2243,9 +2036,6 @@ function StudioBuilder() {
           deploymentUrl={
             deploymentUrl
           }
-          reactProject={
-            reactProject
-          }
           onSelectFile={
             selectFile
           }
@@ -2277,13 +2067,10 @@ function StudioBuilder() {
           onSend={
             handleSend
           }
-          onPublish={() =>
+          onDeploy={() =>
             setShowDeploy(
               true,
             )
-          }
-          onUndo={
-            undoEdit
           }
         />
       )}
@@ -2298,9 +2085,6 @@ function StudioBuilder() {
           }
           fileCount={
             fileCount
-          }
-          reactProject={
-            reactProject
           }
           runDeploy={
             runDeploy
@@ -2324,6 +2108,14 @@ function StudioBuilder() {
               false,
             );
 
+            setDeploySuccessUrl(
+              url,
+            );
+
+            setMobileTab(
+              "deploy",
+            );
+
             queryClient.invalidateQueries(
               {
                 queryKey: [
@@ -2335,206 +2127,26 @@ function StudioBuilder() {
           }}
         />
       )}
+
+      {deploySuccessUrl && (
+        <DeploymentSuccessDialog
+          url={
+            deploySuccessUrl
+          }
+          onClose={() =>
+            setDeploySuccessUrl(
+              null,
+            )
+          }
+        />
+      )}
     </div>
   );
 }
 
-function StudioHeader({
-  projectName,
-  editingName,
-  deploymentUrl,
-  isSaving,
-  isStreaming,
-  onBack,
-  onNameChange,
-  onStartRename,
-  onCancelRename,
-  onSaveName,
-  onSave,
-  onPublish,
-}: {
-  projectName:
-    string;
-
-  editingName:
-    boolean;
-
-  deploymentUrl:
-    string | null;
-
-  isSaving:
-    boolean;
-
-  isStreaming:
-    boolean;
-
-  onBack:
-    () => void;
-
-  onNameChange:
-    (
-      value:
-        string,
-    ) => void;
-
-  onStartRename:
-    () => void;
-
-  onCancelRename:
-    () => void;
-
-  onSaveName:
-    () => void;
-
-  onSave:
-    () => void;
-
-  onPublish:
-    () => void;
-}) {
-  return (
-    <header className="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-white/[0.06] bg-[#080b0d] px-3 sm:h-[82px] sm:px-5">
-      <div className="flex min-w-0 items-center gap-3">
-        <button
-          type="button"
-          onClick={
-            onBack
-          }
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025] text-zinc-500 transition hover:bg-white/[0.05] hover:text-zinc-100"
-        >
-          <ArrowLeft className="size-4" />
-        </button>
-
-        <div className="hidden size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-lg font-bold text-[#04120c] sm:flex">
-          K°
-        </div>
-
-        <div className="min-w-0">
-          {editingName ? (
-            <div className="flex items-center gap-1">
-              <input
-                autoFocus
-                value={
-                  projectName
-                }
-                onChange={(
-                  event,
-                ) =>
-                  onNameChange(
-                    event
-                      .target
-                      .value,
-                  )
-                }
-                onKeyDown={(
-                  event,
-                ) => {
-                  if (
-                    event.key ===
-                    "Enter"
-                  ) {
-                    onSaveName();
-                  }
-
-                  if (
-                    event.key ===
-                    "Escape"
-                  ) {
-                    onCancelRename();
-                  }
-                }}
-                className="h-9 w-[180px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-zinc-100 outline-none focus:border-emerald-500/40"
-              />
-
-              <button
-                type="button"
-                onClick={
-                  onSaveName
-                }
-                className="flex size-8 items-center justify-center rounded-lg text-emerald-400 hover:bg-emerald-500/10"
-              >
-                <Check className="size-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={
-                onStartRename
-              }
-              className="group flex max-w-[205px] items-center gap-2 text-left sm:max-w-[380px]"
-            >
-              <span className="truncate text-[15px] font-semibold tracking-[-0.02em] text-zinc-100">
-                {projectName ||
-                  "Untitled website"}
-              </span>
-
-              <Pencil className="size-3.5 shrink-0 text-zinc-700 transition group-hover:text-zinc-400" />
-            </button>
-          )}
-
-          <div className="mt-1 flex items-center gap-2">
-            <span
-              className={`size-1.5 rounded-full ${
-                isStreaming
-                  ? "animate-pulse bg-amber-400"
-                  : deploymentUrl
-                    ? "bg-emerald-400"
-                    : "bg-zinc-700"
-              }`}
-            />
-
-            <span className="text-[10px] text-zinc-600">
-              {isStreaming
-                ? "KodarAI is working"
-                : deploymentUrl
-                  ? "Live website"
-                  : "Draft project"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={
-            onSave
-          }
-          disabled={
-            isSaving
-          }
-          className="h-9 gap-2 border-white/[0.08] bg-white/[0.025] px-3 text-xs text-zinc-300 hover:bg-white/[0.05]"
-        >
-          {isSaving ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Save className="size-3.5" />
-          )}
-
-          <span className="hidden sm:inline">
-            Save
-          </span>
-        </Button>
-
-        <Button
-          size="sm"
-          onClick={
-            onPublish
-          }
-          className="h-9 gap-2 bg-emerald-500 px-3 text-xs font-semibold text-[#04120c] hover:bg-emerald-400 sm:px-4"
-        >
-          <Rocket className="size-3.5" />
-
-          <span className="hidden sm:inline">
-            Deploy
-          </span>
-        </Button>
-      </div>
-    </header>
-  );
-}
+/*
+ * Desktop Studio
+ */
 
 function DesktopStudio({
   files,
@@ -2545,7 +2157,6 @@ function DesktopStudio({
   isStreaming,
   mounted,
   deploymentUrl,
-  reactProject,
   onSelectFile,
   onCloseFile,
   onChangeFile,
@@ -2553,8 +2164,7 @@ function DesktopStudio({
   onDeleteFile,
   onRenameFile,
   onSend,
-  onPublish,
-  onUndo,
+  onDeploy,
 }: {
   files:
     Record<
@@ -2582,9 +2192,6 @@ function DesktopStudio({
 
   deploymentUrl:
     string | null;
-
-  reactProject:
-    boolean;
 
   onSelectFile:
     (
@@ -2629,14 +2236,11 @@ function DesktopStudio({
 
   onSend:
     (
-      prompt:
+      value:
         string,
     ) => void;
 
-  onPublish:
-    () => void;
-
-  onUndo:
+  onDeploy:
     () => void;
 }) {
   const [
@@ -2652,11 +2256,9 @@ function DesktopStudio({
     );
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(360px,1fr)_minmax(400px,0.95fr)] overflow-hidden bg-[#080b0d]">
-      {/* Left panel */}
-
+    <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(360px,1fr)_minmax(400px,0.95fr)] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-white/[0.06] bg-[#0b0e11]">
-        <div className="flex h-11 shrink-0 items-center border-b border-white/[0.06] p-1.5">
+        <div className="flex h-11 border-b border-white/[0.06] p-1.5">
           {(
             [
               [
@@ -2683,17 +2285,16 @@ function DesktopStudio({
                 key={
                   id
                 }
-                type="button"
                 onClick={() =>
                   setSidebar(
                     id,
                   )
                 }
-                className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition ${
+                className={`flex-1 rounded-lg text-[11px] ${
                   sidebar ===
                   id
-                    ? "bg-white/[0.07] text-zinc-100"
-                    : "text-zinc-600 hover:text-zinc-300"
+                    ? "bg-white/[0.07] text-white"
+                    : "text-zinc-600"
                 }`}
               >
                 {
@@ -2704,61 +2305,56 @@ function DesktopStudio({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          {sidebar ===
-            "files" && (
-            <FileExplorer
-              files={
-                files
-              }
-              currentFile={
-                currentFile
-              }
-              onSelect={
-                onSelectFile
-              }
-              onCreate={
-                onCreateFile
-              }
-              onDelete={
-                onDeleteFile
-              }
-              onRename={
-                onRenameFile
-              }
-            />
-          )}
+        {sidebar ===
+          "files" && (
+          <FileExplorer
+            files={
+              files
+            }
+            currentFile={
+              currentFile
+            }
+            onSelect={
+              onSelectFile
+            }
+            onCreate={
+              onCreateFile
+            }
+            onDelete={
+              onDeleteFile
+            }
+            onRename={
+              onRenameFile
+            }
+          />
+        )}
 
-          {sidebar ===
-            "chat" && (
-            <ChatPanel
-              messages={
-                messages
-              }
-              isStreaming={
-                isStreaming
-              }
-              onSend={
-                onSend
-              }
-              compact
-            />
-          )}
+        {sidebar ===
+          "chat" && (
+          <ChatPanel
+            messages={
+              messages
+            }
+            isStreaming={
+              isStreaming
+            }
+            onSend={
+              onSend
+            }
+          />
+        )}
 
-          {sidebar ===
-            "history" && (
-            <HistoryPanel
-              snapshots={
-                snapshots
-              }
-            />
-          )}
-        </div>
+        {sidebar ===
+          "history" && (
+          <HistoryPanel
+            snapshots={
+              snapshots
+            }
+          />
+        )}
       </aside>
 
-      {/* Code */}
-
-      <section className="flex min-h-0 min-w-0 flex-col border-r border-white/[0.06] bg-[#090c0f]">
+      <section className="flex min-h-0 min-w-0 flex-col border-r border-white/[0.06]">
         <EditorTabs
           openFiles={
             openFiles
@@ -2774,56 +2370,23 @@ function DesktopStudio({
           }
         />
 
-        <div className="min-h-0 flex-1">
-          <CodeEditor
-            files={
-              files
-            }
-            currentFile={
-              currentFile
-            }
-            mounted={
-              mounted
-            }
-            onChange={
-              onChangeFile
-            }
-          />
-        </div>
-
-        <div className="flex h-9 shrink-0 items-center justify-between border-t border-white/[0.05] bg-[#0b0e11] px-3">
-          <div className="flex items-center gap-3 text-[10px] text-zinc-600">
-            <span>
-              {
-                Object.keys(
-                  files,
-                ).length
-              }{" "}
-              files
-            </span>
-
-            <span>
-              {reactProject
-                ? "React (Vite)"
-                : "Static"}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              onUndo
-            }
-            className="text-[10px] text-zinc-600 transition hover:text-zinc-300"
-          >
-            Undo AI edit
-          </button>
-        </div>
+        <CodeEditor
+          files={
+            files
+          }
+          currentFile={
+            currentFile
+          }
+          mounted={
+            mounted
+          }
+          onChange={
+            onChangeFile
+          }
+        />
       </section>
 
-      {/* Live preview */}
-
-      <section className="flex min-h-0 min-w-0 flex-col bg-[#0b0e11]">
+      <section className="min-h-0">
         <StudioLivePreview
           files={
             files
@@ -2831,19 +2394,23 @@ function DesktopStudio({
           deploymentUrl={
             deploymentUrl
           }
-          onDeploy={
-            onPublish
-          }
           fileCount={
             Object.keys(
               files,
             ).length
+          }
+          onDeploy={
+            onDeploy
           }
         />
       </section>
     </div>
   );
 }
+
+/*
+ * Mobile Studio
+ */
 
 function MobileStudio({
   files,
@@ -2855,7 +2422,7 @@ function MobileStudio({
   isStreaming,
   mounted,
   deploymentUrl,
-  reactProject,
+  previewUrl,
   onTabChange,
   onToggleFiles,
   onCloseFiles,
@@ -2866,7 +2433,7 @@ function MobileStudio({
   onDeleteFile,
   onRenameFile,
   onSend,
-  onPublish,
+  onDeploy,
   onUndo,
 }: {
   files:
@@ -2902,9 +2469,12 @@ function MobileStudio({
   reactProject:
     boolean;
 
+  previewUrl:
+    string;
+
   onTabChange:
     (
-      tab:
+      value:
         MobileTab,
     ) => void;
 
@@ -2957,28 +2527,85 @@ function MobileStudio({
 
   onSend:
     (
-      prompt:
+      value:
         string,
     ) => void;
 
-  onPublish:
+  onDeploy:
     () => void;
 
   onUndo:
     () => void;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[#080b0d]">
-      <MobileTabs
-        tab={
-          tab
-        }
-        onChange={
-          onTabChange
-        }
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <nav className="grid h-16 shrink-0 grid-cols-4 border-b border-white/[0.06]">
+        <MobileTabButton
+          active={
+            tab ===
+            "chat"
+          }
+          icon={
+            MessageSquare
+          }
+          label="Chat"
+          onClick={() =>
+            onTabChange(
+              "chat",
+            )
+          }
+        />
 
-      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <MobileTabButton
+          active={
+            tab ===
+            "code"
+          }
+          icon={
+            Code2
+          }
+          label="Code"
+          onClick={() =>
+            onTabChange(
+              "code",
+            )
+          }
+        />
+
+        <MobileTabButton
+          active={
+            tab ===
+            "preview"
+          }
+          icon={
+            Eye
+          }
+          label="Preview"
+          onClick={() =>
+            onTabChange(
+              "preview",
+            )
+          }
+        />
+
+        <MobileTabButton
+          active={
+            tab ===
+            "deploy"
+          }
+          icon={
+            Rocket
+          }
+          label="Deploy"
+          onClick={() =>
+            onTabChange(
+              "deploy",
+            )
+          }
+        />
+      </nav>
+
+      <div className="relative min-h-0 flex-1">
         {tab ===
           "chat" && (
           <ChatPanel
@@ -2995,32 +2622,80 @@ function MobileStudio({
         )}
 
         {tab ===
+          "preview" && (
+          <div className="flex h-full flex-col">
+            <div className="flex h-11 shrink-0 items-center justify-end border-b border-white/[0.06] px-3">
+              <a
+                href={
+                  previewUrl
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400"
+              >
+                Open full preview
+
+                <ExternalLink className="size-3" />
+              </a>
+            </div>
+
+            <StudioLivePreview
+              files={
+                files
+              }
+              deploymentUrl={
+                deploymentUrl
+              }
+              fileCount={
+                Object.keys(
+                  files,
+                ).length
+              }
+              onDeploy={
+                onDeploy
+              }
+            />
+          </div>
+        )}
+
+        {tab ===
+          "deploy" && (
+          <DeployTab
+            deploymentUrl={
+              deploymentUrl
+            }
+            fileCount={
+              Object.keys(
+                files,
+              ).length
+            }
+            onDeploy={
+              onDeploy
+            }
+          />
+        )}
+
+        {tab ===
           "code" && (
-          <div className="flex h-full min-h-0 flex-col bg-[#090c0f]">
-            <div className="flex h-11 shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#0b0e11] px-2">
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="flex h-11 shrink-0 items-center border-b border-white/[0.06] px-2">
               <button
-                type="button"
                 onClick={
                   onToggleFiles
                 }
-                className="flex h-8 items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 text-[11px] text-zinc-400"
+                className="flex h-8 items-center gap-2 rounded-lg border border-white/[0.06] px-3 text-[11px] text-zinc-400"
               >
                 <Folder className="size-3.5 text-blue-400" />
 
                 Files
               </button>
 
-              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-zinc-500">
-                {currentFile ??
-                  "Select a file"}
-              </span>
-
               <button
                 type="button"
                 onClick={
                   onUndo
                 }
-                className="px-2 text-[10px] text-zinc-600"
+                className="ml-auto text-[10px] text-zinc-600"
               >
                 Undo
               </button>
@@ -3041,246 +2716,301 @@ function MobileStudio({
               }
             />
 
-            <div className="min-h-0 flex-1">
-              <CodeEditor
-                files={
-                  files
-                }
-                currentFile={
-                  currentFile
-                }
-                mounted={
-                  mounted
-                }
-                onChange={
-                  onChangeFile
-                }
-              />
-            </div>
-
-            <div className="flex h-8 shrink-0 items-center justify-between border-t border-white/[0.05] px-3 text-[9px] text-zinc-700">
-              <span>
-                {
-                  Object.keys(
-                    files,
-                  ).length
-                }{" "}
+            <CodeEditor
+              files={
                 files
-              </span>
-
-              <span>
-                {reactProject
-                  ? "React (Vite)"
-                  : "Static"}
-              </span>
-            </div>
+              }
+              currentFile={
+                currentFile
+              }
+              mounted={
+                mounted
+              }
+              onChange={
+                onChangeFile
+              }
+            />
 
             {filesOpen && (
-              <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-[2px]">
-                <div className="absolute inset-x-2 bottom-2 top-3 flex flex-col overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0b0e11] shadow-2xl">
-                  <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
-                    <span className="text-sm font-semibold text-zinc-100">
+              <div className="absolute inset-0 z-30 bg-black/70 p-2">
+                <div className="flex h-full flex-col overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0b0e11]">
+                  <div className="flex h-12 items-center justify-between border-b border-white/[0.06] px-4">
+                    <span className="text-sm font-semibold">
                       Files
                     </span>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex">
                       <button
-                        type="button"
                         onClick={
                           onCreateFile
                         }
-                        className="flex size-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-white/5"
+                        className="flex size-8 items-center justify-center text-zinc-500"
                       >
                         <Plus className="size-4" />
                       </button>
 
                       <button
-                        type="button"
                         onClick={
                           onCloseFiles
                         }
-                        className="flex size-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-white/5"
+                        className="flex size-8 items-center justify-center text-zinc-500"
                       >
                         <X className="size-4" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-y-auto">
-                    <FileExplorer
-                      files={
-                        files
-                      }
-                      currentFile={
-                        currentFile
-                      }
-                      onSelect={
-                        onSelectFile
-                      }
-                      onCreate={
-                        onCreateFile
-                      }
-                      onDelete={
-                        onDeleteFile
-                      }
-                      onRename={
-                        onRenameFile
-                      }
-                      hideHeader
-                    />
-                  </div>
+                  <FileExplorer
+                    files={
+                      files
+                    }
+                    currentFile={
+                      currentFile
+                    }
+                    onSelect={
+                      onSelectFile
+                    }
+                    onCreate={
+                      onCreateFile
+                    }
+                    onDelete={
+                      onDeleteFile
+                    }
+                    onRename={
+                      onRenameFile
+                    }
+                    hideHeader
+                  />
                 </div>
               </div>
             )}
           </div>
-        )}
-
-        {tab ===
-          "preview" && (
-          <StudioLivePreview
-            files={
-              files
-            }
-            deploymentUrl={
-              deploymentUrl
-            }
-            onDeploy={
-              onPublish
-            }
-            fileCount={
-              Object.keys(
-                files,
-              ).length
-            }
-          />
-        )}
-
-        {tab ===
-          "deploy" && (
-          <MobileDeploy
-            fileCount={
-              Object.keys(
-                files,
-              ).length
-            }
-            reactProject={
-              reactProject
-            }
-            deploymentUrl={
-              deploymentUrl
-            }
-            onPublish={
-              onPublish
-            }
-          />
         )}
       </div>
     </div>
   );
 }
 
-function MobileTabs({
-  tab,
-  onChange,
+function MobileTabButton({
+  active,
+  icon:
+    Icon,
+  label,
+  onClick,
 }: {
-  tab:
-    MobileTab;
+  active:
+    boolean;
 
-  onChange:
-    (
-      tab:
-        MobileTab,
-    ) => void;
+  icon:
+    typeof Eye;
+
+  label:
+    string;
+
+  onClick:
+    () => void;
 }) {
-  const items = [
-    {
-      id:
-        "chat" as const,
-
-      label:
-        "Chat",
-
-      icon:
-        MessageSquare,
-    },
-
-    {
-      id:
-        "code" as const,
-
-      label:
-        "Code",
-
-      icon:
-        Code2,
-    },
-
-    {
-      id:
-        "preview" as const,
-
-      label:
-        "Preview",
-
-      icon:
-        Eye,
-    },
-
-    {
-      id:
-        "deploy" as const,
-
-      label:
-        "Deploy",
-
-      icon:
-        Rocket,
-    },
-  ];
-
   return (
-    <nav className="grid h-16 shrink-0 grid-cols-4 border-b border-white/[0.06] bg-[#080b0d] px-2">
-      {items.map(
-        (item) => (
-          <button
-            key={
-              item.id
-            }
-            type="button"
-            onClick={() =>
-              onChange(
-                item.id,
-              )
-            }
-            className={`relative flex flex-col items-center justify-center gap-1 text-[10px] transition ${
-              tab ===
-              item.id
-                ? "text-emerald-400"
-                : "text-zinc-600"
-            }`}
-          >
-            <item.icon className="size-[18px]" />
+    <button
+      type="button"
+      onClick={
+        onClick
+      }
+      className={`relative flex flex-col items-center justify-center gap-1 text-[10px] ${
+        active
+          ? "text-emerald-400"
+          : "text-zinc-600"
+      }`}
+    >
+      <Icon className="size-[18px]" />
 
-            {
-              item.label
-            }
+      {
+        label
+      }
 
-            {tab ===
-              item.id && (
-              <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-emerald-400" />
-            )}
-          </button>
-        ),
+      {active && (
+        <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-emerald-400" />
       )}
-    </nav>
+    </button>
   );
 }
+
+/*
+ * Deploy tab
+ */
+
+function DeployTab({
+  deploymentUrl,
+  fileCount,
+  onDeploy,
+}: {
+  deploymentUrl:
+    string | null;
+
+  fileCount:
+    number;
+
+  onDeploy:
+    () => void;
+}) {
+  const [
+    copied,
+    setCopied,
+  ] =
+    useState(
+      false,
+    );
+
+  const copy =
+    async () => {
+      if (
+        !deploymentUrl
+      ) {
+        return;
+      }
+
+      await navigator.clipboard.writeText(
+        deploymentUrl,
+      );
+
+      setCopied(
+        true,
+      );
+
+      toast.success(
+        "Link copied",
+      );
+
+      window.setTimeout(
+        () =>
+          setCopied(
+            false,
+          ),
+        1500,
+      );
+    };
+
+  if (
+    deploymentUrl
+  ) {
+    return (
+      <div className="flex h-full items-center justify-center overflow-y-auto bg-[#0b0e11] p-5">
+        <div className="w-full max-w-[360px]">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
+            <CheckCircle2 className="size-7 text-emerald-400" />
+          </div>
+
+          <p className="mt-5 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
+            Live
+          </p>
+
+          <h2 className="mt-2 text-center text-2xl font-semibold tracking-[-0.04em]">
+            Your website is published
+          </h2>
+
+          <div className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+            <p className="break-all font-mono text-[11px] leading-5 text-zinc-400">
+              {
+                deploymentUrl
+              }
+            </p>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                void copy()
+              }
+              className="h-11 border-white/[0.08] bg-transparent"
+            >
+              {copied ? (
+                <Check className="mr-2 size-4" />
+              ) : (
+                <Copy className="mr-2 size-4" />
+              )}
+
+              {copied
+                ? "Copied"
+                : "Copy link"}
+            </Button>
+
+            <Button
+              asChild
+              className="h-11 bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
+            >
+              <a
+                href={
+                  deploymentUrl
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="mr-2 size-4" />
+
+                Open site
+              </a>
+            </Button>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              onDeploy
+            }
+            className="mt-5 w-full text-center text-xs text-zinc-600 transition hover:text-zinc-300"
+          >
+            Redeploy latest changes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full items-center justify-center bg-[#0b0e11] p-5">
+      <div className="w-full max-w-[340px] text-center">
+        <div className="mx-auto flex size-16 items-center justify-center rounded-[20px] border border-white/[0.07] bg-white/[0.03]">
+          <Rocket className="size-7 text-zinc-300" />
+        </div>
+
+        <h2 className="mt-5 text-2xl font-semibold tracking-[-0.04em]">
+          Ready to publish?
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-zinc-500">
+          Your project has{" "}
+          {fileCount} files
+          and is ready to go live.
+        </p>
+
+        <Button
+          onClick={
+            onDeploy
+          }
+          disabled={
+            fileCount ===
+            0
+          }
+          className="mt-6 h-12 w-full bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
+        >
+          <Rocket className="mr-2 size-4" />
+
+          Publish to web
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/*
+ * Chat
+ */
 
 function ChatPanel({
   messages,
   isStreaming,
   onSend,
-  compact = false,
 }: {
   messages:
     StudioMessage[];
@@ -3290,15 +3020,13 @@ function ChatPanel({
 
   onSend:
     (
-      prompt:
+      value:
         string,
     ) => void;
-
-  compact?: boolean;
 }) {
   const [
-    prompt,
-    setPrompt,
+    value,
+    setValue,
   ] =
     useState("");
 
@@ -3308,30 +3036,10 @@ function ChatPanel({
       2600,
     );
 
-  const bottomRef =
-    useRef<
-      HTMLDivElement | null
-    >(null);
-
-  useEffect(
-    () => {
-      bottomRef.current?.scrollIntoView(
-        {
-          behavior:
-            "smooth",
-        },
-      );
-    },
-    [
-      messages.length,
-      isStreaming,
-    ],
-  );
-
   const send =
     () => {
       const clean =
-        prompt.trim();
+        value.trim();
 
       if (
         !clean ||
@@ -3340,7 +3048,7 @@ function ChatPanel({
         return;
       }
 
-      setPrompt("");
+      setValue("");
 
       onSend(
         clean,
@@ -3348,33 +3056,17 @@ function ChatPanel({
     };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#0b0e11]">
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {messages.length ===
         0 ? (
-          <div className={`mx-auto flex h-full max-w-[330px] flex-col justify-center ${
-            compact
-              ? "px-2"
-              : "px-3"
-          }`}>
-            <div className="mb-5 flex size-10 items-center justify-center rounded-xl border border-emerald-500/15 bg-emerald-500/[0.07] font-semibold text-emerald-400">
-              K
-            </div>
-
-            <h2 className={`${compact
-              ? "text-base"
-              : "text-2xl"
-            } font-semibold tracking-[-0.035em] text-zinc-100`}>
-              Let&apos;s improve
-              your website
+          <div className="flex h-full flex-col justify-center">
+            <h2 className="text-lg font-semibold">
+              Improve your website
             </h2>
 
             <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Describe what
-              you want changed.
-              Kodarai will
-              update the
-              project files.
+              Ask Kodarai to update any part of the project.
             </p>
 
             <div className="mt-5 space-y-2">
@@ -3384,16 +3076,12 @@ function ChatPanel({
                     key={
                       action
                     }
-                    type="button"
-                    disabled={
-                      isStreaming
-                    }
                     onClick={() =>
                       onSend(
                         action,
                       )
                     }
-                    className="w-full rounded-full border border-white/[0.09] px-3 py-2 text-left text-[11px] text-zinc-300 transition hover:border-emerald-500/25 hover:bg-emerald-500/[0.04]"
+                    className="w-full rounded-xl border border-white/[0.07] px-3 py-2 text-left text-[11px] text-zinc-400 hover:bg-white/[0.03]"
                   >
                     {
                       action
@@ -3404,63 +3092,36 @@ function ChatPanel({
             </div>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {messages.map(
               (message) => (
-                <MessageBubble
+                <div
                   key={
                     message.id
                   }
-                  message={
-                    message
+                  className={
+                    message.role ===
+                    "user"
+                      ? "ml-auto max-w-[85%] rounded-2xl bg-emerald-500/10 p-3 text-xs text-zinc-200"
+                      : "max-w-[90%] whitespace-pre-wrap text-xs leading-5 text-zinc-400"
                   }
-                  isStreaming={
-                    isStreaming
+                >
+                  {
+                    message.content
                   }
-                />
+                </div>
               ),
             )}
-
-            <div
-              ref={
-                bottomRef
-              }
-            />
           </div>
         )}
       </div>
 
-      <div className="shrink-0 border-t border-white/[0.06] p-3">
-        <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-2 focus-within:border-emerald-500/30">
+      <div className="border-t border-white/[0.06] p-3">
+        <div className="rounded-2xl border border-white/[0.08] p-2">
           <Textarea
             value={
-              prompt
+              value
             }
-            onChange={(
-              event,
-            ) =>
-              setPrompt(
-                event
-                  .target
-                  .value,
-              )
-            }
-            onKeyDown={(
-              event,
-            ) => {
-              if (
-                event.key ===
-                  "Enter" &&
-                (
-                  event.metaKey ||
-                  event.ctrlKey
-                )
-              ) {
-                event.preventDefault();
-
-                send();
-              }
-            }}
             disabled={
               isStreaming
             }
@@ -3469,7 +3130,16 @@ function ChatPanel({
                 ? "KodarAI is working…"
                 : placeholder
             }
-            className="min-h-[72px] resize-none border-0 bg-transparent px-2 py-2 text-sm text-zinc-100 placeholder:text-zinc-700 focus-visible:ring-0"
+            onChange={(
+              event,
+            ) =>
+              setValue(
+                event
+                  .target
+                  .value,
+              )
+            }
+            className="min-h-[74px] resize-none border-0 bg-transparent focus-visible:ring-0"
           />
 
           <div className="flex justify-end">
@@ -3479,10 +3149,10 @@ function ChatPanel({
                 send
               }
               disabled={
-                !prompt.trim() ||
-                isStreaming
+                isStreaming ||
+                !value.trim()
               }
-              className="size-9 rounded-full bg-emerald-500 p-0 text-[#04120c] hover:bg-emerald-400"
+              className="size-9 rounded-full bg-emerald-500 p-0 text-[#04120c]"
             >
               {isStreaming ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -3497,274 +3167,9 @@ function ChatPanel({
   );
 }
 
-function MessageBubble({
-  message,
-  isStreaming,
-}: {
-  message:
-    StudioMessage;
-
-  isStreaming:
-    boolean;
-}) {
-  if (
-    message.role ===
-    "user"
-  ) {
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[88%] rounded-2xl rounded-br-md bg-emerald-500/10 px-3 py-2.5 text-xs leading-5 text-zinc-200">
-          {
-            message.content
-          }
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-2.5">
-      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-emerald-500/15 bg-emerald-500/[0.07] text-[10px] font-semibold text-emerald-400">
-        K
-      </div>
-
-      <div className="min-w-0 flex-1">
-        {!message.content &&
-        isStreaming ? (
-          <div className="flex gap-1 py-2">
-            <span className="size-1.5 animate-bounce rounded-full bg-zinc-600" />
-
-            <span className="size-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:120ms]" />
-
-            <span className="size-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:240ms]" />
-          </div>
-        ) : (
-          <p className="whitespace-pre-wrap text-xs leading-5 text-zinc-400">
-            {
-              message.content
-            }
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EditorTabs({
-  openFiles,
-  currentFile,
-  onSelect,
-  onClose,
-}: {
-  openFiles:
-    string[];
-
-  currentFile:
-    string | null;
-
-  onSelect:
-    (
-      path:
-        string,
-    ) => void;
-
-  onClose:
-    (
-      event:
-        ReactMouseEvent<
-          HTMLElement
-        >,
-
-      path:
-        string,
-    ) => void;
-}) {
-  return (
-    <div
-      className="flex h-10 shrink-0 overflow-x-auto border-b border-white/[0.06] bg-[#0b0e11]"
-      style={{
-        scrollbarWidth:
-          "none",
-      }}
-    >
-      {openFiles.map(
-        (path) => (
-          <button
-            key={
-              path
-            }
-            type="button"
-            onClick={() =>
-              onSelect(
-                path,
-              )
-            }
-            className={`group flex h-full shrink-0 items-center border-r border-white/[0.05] px-3 font-mono text-[11px] transition ${
-              currentFile ===
-              path
-                ? "border-t border-t-emerald-400 bg-[#090c0f] text-zinc-100"
-                : "text-zinc-600 hover:bg-white/[0.02] hover:text-zinc-300"
-            }`}
-          >
-            <FileIcon
-              path={
-                path
-              }
-              className="mr-1.5 size-3.5"
-            />
-
-            {path
-              .split(
-                "/",
-              )
-              .pop()}
-
-            <span
-              role="button"
-              tabIndex={
-                0
-              }
-              onClick={(
-                event,
-              ) =>
-                onClose(
-                  event,
-                  path,
-                )
-              }
-              className="ml-2 rounded p-0.5 text-zinc-700 opacity-0 group-hover:opacity-100"
-            >
-              <X className="size-3" />
-            </span>
-          </button>
-        ),
-      )}
-    </div>
-  );
-}
-
-function CodeEditor({
-  files,
-  currentFile,
-  mounted,
-  onChange,
-}: {
-  files:
-    Record<
-      string,
-      string
-    >;
-
-  currentFile:
-    string | null;
-
-  mounted:
-    boolean;
-
-  onChange:
-    (
-      path:
-        string,
-
-      content:
-        string,
-    ) => void;
-}) {
-  if (!mounted) {
-    return (
-      <EditorSkeleton />
-    );
-  }
-
-  if (
-    !currentFile ||
-    files[
-      currentFile
-    ] ===
-      undefined
-  ) {
-    return (
-      <div className="flex h-full items-center justify-center bg-[#090c0f]">
-        <div className="text-center">
-          <Code2 className="mx-auto mb-3 size-8 text-zinc-800" />
-
-          <p className="text-xs text-zinc-600">
-            Select a file
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Suspense
-      fallback={
-        <EditorSkeleton />
-      }
-    >
-      <MonacoEditor
-        key={
-          currentFile
-        }
-        height="100%"
-        path={
-          currentFile
-        }
-        value={
-          files[
-            currentFile
-          ]
-        }
-        onChange={(
-          value,
-        ) =>
-          onChange(
-            currentFile,
-
-            value ??
-              "",
-          )
-        }
-        theme="vs-dark"
-        options={{
-          minimap: {
-            enabled:
-              false,
-          },
-
-          automaticLayout:
-            true,
-
-          fontSize:
-            13,
-
-          lineHeight:
-            23,
-
-          fontFamily:
-            "Geist Mono, JetBrains Mono, SFMono-Regular, Menlo, monospace",
-
-          padding: {
-            top:
-              14,
-          },
-
-          scrollBeyondLastLine:
-            false,
-
-          smoothScrolling:
-            true,
-
-          cursorBlinking:
-            "smooth",
-
-          wordWrap:
-            "off",
-        }}
-      />
-    </Suspense>
-  );
-}
+/*
+ * Files
+ */
 
 function FileExplorer({
   files,
@@ -3815,63 +3220,57 @@ function FileExplorer({
             files,
           ),
         ),
-      [files],
+      [
+        files,
+      ],
     );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!hideHeader && (
-        <div className="flex h-10 shrink-0 items-center justify-between px-3">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">
+        <div className="flex h-10 items-center justify-between px-3">
+          <span className="text-[10px] uppercase tracking-widest text-zinc-600">
             Files
           </span>
 
           <button
-            type="button"
             onClick={
               onCreate
             }
-            className="flex size-7 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"
+            className="flex size-7 items-center justify-center text-zinc-600"
           >
             <Plus className="size-3.5" />
           </button>
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-3">
-        {tree.length ===
-        0 ? (
-          <div className="px-4 py-10 text-center text-xs text-zinc-700">
-            No files yet
-          </div>
-        ) : (
-          tree.map(
-            (node) => (
-              <TreeItem
-                key={
-                  node.path
-                }
-                node={
-                  node
-                }
-                currentFile={
-                  currentFile
-                }
-                depth={
-                  0
-                }
-                onSelect={
-                  onSelect
-                }
-                onDelete={
-                  onDelete
-                }
-                onRename={
-                  onRename
-                }
-              />
-            ),
-          )
+      <div className="min-h-0 flex-1 overflow-y-auto px-1">
+        {tree.map(
+          (node) => (
+            <TreeItem
+              key={
+                node.path
+              }
+              node={
+                node
+              }
+              depth={
+                0
+              }
+              currentFile={
+                currentFile
+              }
+              onSelect={
+                onSelect
+              }
+              onDelete={
+                onDelete
+              }
+              onRename={
+                onRename
+              }
+            />
+          ),
         )}
       </div>
     </div>
@@ -3880,8 +3279,8 @@ function FileExplorer({
 
 function TreeItem({
   node,
-  currentFile,
   depth,
+  currentFile,
   onSelect,
   onDelete,
   onRename,
@@ -3889,27 +3288,27 @@ function TreeItem({
   node:
     TreeNode;
 
-  currentFile:
-    string | null;
-
   depth:
     number;
 
+  currentFile:
+    string | null;
+
   onSelect:
     (
-      path:
+      value:
         string,
     ) => void;
 
   onDelete:
     (
-      path:
+      value:
         string,
     ) => void;
 
   onRename:
     (
-      path:
+      value:
         string,
     ) => void;
 }) {
@@ -3926,16 +3325,14 @@ function TreeItem({
     "folder"
   ) {
     return (
-      <div>
+      <>
         <button
-          type="button"
           onClick={() =>
             setOpen(
-              (current) =>
-                !current,
+              !open,
             )
           }
-          className="flex h-8 w-full items-center rounded-md pr-2 text-left text-[11px] text-zinc-500 transition hover:bg-white/[0.035] hover:text-zinc-300"
+          className="flex h-8 w-full items-center text-[11px] text-zinc-500"
           style={{
             paddingLeft:
               `${
@@ -3946,22 +3343,20 @@ function TreeItem({
           }}
         >
           {open ? (
-            <ChevronDown className="mr-1 size-3 shrink-0" />
+            <ChevronDown className="mr-1 size-3" />
           ) : (
-            <ChevronRight className="mr-1 size-3 shrink-0" />
+            <ChevronRight className="mr-1 size-3" />
           )}
 
           {open ? (
-            <FolderOpen className="mr-1.5 size-3.5 shrink-0 text-blue-400" />
+            <FolderOpen className="mr-1.5 size-3.5 text-blue-400" />
           ) : (
-            <Folder className="mr-1.5 size-3.5 shrink-0 text-blue-400" />
+            <Folder className="mr-1.5 size-3.5 text-blue-400" />
           )}
 
-          <span className="truncate">
-            {
-              node.name
-            }
-          </span>
+          {
+            node.name
+          }
         </button>
 
         {open &&
@@ -3974,12 +3369,12 @@ function TreeItem({
                 node={
                   child
                 }
-                currentFile={
-                  currentFile
-                }
                 depth={
                   depth +
                   1
+                }
+                currentFile={
+                  currentFile
                 }
                 onSelect={
                   onSelect
@@ -3993,22 +3388,17 @@ function TreeItem({
               />
             ),
           )}
-      </div>
+      </>
     );
   }
 
-  const protectedFile =
-    REQUIRED_FILES.has(
-      node.path,
-    );
-
   return (
     <div
-      className={`group flex h-8 items-center rounded-md pr-1 transition ${
+      className={`group flex h-8 items-center rounded-md pr-1 ${
         currentFile ===
         node.path
           ? "bg-white/[0.07]"
-          : "hover:bg-white/[0.035]"
+          : ""
       }`}
       style={{
         paddingLeft:
@@ -4020,62 +3410,229 @@ function TreeItem({
       }}
     >
       <button
-        type="button"
         onClick={() =>
           onSelect(
             node.path,
           )
         }
-        className="flex min-w-0 flex-1 items-center text-left"
+        className="flex min-w-0 flex-1 items-center"
       >
         <FileIcon
           path={
             node.path
           }
-          className="mr-1.5 size-3.5 shrink-0"
+          className="mr-1.5 size-3.5"
         />
 
-        <span
-          className={`truncate font-mono text-[11px] ${
-            currentFile ===
-            node.path
-              ? "text-zinc-100"
-              : "text-zinc-500"
-          }`}
-        >
+        <span className="truncate font-mono text-[11px] text-zinc-500">
           {
             node.name
           }
         </span>
       </button>
 
-      {!protectedFile && (
-        <div className="hidden shrink-0 items-center group-hover:flex">
+      {!REQUIRED_FILES.has(
+        node.path,
+      ) && (
+        <div className="hidden group-hover:flex">
           <button
-            type="button"
             onClick={() =>
               onRename(
                 node.path,
               )
             }
-            className="rounded p-1 text-zinc-700 hover:bg-white/5 hover:text-zinc-300"
           >
-            <Pencil className="size-3" />
+            <Pencil className="size-3 text-zinc-600" />
           </button>
 
           <button
-            type="button"
             onClick={() =>
               onDelete(
                 node.path,
               )
             }
-            className="rounded p-1 text-zinc-700 hover:bg-red-500/10 hover:text-red-400"
           >
-            <X className="size-3" />
+            <X className="ml-1 size-3 text-zinc-600" />
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/*
+ * Editor
+ */
+
+function EditorTabs({
+  openFiles,
+  currentFile,
+  onSelect,
+  onClose,
+}: {
+  openFiles:
+    string[];
+
+  currentFile:
+    string | null;
+
+  onSelect:
+    (
+      value:
+        string,
+    ) => void;
+
+  onClose:
+    (
+      event:
+        ReactMouseEvent<
+          HTMLElement
+        >,
+
+      path:
+        string,
+    ) => void;
+}) {
+  return (
+    <div className="flex h-10 shrink-0 overflow-x-auto border-b border-white/[0.06]">
+      {openFiles.map(
+        (path) => (
+          <button
+            key={
+              path
+            }
+            onClick={() =>
+              onSelect(
+                path,
+              )
+            }
+            className={`group flex h-full shrink-0 items-center border-r border-white/[0.05] px-3 font-mono text-[11px] ${
+              currentFile ===
+              path
+                ? "border-t border-t-emerald-400 text-white"
+                : "text-zinc-600"
+            }`}
+          >
+            <FileIcon
+              path={
+                path
+              }
+              className="mr-1.5 size-3.5"
+            />
+
+            {path
+              .split(
+                "/",
+              )
+              .pop()}
+
+            <span
+              role="button"
+              onClick={(
+                event,
+              ) =>
+                onClose(
+                  event,
+                  path,
+                )
+              }
+              className="ml-2 opacity-0 group-hover:opacity-100"
+            >
+              <X className="size-3" />
+            </span>
+          </button>
+        ),
+      )}
+    </div>
+  );
+}
+
+function CodeEditor({
+  files,
+  currentFile,
+  mounted,
+  onChange,
+}: {
+  files:
+    Record<
+      string,
+      string
+    >;
+
+  currentFile:
+    string | null;
+
+  mounted:
+    boolean;
+
+  onChange:
+    (
+      path:
+        string,
+
+      value:
+        string,
+    ) => void;
+}) {
+  if (
+    !mounted ||
+    !currentFile
+  ) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Code2 className="size-8 text-zinc-800" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-0 flex-1">
+      <Suspense
+        fallback={
+          <Loader2 className="m-auto size-5 animate-spin" />
+        }
+      >
+        <MonacoEditor
+          height="100%"
+          path={
+            currentFile
+          }
+          value={
+            files[
+              currentFile
+            ] ??
+            ""
+          }
+          onChange={(
+            value,
+          ) =>
+            onChange(
+              currentFile,
+              value ??
+                "",
+            )
+          }
+          theme="vs-dark"
+          options={{
+            minimap: {
+              enabled:
+                false,
+            },
+
+            automaticLayout:
+              true,
+
+            fontSize:
+              13,
+
+            lineHeight:
+              23,
+
+            scrollBeyondLastLine:
+              false,
+          }}
+        />
+      </Suspense>
     </div>
   );
 }
@@ -4087,504 +3644,35 @@ function HistoryPanel({
     StudioSnapshot[];
 }) {
   return (
-    <div className="h-full overflow-y-auto px-3 py-4">
-      {snapshots.length ===
-      0 ? (
-        <div className="py-10 text-center">
-          <History className="mx-auto mb-3 size-7 text-zinc-800" />
-
-          <p className="text-xs text-zinc-700">
-            No snapshots
-            yet
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {snapshots.map(
-            (snapshot) => (
-              <div
-                key={
-                  snapshot.id
-                }
-                className="border-l border-white/[0.07] pl-3"
-              >
-                <p className="line-clamp-2 text-[11px] leading-4 text-zinc-400">
-                  {
-                    snapshot.label
-                  }
-                </p>
-
-                <p className="mt-1 text-[9px] text-zinc-700">
-                  {formatDistanceToNow(
-                    new Date(
-                      snapshot.created_at,
-                    ),
-                    {
-                      addSuffix:
-                        true,
-                    },
-                  )}
-                </p>
-              </div>
-            ),
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MobileDeploy({
-  fileCount,
-  reactProject,
-  deploymentUrl,
-  onPublish,
-}: {
-  fileCount:
-    number;
-
-  reactProject:
-    boolean;
-
-  deploymentUrl:
-    string | null;
-
-  onPublish:
-    () => void;
-}) {
-  return (
-    <div className="flex h-full items-center justify-center overflow-y-auto bg-[#0b0e11] px-5 py-8">
-      <div className="w-full max-w-[340px]">
-        <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-[20px] border border-white/[0.07] bg-white/[0.035]">
-          <Rocket className="size-7 text-zinc-200" />
-        </div>
-
-        <h2 className="text-center text-2xl font-semibold tracking-[-0.04em] text-zinc-100">
-          Ready to
-          publish?
-        </h2>
-
-        <p className="mx-auto mt-2 max-w-[280px] text-center text-sm leading-6 text-zinc-500">
-          Deploy the
-          website and
-          share it with
-          your client.
-        </p>
-
-        <div className="mt-7 overflow-hidden rounded-2xl border border-white/[0.07]">
-          <StatusRow
-            label="Project files"
-            value={`${fileCount} files`}
-          />
-
-          <StatusRow
-            label="Framework"
-            value={
-              reactProject
-                ? "React + Vite"
-                : "Static"
+    <div className="h-full overflow-y-auto p-3">
+      {snapshots.map(
+        (snapshot) => (
+          <div
+            key={
+              snapshot.id
             }
-          />
-
-          <StatusRow
-            label="Status"
-            value={
-              deploymentUrl
-                ? "Live"
-                : fileCount >
-                    0
-                  ? "Ready"
-                  : "Waiting"
-            }
-          />
-        </div>
-
-        <Button
-          onClick={
-            onPublish
-          }
-          disabled={
-            fileCount ===
-            0
-          }
-          className="mt-6 h-12 w-full rounded-xl bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
-        >
-          <Rocket className="mr-2 size-4" />
-
-          Publish to web
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function StatusRow({
-  label,
-  value,
-}: {
-  label:
-    string;
-
-  value:
-    string;
-}) {
-  return (
-    <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5 last:border-b-0">
-      <span className="text-xs text-zinc-500">
-        {
-          label
-        }
-      </span>
-
-      <span className="text-xs font-medium text-zinc-300">
-        {
-          value
-        }
-      </span>
-    </div>
-  );
-}
-
-function DeployDialog({
-  projectId,
-  projectName,
-  fileCount,
-  reactProject,
-  runDeploy,
-  runDeploymentStatus,
-  onClose,
-  onReady,
-}: {
-  projectId:
-    string;
-
-  projectName:
-    string;
-
-  fileCount:
-    number;
-
-  reactProject:
-    boolean;
-
-  runDeploy:
-    (
-      input:
-        any,
-    ) =>
-      Promise<any>;
-
-  runDeploymentStatus:
-    (
-      input:
-        any,
-    ) =>
-      Promise<any>;
-
-  onClose:
-    () => void;
-
-  onReady:
-    (
-      url:
-        string,
-    ) => void;
-}) {
-  const [
-    publishing,
-    setPublishing,
-  ] =
-    useState(
-      false,
-    );
-
-  const [
-    checking,
-    setChecking,
-  ] =
-    useState(
-      false,
-    );
-
-  const [
-    error,
-    setError,
-  ] =
-    useState<
-      string | null
-    >(null);
-
-  useEffect(
-    () => {
-      if (!checking) {
-        return;
-      }
-
-      let cancelled =
-        false;
-
-      const check =
-        async () => {
-          try {
-            const result =
-              await runDeploymentStatus(
-                {
-                  data: {
-                    project_id:
-                      projectId,
-                  },
-                },
-              );
-
-            if (
-              cancelled
-            ) {
-              return;
-            }
-
-            if (
-              "error" in
-              result
-            ) {
-              setChecking(
-                false,
-              );
-
-              setError(
-                result.message,
-              );
-
-              return;
-            }
-
-            if (
-              result.status ===
-                "ready" &&
-              typeof result.url ===
-                "string"
-            ) {
-              setChecking(
-                false,
-              );
-
-              toast.success(
-                "Website published.",
-              );
-
-              onReady(
-                result.url,
-              );
-
-              return;
-            }
-
-            if (
-              result.status ===
-              "error"
-            ) {
-              setChecking(
-                false,
-              );
-
-              setError(
-                result.detail ||
-                  "Vercel could not build this project.",
-              );
-            }
-          } catch {
-            if (
-              !cancelled
-            ) {
-              setChecking(
-                false,
-              );
-
-              setError(
-                "Could not check deployment status.",
-              );
-            }
-          }
-        };
-
-      void check();
-
-      const interval =
-        window.setInterval(
-          () =>
-            void check(),
-          4500,
-        );
-
-      return () => {
-        cancelled =
-          true;
-
-        window.clearInterval(
-          interval,
-        );
-      };
-    },
-    [
-      checking,
-      projectId,
-      runDeploymentStatus,
-      onReady,
-    ],
-  );
-
-  const publish =
-    async () => {
-      setPublishing(
-        true,
-      );
-
-      setError(
-        null,
-      );
-
-      try {
-        const result =
-          await runDeploy({
-            data: {
-              project_id:
-                projectId,
-            },
-          });
-
-        if (
-          "error" in
-          result
-        ) {
-          setError(
-            result.message ||
-              "Deployment failed.",
-          );
-
-          return;
-        }
-
-        if (
-          result.status ===
-            "ready" &&
-          result.url
-        ) {
-          toast.success(
-            "Website published.",
-          );
-
-          onReady(
-            result.url,
-          );
-
-          return;
-        }
-
-        setChecking(
-          true,
-        );
-      } catch {
-        setError(
-          "Could not publish this website.",
-        );
-      } finally {
-        setPublishing(
-          false,
-        );
-      }
-    };
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-5">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={
-          onClose
-        }
-        className="absolute inset-0"
-      />
-
-      <div className="relative z-10 w-full max-w-[430px] rounded-t-[26px] border border-white/[0.08] bg-[#101418] p-5 shadow-2xl sm:rounded-[22px]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold tracking-[-0.03em] text-zinc-100">
-              Publish website
-            </h2>
-
-            <p className="mt-1 text-xs text-zinc-500">
+            className="mb-4 border-l border-white/[0.08] pl-3"
+          >
+            <p className="text-[11px] text-zinc-400">
               {
-                projectName
+                snapshot.label
               }
             </p>
+
+            <p className="mt-1 text-[9px] text-zinc-700">
+              {formatDistanceToNow(
+                new Date(
+                  snapshot.created_at,
+                ),
+                {
+                  addSuffix:
+                    true,
+                },
+              )}
+            </p>
           </div>
-
-          <button
-            type="button"
-            onClick={
-              onClose
-            }
-            className="flex size-8 items-center justify-center rounded-full text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        <div className="mt-5 overflow-hidden rounded-xl border border-white/[0.07]">
-          <StatusRow
-            label="Files"
-            value={`${fileCount}`}
-          />
-
-          <StatusRow
-            label="Framework"
-            value={
-              reactProject
-                ? "React + Vite"
-                : "Static"
-            }
-          />
-        </div>
-
-        {error && (
-          <div className="mt-4 rounded-xl border border-red-500/15 bg-red-500/[0.06] px-3 py-2.5 text-xs leading-5 text-red-300">
-            {
-              error
-            }
-          </div>
-        )}
-
-        <Button
-          onClick={
-            publish
-          }
-          disabled={
-            publishing ||
-            checking ||
-            fileCount ===
-              0
-          }
-          className="mt-5 h-11 w-full rounded-xl bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
-        >
-          {publishing ||
-          checking ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-
-              {checking
-                ? "Building website…"
-                : "Publishing…"}
-            </>
-          ) : (
-            <>
-              <Rocket className="mr-2 size-4" />
-
-              Publish to web
-            </>
-          )}
-        </Button>
-
-        <div className="h-[max(2px,env(safe-area-inset-bottom))] sm:hidden" />
-      </div>
+        ),
+      )}
     </div>
   );
 }
@@ -4642,10 +3730,472 @@ function FileIcon({
   );
 }
 
-function EditorSkeleton() {
+/*
+ * Deploy dialog
+ */
+
+function DeployDialog({
+  projectId,
+  projectName,
+  fileCount,
+  runDeploy,
+  runDeploymentStatus,
+  onClose,
+  onReady,
+}: {
+  projectId:
+    string;
+
+  projectName:
+    string;
+
+  fileCount:
+    number;
+
+  runDeploy:
+    (
+      value:
+        any,
+    ) =>
+      Promise<any>;
+
+  runDeploymentStatus:
+    (
+      value:
+        any,
+    ) =>
+      Promise<any>;
+
+  onClose:
+    () => void;
+
+  onReady:
+    (
+      url:
+        string,
+    ) => void;
+}) {
+  const [
+    publishing,
+    setPublishing,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    checking,
+    setChecking,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  useEffect(
+    () => {
+      if (
+        !checking
+      ) {
+        return;
+      }
+
+      let cancelled =
+        false;
+
+      const check =
+        async () => {
+          const result =
+            await runDeploymentStatus(
+              {
+                data: {
+                  project_id:
+                    projectId,
+                },
+              },
+            );
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          if (
+            "error" in
+            result
+          ) {
+            setChecking(
+              false,
+            );
+
+            setError(
+              result.message,
+            );
+
+            return;
+          }
+
+          if (
+            result.status ===
+              "ready" &&
+            result.url
+          ) {
+            setChecking(
+              false,
+            );
+
+            onReady(
+              result.url,
+            );
+
+            return;
+          }
+
+          if (
+            result.status ===
+            "error"
+          ) {
+            setChecking(
+              false,
+            );
+
+            setError(
+              result.detail ||
+              "Deployment failed.",
+            );
+          }
+        };
+
+      void check();
+
+      const interval =
+        window.setInterval(
+          () =>
+            void check(),
+          4500,
+        );
+
+      return () => {
+        cancelled =
+          true;
+
+        window.clearInterval(
+          interval,
+        );
+      };
+    },
+    [
+      checking,
+      projectId,
+      runDeploymentStatus,
+      onReady,
+    ],
+  );
+
+  const deploy =
+    async () => {
+      setPublishing(
+        true,
+      );
+
+      setError(
+        null,
+      );
+
+      try {
+        const result =
+          await runDeploy({
+            data: {
+              project_id:
+                projectId,
+            },
+          });
+
+        if (
+          "error" in
+          result
+        ) {
+          setError(
+            result.message ||
+            "Deployment failed.",
+          );
+
+          return;
+        }
+
+        if (
+          result.status ===
+            "ready" &&
+          result.url
+        ) {
+          onReady(
+            result.url,
+          );
+
+          return;
+        }
+
+        setChecking(
+          true,
+        );
+      } finally {
+        setPublishing(
+          false,
+        );
+      }
+    };
+
   return (
-    <div className="flex h-full items-center justify-center bg-[#090c0f]">
-      <Loader2 className="size-5 animate-spin text-zinc-700" />
-    </div>
+    <ModalBackdrop
+      onClose={
+        onClose
+      }
+    >
+      <div className="w-full max-w-[430px] rounded-t-[24px] border border-white/[0.08] bg-[#101418] p-5 shadow-2xl sm:rounded-[20px]">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">
+              Publish website
+            </h2>
+
+            <p className="mt-1 text-xs text-zinc-500">
+              {
+                projectName
+              }
+            </p>
+          </div>
+
+          <button
+            onClick={
+              onClose
+            }
+            className="flex size-8 items-center justify-center text-zinc-500"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-white/[0.07] px-4 py-3">
+          <div className="flex justify-between text-xs">
+            <span className="text-zinc-500">
+              Project files
+            </span>
+
+            <span>
+              {
+                fileCount
+              }
+            </span>
+          </div>
+        </div>
+
+        {error && (
+          <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-xs text-red-300">
+            {
+              error
+            }
+          </p>
+        )}
+
+        <Button
+          onClick={() =>
+            void deploy()
+          }
+          disabled={
+            publishing ||
+            checking
+          }
+          className="mt-5 h-11 w-full bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
+        >
+          {publishing ||
+          checking ? (
+            <>
+              <Loader2 className="mr-2 size-4 animate-spin" />
+
+              {checking
+                ? "Building website…"
+                : "Publishing…"}
+            </>
+          ) : (
+            <>
+              <Rocket className="mr-2 size-4" />
+
+              Publish website
+            </>
+          )}
+        </Button>
+      </div>
+    </ModalBackdrop>
+  );
+}
+
+/*
+ * Deployment success popup
+ */
+
+function DeploymentSuccessDialog({
+  url,
+  onClose,
+}: {
+  url:
+    string;
+
+  onClose:
+    () => void;
+}) {
+  const [
+    copied,
+    setCopied,
+  ] =
+    useState(
+      false,
+    );
+
+  const copy =
+    async () => {
+      await navigator.clipboard.writeText(
+        url,
+      );
+
+      setCopied(
+        true,
+      );
+
+      toast.success(
+        "Link copied",
+      );
+
+      window.setTimeout(
+        () =>
+          setCopied(
+            false,
+          ),
+        1500,
+      );
+    };
+
+  return (
+    <ModalBackdrop
+      onClose={
+        onClose
+      }
+    >
+      <div className="w-full max-w-[430px] rounded-t-[26px] border border-white/[0.08] bg-[#101418] p-5 shadow-2xl sm:rounded-[22px]">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
+          <CheckCircle2 className="size-6 text-emerald-400" />
+        </div>
+
+        <h2 className="mt-5 text-center text-xl font-semibold tracking-[-0.03em]">
+          Website is live
+        </h2>
+
+        <p className="mt-2 text-center text-sm text-zinc-500">
+          Your website was deployed successfully.
+        </p>
+
+        <div className="mt-5 rounded-xl border border-white/[0.07] bg-black/20 p-3">
+          <p className="break-all text-center font-mono text-[11px] leading-5 text-zinc-400">
+            {
+              url
+            }
+          </p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              void copy()
+            }
+            className="h-11 border-white/[0.08] bg-transparent"
+          >
+            {copied ? (
+              <Check className="mr-2 size-4" />
+            ) : (
+              <Copy className="mr-2 size-4" />
+            )}
+
+            {copied
+              ? "Copied"
+              : "Copy link"}
+          </Button>
+
+          <Button
+            asChild
+            className="h-11 bg-emerald-500 font-semibold text-[#04120c] hover:bg-emerald-400"
+          >
+            <a
+              href={
+                url
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-2 size-4" />
+
+              Open website
+            </a>
+          </Button>
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            onClose
+          }
+          className="mt-4 w-full py-2 text-xs font-medium text-zinc-600 transition hover:text-zinc-300"
+        >
+          Done
+        </button>
+      </div>
+    </ModalBackdrop>
+  );
+}
+
+function ModalBackdrop({
+  children,
+  onClose,
+}: {
+  children:
+    ReactNode;
+
+  onClose:
+    () => void;
+}) {
+  if (
+    typeof document ===
+    "undefined"
+  ) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-5"
+      onMouseDown={(
+        event,
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      {
+        children
+      }
+    </div>,
+
+    document.body,
   );
 }
