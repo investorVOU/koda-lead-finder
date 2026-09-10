@@ -1,22 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  useState,
+  useCallback,
   useEffect,
   useRef,
-  useCallback,
+  useState,
+  type ReactNode,
 } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
-
-import {
-  Search,
-  BookmarkPlus,
-  Clock3,
-  Lock,
-  Trash2,
-  ArrowRight,
-} from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
@@ -27,23 +20,7 @@ import { Button } from "@/components/ui/button";
 
 import { findLeads } from "@/lib/search.functions";
 import { useAuth } from "@/lib/auth";
-
-import {
-  useProfile,
-  useSubscription,
-  isFreeTrial,
-} from "@/lib/queries";
-
-import { hasPlanAccess } from "@/lib/billing";
-
-import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
-
-import {
-  createSavedSearch,
-  deleteSavedSearch,
-  listSavedSearches,
-  type SavedSearch,
-} from "@/lib/saved-searches.functions";
+import { useProfile } from "@/lib/queries";
 
 import type { LeadResult } from "@/lib/constants";
 
@@ -53,8 +30,7 @@ export const Route = createFileRoute(
   head: () => ({
     meta: [
       {
-        title:
-          "Lead Finder — Kodarai",
+        title: "Lead Finder — Kodarai",
       },
     ],
   }),
@@ -74,30 +50,11 @@ function DashboardPage() {
   const { data: profile } =
     useProfile(user?.id);
 
-  const {
-    data: subscription,
-  } = useSubscription(user?.id);
-
   const queryClient =
     useQueryClient();
 
   const runSearch =
     useServerFn(findLeads);
-
-  const runListSavedSearches =
-    useServerFn(
-      listSavedSearches,
-    );
-
-  const runCreateSavedSearch =
-    useServerFn(
-      createSavedSearch,
-    );
-
-  const runDeleteSavedSearch =
-    useServerFn(
-      deleteSavedSearch,
-    );
 
   const [results, setResults] =
     useState<LeadResult[]>([]);
@@ -130,21 +87,6 @@ function DashboardPage() {
   ] = useState(PAGE_SIZE);
 
   const [
-    savedSearches,
-    setSavedSearches,
-  ] = useState<SavedSearch[]>([]);
-
-  const [
-    savedSearchesLoading,
-    setSavedSearchesLoading,
-  ] = useState(false);
-
-  const [
-    savingSearch,
-    setSavingSearch,
-  ] = useState(false);
-
-  const [
     newLeadIds,
     setNewLeadIds,
   ] = useState<Set<string>>(
@@ -156,108 +98,42 @@ function DashboardPage() {
     setSavedSearchRun,
   ] = useState(false);
 
-  const [
-    upgradeOpen,
-    setUpgradeOpen,
-  ] = useState(false);
-
-  const agencyUser =
-    !isFreeTrial(subscription) &&
-    hasPlanAccess(
-      subscription?.plan,
-      "agency",
-    );
-
-  const loadSavedSearches =
-    useCallback(async () => {
-      if (!agencyUser) {
-        setSavedSearches([]);
-        return;
-      }
-
-      setSavedSearchesLoading(
-        true,
-      );
-
-      const res =
-        await runListSavedSearches();
-
-      setSavedSearchesLoading(
-        false,
-      );
-
-      if ("error" in res) {
-        toast.error(
-          res.message,
-        );
-        return;
-      }
-
-      setSavedSearches(
-        res.searches,
-      );
-    }, [
-      agencyUser,
-      runListSavedSearches,
-    ]);
-
-  useEffect(() => {
-    void loadSavedSearches();
-  }, [loadSavedSearches]);
-
   const handleSearch = async (
     category: string,
     location: string,
-    savedSearchId?: string,
   ) => {
     setLoading(true);
+    setSearched(false);
 
     setMeta({
       category,
       location,
     });
 
-    setVisibleCount(
-      PAGE_SIZE,
-    );
+    setVisibleCount(PAGE_SIZE);
+    setNewLeadIds(new Set());
+    setSavedSearchRun(false);
 
-    setNewLeadIds(
-      new Set(),
-    );
-
-    setSavedSearchRun(
-      false,
-    );
-
-    const res =
-      await runSearch({
-        data: {
-          category,
-          location,
-          savedSearchId,
-        },
-      });
+    const res = await runSearch({
+      data: {
+        category,
+        location,
+      },
+    });
 
     setLoading(false);
     setSearched(true);
 
     if ("error" in res) {
-      toast.error(
-        res.message,
-      );
-
+      toast.error(res.message);
       setResults([]);
       return;
     }
 
-    setResults(
-      res.results,
-    );
+    setResults(res.results);
 
     setNewLeadIds(
-      new Set(
-        res.newPlaceIds,
-      ),
+      new Set(res.newPlaceIds),
     );
 
     setSavedSearchRun(
@@ -273,115 +149,22 @@ function DashboardPage() {
       });
     }
 
-    if (
-      savedSearchId
-    ) {
-      void loadSavedSearches();
-    }
-
     if (res.demo) {
       toast.info(
         "Showing sample results — connect Google Places for live data.",
       );
     }
 
-    const noSite =
+    const noWebsiteCount =
       res.results.filter(
-        (r) =>
-          !r.hasWebsite,
+        (result) =>
+          !result.hasWebsite,
       ).length;
 
     toast.success(
-      `Found ${res.results.length} businesses · ${noSite} without a website`,
+      `Found ${res.results.length} businesses · ${noWebsiteCount} without a website`,
     );
   };
-
-  const saveCurrentSearch =
-    async () => {
-      if (!agencyUser) {
-        setUpgradeOpen(true);
-        return;
-      }
-
-      if (
-        !meta.category ||
-        !meta.location
-      ) {
-        return;
-      }
-
-      const alreadySaved =
-        savedSearches.some(
-          (search) =>
-            search.category ===
-              meta.category &&
-            search.location ===
-              meta.location,
-        );
-
-      if (alreadySaved) {
-        toast.info(
-          "This search is already saved.",
-        );
-        return;
-      }
-
-      setSavingSearch(true);
-
-      const res =
-        await runCreateSavedSearch({
-          data: meta,
-        });
-
-      setSavingSearch(false);
-
-      if ("error" in res) {
-        toast.error(
-          res.message,
-        );
-        return;
-      }
-
-      setSavedSearches(
-        (current) => [
-          res.search,
-          ...current,
-        ],
-      );
-
-      toast.success(
-        "Search saved.",
-      );
-    };
-
-  const removeSavedSearch =
-    async (id: string) => {
-      const res =
-        await runDeleteSavedSearch({
-          data: {
-            id,
-          },
-        });
-
-      if ("error" in res) {
-        toast.error(
-          res.message,
-        );
-        return;
-      }
-
-      setSavedSearches(
-        (current) =>
-          current.filter(
-            (search) =>
-              search.id !== id,
-          ),
-      );
-
-      toast.success(
-        "Saved search removed.",
-      );
-    };
 
   const shown =
     websiteFilter ===
@@ -409,9 +192,7 @@ function DashboardPage() {
     shown.length;
 
   useEffect(() => {
-    setVisibleCount(
-      PAGE_SIZE,
-    );
+    setVisibleCount(PAGE_SIZE);
   }, [websiteFilter]);
 
   const sentinelRef =
@@ -422,40 +203,34 @@ function DashboardPage() {
   const loadMore =
     useCallback(() => {
       setVisibleCount(
-        (count) =>
+        (current) =>
           Math.min(
-            count +
-              PAGE_SIZE,
+            current + PAGE_SIZE,
             shown.length,
           ),
       );
     }, [shown.length]);
 
   useEffect(() => {
-    if (!hasMore) {
-      return;
-    }
+    if (!hasMore) return;
 
     const node =
       sentinelRef.current;
 
-    if (!node) {
-      return;
-    }
+    if (!node) return;
 
     const observer =
       new IntersectionObserver(
         (entries) => {
           if (
             entries[0]
-              .isIntersecting
+              ?.isIntersecting
           ) {
             loadMore();
           }
         },
         {
-          rootMargin:
-            "200px",
+          rootMargin: "200px",
         },
       );
 
@@ -463,39 +238,35 @@ function DashboardPage() {
 
     return () =>
       observer.disconnect();
-  }, [
-    hasMore,
-    loadMore,
-  ]);
+  }, [hasMore, loadMore]);
 
   return (
     <DashboardShell>
-      <div className="mx-auto w-full max-w-3xl pb-6">
-        {/* HEADER */}
+      <div className="mx-auto w-full max-w-3xl pb-4">
+        {/* PAGE TITLE */}
 
-        <div className="mb-5">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        <header className="mb-4">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Lead Finder
           </h1>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            Find businesses
-            that need a
+            Find businesses that need a
             website.
           </p>
-        </div>
+        </header>
 
         {/* WEBSITE FILTER */}
 
         <div
           className="
-            mb-4
+            mb-3
             grid
             grid-cols-3
             rounded-xl
             border
             border-border
-            bg-muted/40
+            bg-muted/30
             p-1
           "
         >
@@ -515,13 +286,10 @@ function DashboardPage() {
 
           <FilterButton
             active={
-              websiteFilter ===
-              "all"
+              websiteFilter === "all"
             }
             onClick={() =>
-              setWebsiteFilter(
-                "all",
-              )
+              setWebsiteFilter("all")
             }
           >
             All
@@ -542,26 +310,22 @@ function DashboardPage() {
           </FilterButton>
         </div>
 
-        {/* SEARCH CARD */}
+        {/* SEARCH */}
 
         <section
           className="
-            rounded-[24px]
+            rounded-[20px]
             border
             border-border
             bg-card
-            p-4
+            p-3.5
             shadow-sm
-            sm:p-5
+            sm:p-4
           "
         >
           <SearchForm
-            onSearch={
-              handleSearch
-            }
-            loading={
-              loading
-            }
+            onSearch={handleSearch}
+            loading={loading}
             defaultCategory={
               profile?.primary_niche ??
               undefined
@@ -573,232 +337,21 @@ function DashboardPage() {
           />
         </section>
 
-        {/* RECENT SEARCHES */}
+        {/* SLIM CREDIT STATUS */}
 
-        <section className="mt-6">
-          <div
-            className="
-              mb-3
-              flex
-              items-center
-              justify-between
-              gap-4
-            "
-          >
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Recent searches
-              </h2>
-
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Quickly run a
-                search again.
-              </p>
-            </div>
-
-            {!agencyUser && (
-              <button
-                type="button"
-                onClick={() =>
-                  setUpgradeOpen(
-                    true,
-                  )
-                }
-                className="text-xs font-semibold text-primary"
-              >
-                Agency
-              </button>
-            )}
-          </div>
-
-          {agencyUser ? (
-            savedSearchesLoading ? (
-              <div
-                className="
-                  rounded-xl
-                  border
-                  border-border
-                  bg-card
-                  px-4
-                  py-4
-                  text-xs
-                  text-muted-foreground
-                "
-              >
-                Loading
-                searches...
-              </div>
-            ) : savedSearches.length >
-              0 ? (
-              <div
-                className="
-                  overflow-hidden
-                  rounded-2xl
-                  border
-                  border-border
-                  bg-card
-                "
-              >
-                {savedSearches
-                  .slice(0, 4)
-                  .map(
-                    (
-                      search,
-                      index,
-                    ) => (
-                      <div
-                        key={
-                          search.id
-                        }
-                        className={
-                          index >
-                          0
-                            ? "border-t border-border"
-                            : ""
-                        }
-                      >
-                        <div
-                          className="
-                            group
-                            flex
-                            items-center
-                            gap-3
-                            px-4
-                            py-3
-                          "
-                        >
-                          <button
-                            type="button"
-                            disabled={
-                              loading
-                            }
-                            onClick={() =>
-                              handleSearch(
-                                search.category,
-                                search.location,
-                                search.id,
-                              )
-                            }
-                            className="
-                              min-w-0
-                              flex-1
-                              text-left
-                            "
-                          >
-                            <p className="truncate text-sm font-medium text-foreground">
-                              {
-                                search.category
-                              }
-                            </p>
-
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {
-                                search.location
-                              }
-                            </p>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeSavedSearch(
-                                search.id,
-                              )
-                            }
-                            className="
-                              rounded-lg
-                              p-2
-                              text-muted-foreground
-                              opacity-0
-                              transition
-                              hover:bg-destructive/10
-                              hover:text-destructive
-                              group-hover:opacity-100
-                              focus-visible:opacity-100
-                            "
-                            aria-label={`Delete saved search for ${search.name}`}
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-
-                          <ArrowRight className="size-4 text-muted-foreground" />
-                        </div>
-                      </div>
-                    ),
-                  )}
-              </div>
-            ) : (
-              <div
-                className="
-                  rounded-2xl
-                  border
-                  border-dashed
-                  border-border
-                  bg-card/60
-                  px-4
-                  py-5
-                  text-sm
-                  text-muted-foreground
-                "
-              >
-                Your saved
-                searches will
-                appear here.
-              </div>
-            )
-          ) : (
-            <button
-              type="button"
-              onClick={() =>
-                setUpgradeOpen(
-                  true,
-                )
-              }
-              className="
-                flex
-                w-full
-                items-center
-                justify-between
-                rounded-2xl
-                border
-                border-dashed
-                border-border
-                bg-card
-                px-4
-                py-4
-                text-left
-              "
-            >
-              <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Lock className="size-4" />
-                Save repeatable
-                searches
-              </span>
-
-              <span className="text-xs font-semibold text-primary">
-                Agency
-              </span>
-            </button>
-          )}
-        </section>
-
-        {/* CREDIT */}
-
-        <div className="mt-6">
-          <CreditMeter />
+        <div className="mt-3">
+          <CreditMeter slim />
         </div>
 
-        {/* RESULTS HEADER */}
+        {/* RESULT HEADER */}
 
-        {(loading ||
-          searched) && (
+        {(loading || searched) && (
           <div
             className="
-              mt-7
+              mt-6
               flex
               items-center
               justify-between
-              gap-3
               border-b
               border-border
               pb-3
@@ -809,46 +362,35 @@ function DashboardPage() {
                 {loading
                   ? "Searching..."
                   : `${shown.length} lead${
-                      shown.length ===
-                      1
+                      shown.length === 1
                         ? ""
                         : "s"
                     }`}
               </p>
 
-              {savedSearchRun && (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {
-                    newLeadIds.size
-                  }{" "}
-                  new since
-                  last run
-                </p>
-              )}
+              {!loading &&
+                savedSearchRun && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {
+                      newLeadIds.size
+                    }{" "}
+                    new since your last
+                    search
+                  </p>
+                )}
             </div>
 
-            {searched &&
-              !loading && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={
-                    saveCurrentSearch
-                  }
-                  disabled={
-                    savingSearch
-                  }
-                >
-                  {agencyUser ? (
-                    <BookmarkPlus className="size-4" />
-                  ) : (
-                    <Lock className="size-4" />
-                  )}
-
-                  {savingSearch
-                    ? "Saving..."
-                    : "Save"}
-                </Button>
+            {!loading &&
+              searched && (
+                <span className="text-xs text-muted-foreground">
+                  {websiteFilter ===
+                  "no-website"
+                    ? "No website"
+                    : websiteFilter ===
+                        "with-website"
+                      ? "With website"
+                      : "All businesses"}
+                </span>
               )}
           </div>
         )}
@@ -859,9 +401,9 @@ function DashboardPage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {Array.from({
               length: 4,
-            }).map((_, i) => (
+            }).map((_, index) => (
               <LeadResultSkeleton
-                key={i}
+                key={index}
               />
             ))}
           </div>
@@ -870,19 +412,16 @@ function DashboardPage() {
         {/* RESULTS */}
 
         {!loading &&
-          visible.length >
-            0 && (
+          visible.length > 0 && (
             <>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
                 {visible.map(
                   (lead) => (
                     <LeadResultCard
                       key={
                         lead.placeId
                       }
-                      lead={
-                        lead
-                      }
+                      lead={lead}
                       category={
                         meta.category
                       }
@@ -910,30 +449,40 @@ function DashboardPage() {
                       loadMore
                     }
                   >
-                    Load more
+                    Load more leads
                   </Button>
                 </div>
               )}
+
+              {!hasMore &&
+                shown.length >
+                  PAGE_SIZE && (
+                  <p className="mt-6 text-center text-xs text-muted-foreground">
+                    {shown.length} leads
+                    shown.
+                  </p>
+                )}
             </>
           )}
 
-        {/* EMPTY STATE */}
+        {/* EMPTY */}
 
         {!searched &&
           !loading && (
             <div
               className="
-                mt-7
+                mt-4
                 flex
+                min-h-[210px]
                 flex-col
                 items-center
                 justify-center
-                rounded-2xl
+                rounded-[20px]
                 border
                 border-dashed
                 border-border
                 px-5
-                py-12
+                py-8
                 text-center
               "
             >
@@ -951,62 +500,52 @@ function DashboardPage() {
                 <Search className="size-5" />
               </span>
 
-              <h3 className="mt-3 text-sm font-semibold">
-                Find your next
-                client
+              <h3 className="mt-3 text-sm font-semibold text-foreground">
+                Find your next client
               </h3>
 
               <p className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
-                Pick a category
-                and location to
-                start searching.
+                Pick a category and
+                location to start
+                searching.
               </p>
             </div>
           )}
 
         {searched &&
           !loading &&
-          shown.length ===
-            0 && (
+          shown.length === 0 && (
             <div
               className="
-                mt-7
-                rounded-2xl
+                mt-4
+                flex
+                min-h-[180px]
+                flex-col
+                items-center
+                justify-center
+                rounded-[20px]
                 border
                 border-dashed
                 border-border
                 px-5
-                py-10
+                py-8
                 text-center
               "
             >
-              <Search className="mx-auto size-5 text-muted-foreground" />
+              <Search className="size-5 text-muted-foreground" />
 
-              <h3 className="mt-3 text-sm font-semibold">
-                No matching
-                leads
+              <h3 className="mt-3 text-sm font-semibold text-foreground">
+                No matching leads
               </h3>
 
-              <p className="mt-1 text-xs text-muted-foreground">
-                Try changing
-                your location,
-                category or
+              <p className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
+                Try another business
+                category, location, or
                 website filter.
               </p>
             </div>
           )}
       </div>
-
-      <UpgradeDialog
-        open={
-          upgradeOpen
-        }
-        onOpenChange={
-          setUpgradeOpen
-        }
-        feature="Saved searches"
-        requiredPlan="agency"
-      />
     </DashboardShell>
   );
 }
@@ -1016,29 +555,26 @@ function FilterButton({
   active,
   onClick,
 }: {
-  children:
-    React.ReactNode;
+  children: ReactNode;
   active: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      onClick={
-        onClick
-      }
+      onClick={onClick}
       className={`
         rounded-lg
         px-2
-        py-2.5
+        py-2
         text-[11px]
         font-semibold
-        transition-all
+        transition
         sm:text-xs
 
         ${
           active
-            ? "bg-background text-primary shadow-sm"
+            ? "bg-primary text-primary-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground"
         }
       `}
