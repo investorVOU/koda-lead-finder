@@ -1023,7 +1023,7 @@ function StudioBuilder() {
           >
             <Rocket className="size-3.5" />
 
-            <span className="hidden sm:inline">Hosting</span>
+            <span className="hidden sm:inline">Deploy</span>
           </Button>
         </div>
       </header>
@@ -1424,7 +1424,7 @@ function MobileStudio({
         <MobileTabButton
           active={tab === "deploy"}
           icon={Rocket}
-          label="Hosting"
+          label="Deploy"
           onClick={() => onTabChange("deploy")}
         />
       </nav>

@@ -186,7 +186,7 @@ export function StudioHosting({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
-              Hosting
+              Deploy
             </p>
             <h2 className="mt-1 text-xl font-semibold tracking-[-0.03em] text-white">
               Publish and manage your site
