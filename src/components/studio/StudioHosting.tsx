@@ -114,15 +114,18 @@ export function StudioHosting({
   };
 
   useEffect(() => {
-    if (
-      !managementAllowed ||
-      !currentDomain ||
-      !["pending", "configuring"].includes(currentStatus ?? "")
-    ) {
+    if (!managementAllowed || !currentDomain) {
       return;
     }
 
+    // Always reconcile persisted state once with Vercel. This fixes domains
+    // that were marked connected before their DNS record had propagated.
     void refresh();
+
+    if (!["pending", "configuring"].includes(currentStatus ?? "")) {
+      return;
+    }
+
     const timer = window.setInterval(() => void refresh(), 15_000);
     return () => window.clearInterval(timer);
     // The polling state deliberately follows server data after every result.
@@ -146,7 +149,7 @@ export function StudioHosting({
       setDomainInput("");
       onChanged();
       toast.success(
-        result.domain.verified
+        result.domain.status === "connected"
           ? "Domain connected"
           : "Domain added. Finish DNS setup to connect it.",
       );

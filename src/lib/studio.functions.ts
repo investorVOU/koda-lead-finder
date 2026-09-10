@@ -298,8 +298,10 @@ function deriveCustomDomainStatus(
   projectDomain: VercelProjectDomain,
   configuration: VercelDomainConfiguration | null,
 ): CustomDomainStatus {
-  if (projectDomain.verified) return "connected";
-  if (configuration && configuration.misconfigured === false) return "configuring";
+  // Project-domain verification alone only proves Vercel accepts the domain.
+  // The domain is live only after Vercel also reports a valid DNS configuration.
+  if (projectDomain.verified && configuration?.misconfigured === false) return "connected";
+  if (projectDomain.verified || configuration?.misconfigured === false) return "configuring";
   return "pending";
 }
 
