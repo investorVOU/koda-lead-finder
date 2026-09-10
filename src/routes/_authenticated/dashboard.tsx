@@ -8,16 +8,14 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
 import {
   Search,
   BookmarkPlus,
   Clock3,
   Lock,
   Trash2,
-  SlidersHorizontal,
-  Sparkles,
   ArrowRight,
-  Globe2,
 } from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -26,21 +24,27 @@ import { SearchForm } from "@/components/dashboard/SearchForm";
 import { LeadResultCard } from "@/components/dashboard/LeadResultCard";
 import { LeadResultSkeleton } from "@/components/dashboard/LeadResultSkeleton";
 import { Button } from "@/components/ui/button";
+
 import { findLeads } from "@/lib/search.functions";
 import { useAuth } from "@/lib/auth";
+
 import {
   useProfile,
   useSubscription,
   isFreeTrial,
 } from "@/lib/queries";
+
 import { hasPlanAccess } from "@/lib/billing";
+
 import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
+
 import {
   createSavedSearch,
   deleteSavedSearch,
   listSavedSearches,
   type SavedSearch,
 } from "@/lib/saved-searches.functions";
+
 import type { LeadResult } from "@/lib/constants";
 
 export const Route = createFileRoute(
@@ -49,7 +53,8 @@ export const Route = createFileRoute(
   head: () => ({
     meta: [
       {
-        title: "Lead Finder — Kodarai",
+        title:
+          "Lead Finder — Kodarai",
       },
     ],
   }),
@@ -58,29 +63,44 @@ export const Route = createFileRoute(
 
 const PAGE_SIZE = 6;
 
+type WebsiteFilter =
+  | "no-website"
+  | "all"
+  | "with-website";
+
 function DashboardPage() {
   const { user } = useAuth();
 
-  const { data: profile } = useProfile(
-    user?.id,
-  );
+  const { data: profile } =
+    useProfile(user?.id);
 
-  const { data: subscription } =
-    useSubscription(user?.id);
+  const {
+    data: subscription,
+  } = useSubscription(user?.id);
 
-  const queryClient = useQueryClient();
+  const queryClient =
+    useQueryClient();
 
-  const runSearch = useServerFn(findLeads);
+  const runSearch =
+    useServerFn(findLeads);
+
   const runListSavedSearches =
-    useServerFn(listSavedSearches);
-  const runCreateSavedSearch =
-    useServerFn(createSavedSearch);
-  const runDeleteSavedSearch =
-    useServerFn(deleteSavedSearch);
+    useServerFn(
+      listSavedSearches,
+    );
 
-  const [results, setResults] = useState<
-    LeadResult[]
-  >([]);
+  const runCreateSavedSearch =
+    useServerFn(
+      createSavedSearch,
+    );
+
+  const runDeleteSavedSearch =
+    useServerFn(
+      deleteSavedSearch,
+    );
+
+  const [results, setResults] =
+    useState<LeadResult[]>([]);
 
   const [loading, setLoading] =
     useState(false);
@@ -88,18 +108,21 @@ function DashboardPage() {
   const [searched, setSearched] =
     useState(false);
 
-  const [meta, setMeta] = useState<{
-    category: string;
-    location: string;
-  }>({
-    category: "",
-    location: "",
-  });
+  const [meta, setMeta] =
+    useState<{
+      category: string;
+      location: string;
+    }>({
+      category: "",
+      location: "",
+    });
 
   const [
-    onlyNoWebsite,
-    setOnlyNoWebsite,
-  ] = useState(true);
+    websiteFilter,
+    setWebsiteFilter,
+  ] = useState<WebsiteFilter>(
+    "no-website",
+  );
 
   const [
     visibleCount,
@@ -121,8 +144,12 @@ function DashboardPage() {
     setSavingSearch,
   ] = useState(false);
 
-  const [newLeadIds, setNewLeadIds] =
-    useState<Set<string>>(new Set());
+  const [
+    newLeadIds,
+    setNewLeadIds,
+  ] = useState<Set<string>>(
+    new Set(),
+  );
 
   const [
     savedSearchRun,
@@ -148,19 +175,27 @@ function DashboardPage() {
         return;
       }
 
-      setSavedSearchesLoading(true);
+      setSavedSearchesLoading(
+        true,
+      );
 
       const res =
         await runListSavedSearches();
 
-      setSavedSearchesLoading(false);
+      setSavedSearchesLoading(
+        false,
+      );
 
       if ("error" in res) {
-        toast.error(res.message);
+        toast.error(
+          res.message,
+        );
         return;
       }
 
-      setSavedSearches(res.searches);
+      setSavedSearches(
+        res.searches,
+      );
     }, [
       agencyUser,
       runListSavedSearches,
@@ -176,35 +211,53 @@ function DashboardPage() {
     savedSearchId?: string,
   ) => {
     setLoading(true);
+
     setMeta({
       category,
       location,
     });
-    setVisibleCount(PAGE_SIZE);
-    setNewLeadIds(new Set());
-    setSavedSearchRun(false);
 
-    const res = await runSearch({
-      data: {
-        category,
-        location,
-        savedSearchId,
-      },
-    });
+    setVisibleCount(
+      PAGE_SIZE,
+    );
+
+    setNewLeadIds(
+      new Set(),
+    );
+
+    setSavedSearchRun(
+      false,
+    );
+
+    const res =
+      await runSearch({
+        data: {
+          category,
+          location,
+          savedSearchId,
+        },
+      });
 
     setLoading(false);
     setSearched(true);
 
     if ("error" in res) {
-      toast.error(res.message);
+      toast.error(
+        res.message,
+      );
+
       setResults([]);
       return;
     }
 
-    setResults(res.results);
+    setResults(
+      res.results,
+    );
 
     setNewLeadIds(
-      new Set(res.newPlaceIds),
+      new Set(
+        res.newPlaceIds,
+      ),
     );
 
     setSavedSearchRun(
@@ -220,7 +273,9 @@ function DashboardPage() {
       });
     }
 
-    if (savedSearchId) {
+    if (
+      savedSearchId
+    ) {
       void loadSavedSearches();
     }
 
@@ -232,7 +287,8 @@ function DashboardPage() {
 
     const noSite =
       res.results.filter(
-        (r) => !r.hasWebsite,
+        (r) =>
+          !r.hasWebsite,
       ).length;
 
     toast.success(
@@ -254,15 +310,16 @@ function DashboardPage() {
         return;
       }
 
-      if (
+      const alreadySaved =
         savedSearches.some(
           (search) =>
             search.category ===
               meta.category &&
             search.location ===
               meta.location,
-        )
-      ) {
+        );
+
+      if (alreadySaved) {
         toast.info(
           "This search is already saved.",
         );
@@ -279,17 +336,21 @@ function DashboardPage() {
       setSavingSearch(false);
 
       if ("error" in res) {
-        toast.error(res.message);
+        toast.error(
+          res.message,
+        );
         return;
       }
 
-      setSavedSearches((current) => [
-        res.search,
-        ...current,
-      ]);
+      setSavedSearches(
+        (current) => [
+          res.search,
+          ...current,
+        ],
+      );
 
       toast.success(
-        "Search saved. Run it again later to see what is new.",
+        "Search saved.",
       );
     };
 
@@ -303,15 +364,18 @@ function DashboardPage() {
         });
 
       if ("error" in res) {
-        toast.error(res.message);
+        toast.error(
+          res.message,
+        );
         return;
       }
 
-      setSavedSearches((current) =>
-        current.filter(
-          (search) =>
-            search.id !== id,
-        ),
+      setSavedSearches(
+        (current) =>
+          current.filter(
+            (search) =>
+              search.id !== id,
+          ),
       );
 
       toast.success(
@@ -319,37 +383,53 @@ function DashboardPage() {
       );
     };
 
-  const shown = onlyNoWebsite
-    ? results.filter(
-        (r) => !r.hasWebsite,
-      )
-    : results;
+  const shown =
+    websiteFilter ===
+    "no-website"
+      ? results.filter(
+          (result) =>
+            !result.hasWebsite,
+        )
+      : websiteFilter ===
+          "with-website"
+        ? results.filter(
+            (result) =>
+              result.hasWebsite,
+          )
+        : results;
 
-  const visible = shown.slice(
-    0,
-    visibleCount,
-  );
+  const visible =
+    shown.slice(
+      0,
+      visibleCount,
+    );
 
   const hasMore =
-    visibleCount < shown.length;
+    visibleCount <
+    shown.length;
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [onlyNoWebsite]);
+    setVisibleCount(
+      PAGE_SIZE,
+    );
+  }, [websiteFilter]);
 
   const sentinelRef =
     useRef<HTMLDivElement | null>(
       null,
     );
 
-  const loadMore = useCallback(() => {
-    setVisibleCount((c) =>
-      Math.min(
-        c + PAGE_SIZE,
-        shown.length,
-      ),
-    );
-  }, [shown.length]);
+  const loadMore =
+    useCallback(() => {
+      setVisibleCount(
+        (count) =>
+          Math.min(
+            count +
+              PAGE_SIZE,
+            shown.length,
+          ),
+      );
+    }, [shown.length]);
 
   useEffect(() => {
     if (!hasMore) {
@@ -367,13 +447,15 @@ function DashboardPage() {
       new IntersectionObserver(
         (entries) => {
           if (
-            entries[0].isIntersecting
+            entries[0]
+              .isIntersecting
           ) {
             loadMore();
           }
         },
         {
-          rootMargin: "200px",
+          rootMargin:
+            "200px",
         },
       );
 
@@ -381,814 +463,544 @@ function DashboardPage() {
 
     return () =>
       observer.disconnect();
-  }, [hasMore, loadMore]);
+  }, [
+    hasMore,
+    loadMore,
+  ]);
 
   return (
     <DashboardShell>
-      <div className="mx-auto w-full max-w-6xl space-y-6">
-        {/* HERO */}
+      <div className="mx-auto w-full max-w-3xl pb-6">
+        {/* HEADER */}
 
-        <section
-          className="
-            relative
-            overflow-hidden
-            rounded-[28px]
-            border
-            border-border
-            bg-card
-            px-5
-            py-6
-            shadow-sm
-            sm:px-7
-            sm:py-8
-          "
-        >
-          <div
-            aria-hidden="true"
-            className="
-              pointer-events-none
-              absolute
-              -right-20
-              -top-24
-              size-64
-              rounded-full
-              bg-primary/10
-              blur-3xl
-            "
-          />
+        <div className="mb-5">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Lead Finder
+          </h1>
 
-          <div className="relative z-10">
-            <div
-              className="
-                inline-flex
-                items-center
-                gap-2
-                rounded-full
-                border
-                border-primary/15
-                bg-primary/[0.06]
-                px-3
-                py-1.5
-                text-xs
-                font-semibold
-                text-primary
-              "
-            >
-              <Sparkles className="size-3.5" />
-              Lead discovery
-            </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Find businesses
+            that need a
+            website.
+          </p>
+        </div>
 
-            <h1
-              className="
-                mt-4
-                max-w-2xl
-                text-3xl
-                font-semibold
-                tracking-tight
-                text-foreground
-                sm:text-4xl
-              "
-            >
-              Find businesses that need
-              a website.
-            </h1>
-
-            <p
-              className="
-                mt-3
-                max-w-xl
-                text-sm
-                leading-6
-                text-muted-foreground
-                sm:text-base
-              "
-            >
-              Search local businesses,
-              spot strong prospects, and
-              turn them into client
-              opportunities.
-            </p>
-
-            <div
-              className="
-                mt-5
-                flex
-                flex-wrap
-                items-center
-                gap-2
-                text-xs
-                text-muted-foreground
-              "
-            >
-              <span
-                className="
-                  inline-flex
-                  items-center
-                  gap-1.5
-                  rounded-full
-                  border
-                  border-border
-                  bg-background/70
-                  px-3
-                  py-1.5
-                "
-              >
-                <Globe2 className="size-3.5 text-primary" />
-                Local business search
-              </span>
-
-              <span
-                className="
-                  inline-flex
-                  items-center
-                  gap-1.5
-                  rounded-full
-                  border
-                  border-border
-                  bg-background/70
-                  px-3
-                  py-1.5
-                "
-              >
-                <Search className="size-3.5 text-primary" />
-                Website opportunity filter
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* SEARCH + SIDEBAR */}
+        {/* WEBSITE FILTER */}
 
         <div
           className="
+            mb-4
             grid
-            min-w-0
-            gap-6
-            lg:grid-cols-[minmax(0,1fr)_300px]
+            grid-cols-3
+            rounded-xl
+            border
+            border-border
+            bg-muted/40
+            p-1
           "
         >
-          <div className="min-w-0">
-            <section
-              className="
-                rounded-[26px]
-                border
-                border-border
-                bg-card
-                p-4
-                shadow-sm
-                sm:p-5
-              "
-            >
+          <FilterButton
+            active={
+              websiteFilter ===
+              "no-website"
+            }
+            onClick={() =>
+              setWebsiteFilter(
+                "no-website",
+              )
+            }
+          >
+            No website
+          </FilterButton>
+
+          <FilterButton
+            active={
+              websiteFilter ===
+              "all"
+            }
+            onClick={() =>
+              setWebsiteFilter(
+                "all",
+              )
+            }
+          >
+            All
+          </FilterButton>
+
+          <FilterButton
+            active={
+              websiteFilter ===
+              "with-website"
+            }
+            onClick={() =>
+              setWebsiteFilter(
+                "with-website",
+              )
+            }
+          >
+            With website
+          </FilterButton>
+        </div>
+
+        {/* SEARCH CARD */}
+
+        <section
+          className="
+            rounded-[24px]
+            border
+            border-border
+            bg-card
+            p-4
+            shadow-sm
+            sm:p-5
+          "
+        >
+          <SearchForm
+            onSearch={
+              handleSearch
+            }
+            loading={
+              loading
+            }
+            defaultCategory={
+              profile?.primary_niche ??
+              undefined
+            }
+            defaultLocation={
+              profile?.target_location ??
+              undefined
+            }
+          />
+        </section>
+
+        {/* RECENT SEARCHES */}
+
+        <section className="mt-6">
+          <div
+            className="
+              mb-3
+              flex
+              items-center
+              justify-between
+              gap-4
+            "
+          >
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Recent searches
+              </h2>
+
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Quickly run a
+                search again.
+              </p>
+            </div>
+
+            {!agencyUser && (
+              <button
+                type="button"
+                onClick={() =>
+                  setUpgradeOpen(
+                    true,
+                  )
+                }
+                className="text-xs font-semibold text-primary"
+              >
+                Agency
+              </button>
+            )}
+          </div>
+
+          {agencyUser ? (
+            savedSearchesLoading ? (
               <div
                 className="
-                  mb-4
-                  flex
-                  items-center
-                  justify-between
-                  gap-3
+                  rounded-xl
+                  border
+                  border-border
+                  bg-card
+                  px-4
+                  py-4
+                  text-xs
+                  text-muted-foreground
                 "
               >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    Search criteria
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Choose the business and
-                    location you want to
-                    target.
-                  </p>
-                </div>
-
-                <span
-                  className="
-                    flex
-                    size-9
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-primary/10
-                    text-primary
-                  "
-                >
-                  <SlidersHorizontal className="size-4" />
-                </span>
+                Loading
+                searches...
               </div>
-
-              <SearchForm
-                onSearch={handleSearch}
-                loading={loading}
-                defaultCategory={
-                  profile?.primary_niche ??
-                  undefined
-                }
-                defaultLocation={
-                  profile?.target_location ??
-                  undefined
-                }
-              />
-            </section>
-
-            {/* MOBILE SAVED SEARCHES */}
-
-            <section
-              className="
-                mt-4
-                rounded-[22px]
-                border
-                border-border
-                bg-card
-                p-4
-                sm:hidden
-              "
-            >
+            ) : savedSearches.length >
+              0 ? (
               <div
                 className="
-                  flex
-                  items-center
-                  justify-between
-                  gap-3
-                "
-              >
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                  "
-                >
-                  <Clock3 className="size-4 text-primary" />
-
-                  <div>
-                    <p className="text-sm font-semibold">
-                      Recent searches
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Run a saved search
-                      again.
-                    </p>
-                  </div>
-                </div>
-
-                {!agencyUser && (
-                  <span className="text-[10px] font-semibold text-primary">
-                    Agency
-                  </span>
-                )}
-              </div>
-
-              {agencyUser ? (
-                savedSearchesLoading ? (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Loading searches...
-                  </p>
-                ) : savedSearches.length >
-                  0 ? (
-                  <div className="mt-3 space-y-2">
-                    {savedSearches
-                      .slice(0, 3)
-                      .map((search) => (
-                        <button
-                          key={
-                            search.id
-                          }
-                          type="button"
-                          disabled={
-                            loading
-                          }
-                          onClick={() =>
-                            handleSearch(
-                              search.category,
-                              search.location,
-                              search.id,
-                            )
-                          }
-                          className="
-                            flex
-                            w-full
-                            items-center
-                            justify-between
-                            gap-3
-                            rounded-xl
-                            border
-                            border-border
-                            bg-background/60
-                            px-3
-                            py-2.5
-                            text-left
-                            transition
-                            hover:border-primary/30
-                          "
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-xs font-semibold text-foreground">
-                              {
-                                search.category
-                              }
-                            </span>
-                            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                              {
-                                search.location
-                              }
-                            </span>
-                          </span>
-
-                          <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                        </button>
-                      ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    Save a search after
-                    running it and it will
-                    appear here.
-                  </p>
-                )
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setUpgradeOpen(true)
-                  }
-                  className="
-                    mt-3
-                    w-full
-                    rounded-xl
-                    border
-                    border-dashed
-                    border-border
-                    px-3
-                    py-3
-                    text-left
-                    text-xs
-                    text-muted-foreground
-                  "
-                >
-                  Save repeatable searches
-                  with Agency.
-                </button>
-              )}
-            </section>
-
-            {/* RESULTS TOOLBAR */}
-
-            {(loading || searched) && (
-              <div
-                className="
-                  mt-5
-                  flex
-                  flex-col
-                  gap-3
+                  overflow-hidden
                   rounded-2xl
                   border
                   border-border
                   bg-card
-                  p-3
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-between
                 "
               >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {loading
-                      ? "Searching..."
-                      : `${shown.length} result${
-                          shown.length === 1
-                            ? ""
-                            : "s"
-                        }`}
-                  </p>
-
-                  {savedSearchRun && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {
-                        newLeadIds.size
-                      }{" "}
-                      new since your last
-                      run
-                    </p>
-                  )}
-                </div>
-
-                <div
-                  className="
-                    flex
-                    items-center
-                    justify-between
-                    gap-3
-                  "
-                >
-                  <label
-                    className="
-                      inline-flex
-                      items-center
-                      gap-2
-                      rounded-full
-                      border
-                      border-border
-                      bg-background
-                      px-3
-                      py-2
-                      text-xs
-                      font-medium
-                    "
-                  >
-                    <input
-                      type="checkbox"
-                      checked={
-                        onlyNoWebsite
-                      }
-                      onChange={(e) =>
-                        setOnlyNoWebsite(
-                          e.target
-                            .checked,
-                        )
-                      }
-                      className="size-4 accent-[var(--primary)]"
-                      disabled={
-                        loading
-                      }
-                    />
-                    No website only
-                  </label>
-
-                  {!loading &&
-                    searched && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={
-                          saveCurrentSearch
+                {savedSearches
+                  .slice(0, 4)
+                  .map(
+                    (
+                      search,
+                      index,
+                    ) => (
+                      <div
+                        key={
+                          search.id
                         }
-                        disabled={
-                          savingSearch
+                        className={
+                          index >
+                          0
+                            ? "border-t border-border"
+                            : ""
                         }
                       >
-                        {agencyUser ? (
-                          <BookmarkPlus className="size-4" />
-                        ) : (
-                          <Lock className="size-4" />
-                        )}
-
-                        {savingSearch
-                          ? "Saving..."
-                          : "Save"}
-                      </Button>
-                    )}
-                </div>
-              </div>
-            )}
-
-            {/* LOADING */}
-
-            {loading && (
-              <div
-                className="
-                  mt-4
-                  grid
-                  min-w-0
-                  gap-4
-                  sm:grid-cols-2
-                "
-              >
-                {Array.from({
-                  length: 4,
-                }).map((_, i) => (
-                  <LeadResultSkeleton
-                    key={i}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* RESULTS */}
-
-            {!loading &&
-              visible.length > 0 && (
-                <>
-                  <div
-                    className="
-                      mt-4
-                      grid
-                      min-w-0
-                      gap-4
-                      sm:grid-cols-2
-                    "
-                  >
-                    {visible.map(
-                      (lead) => (
-                        <LeadResultCard
-                          key={
-                            lead.placeId
-                          }
-                          lead={lead}
-                          category={
-                            meta.category
-                          }
-                          location={
-                            meta.location
-                          }
-                          isNew={newLeadIds.has(
-                            lead.placeId,
-                          )}
-                        />
-                      ),
-                    )}
-                  </div>
-
-                  {hasMore && (
-                    <div
-                      ref={
-                        sentinelRef
-                      }
-                      className="mt-6 flex justify-center"
-                    >
-                      <Button
-                        variant="outline"
-                        onClick={
-                          loadMore
-                        }
-                      >
-                        Load more leads
-                      </Button>
-                    </div>
-                  )}
-
-                  {!hasMore &&
-                    shown.length >
-                      PAGE_SIZE && (
-                      <p className="mt-6 text-center text-xs text-muted-foreground">
-                        You've reached the
-                        end —{" "}
-                        {shown.length} leads
-                        shown.
-                      </p>
-                    )}
-                </>
-              )}
-
-            {/* EMPTY */}
-
-            {!searched &&
-              !loading && (
-                <div
-                  className="
-                    mt-5
-                    flex
-                    flex-col
-                    items-center
-                    justify-center
-                    rounded-[24px]
-                    border
-                    border-dashed
-                    border-border
-                    bg-card/60
-                    px-5
-                    py-14
-                    text-center
-                  "
-                >
-                  <span
-                    className="
-                      flex
-                      size-12
-                      items-center
-                      justify-center
-                      rounded-2xl
-                      bg-primary/10
-                      text-primary
-                    "
-                  >
-                    <Search className="size-6" />
-                  </span>
-
-                  <h3 className="mt-4 font-semibold">
-                    Ready when you are
-                  </h3>
-
-                  <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
-                    Choose a category and
-                    location above to start
-                    finding potential
-                    clients.
-                  </p>
-                </div>
-              )}
-
-            {searched &&
-              shown.length === 0 &&
-              !loading && (
-                <div
-                  className="
-                    mt-5
-                    flex
-                    flex-col
-                    items-center
-                    justify-center
-                    rounded-[24px]
-                    border
-                    border-dashed
-                    border-border
-                    bg-card/60
-                    px-5
-                    py-14
-                    text-center
-                  "
-                >
-                  <Search className="size-6 text-muted-foreground" />
-
-                  <h3 className="mt-3 font-semibold">
-                    No matching leads
-                  </h3>
-
-                  <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
-                    Try another category
-                    or location, or turn
-                    off the no-website
-                    filter.
-                  </p>
-                </div>
-              )}
-          </div>
-
-          {/* DESKTOP SIDE */}
-
-          <aside className="hidden lg:block">
-            <div className="sticky top-24 space-y-4">
-              <CreditMeter />
-
-              <section
-                className="
-                  rounded-[22px]
-                  border
-                  border-border
-                  bg-card
-                  p-4
-                  shadow-sm
-                "
-              >
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                  "
-                >
-                  <Clock3 className="size-4 text-primary" />
-
-                  <h2 className="text-sm font-semibold">
-                    Saved searches
-                  </h2>
-                </div>
-
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Re-run proven searches
-                  and spot newly added
-                  businesses.
-                </p>
-
-                {agencyUser ? (
-                  savedSearchesLoading ? (
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      Loading searches...
-                    </p>
-                  ) : savedSearches.length >
-                    0 ? (
-                    <div className="mt-4 space-y-2">
-                      {savedSearches.map(
-                        (search) => (
-                          <div
-                            key={
-                              search.id
+                        <div
+                          className="
+                            group
+                            flex
+                            items-center
+                            gap-3
+                            px-4
+                            py-3
+                          "
+                        >
+                          <button
+                            type="button"
+                            disabled={
+                              loading
+                            }
+                            onClick={() =>
+                              handleSearch(
+                                search.category,
+                                search.location,
+                                search.id,
+                              )
                             }
                             className="
-                              group
-                              flex
-                              items-center
-                              gap-2
-                              rounded-xl
-                              border
-                              border-border
-                              bg-background/50
-                              px-3
-                              py-2.5
+                              min-w-0
+                              flex-1
+                              text-left
                             "
                           >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleSearch(
-                                  search.category,
-                                  search.location,
-                                  search.id,
-                                )
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {
+                                search.category
                               }
-                              disabled={
-                                loading
+                            </p>
+
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {
+                                search.location
                               }
-                              className="min-w-0 flex-1 text-left"
-                            >
-                              <p className="truncate text-xs font-medium text-foreground">
-                                {
-                                  search.category
-                                }
-                              </p>
+                            </p>
+                          </button>
 
-                              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                                {
-                                  search.location
-                                }
-                              </p>
-                            </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeSavedSearch(
+                                search.id,
+                              )
+                            }
+                            className="
+                              rounded-lg
+                              p-2
+                              text-muted-foreground
+                              opacity-0
+                              transition
+                              hover:bg-destructive/10
+                              hover:text-destructive
+                              group-hover:opacity-100
+                              focus-visible:opacity-100
+                            "
+                            aria-label={`Delete saved search for ${search.name}`}
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removeSavedSearch(
-                                  search.id,
-                                )
-                              }
-                              className="
-                                rounded-md
-                                p-1
-                                text-muted-foreground
-                                opacity-0
-                                transition
-                                hover:bg-destructive/10
-                                hover:text-destructive
-                                group-hover:opacity-100
-                                focus-visible:opacity-100
-                              "
-                              aria-label={`Delete saved search for ${search.name}`}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  ) : (
-                    <p className="mt-4 rounded-xl bg-muted/50 px-3 py-3 text-xs leading-relaxed text-muted-foreground">
-                      Save a search after
-                      running it to build a
-                      repeatable
-                      prospecting list.
-                    </p>
-                  )
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setUpgradeOpen(true)
-                    }
-                    className="
-                      mt-4
-                      flex
-                      w-full
-                      items-center
-                      justify-between
-                      rounded-xl
-                      border
-                      border-dashed
-                      border-border
-                      px-3
-                      py-3
-                      text-left
-                      text-xs
-                      font-medium
-                      text-muted-foreground
-                      transition
-                      hover:border-primary/40
-                      hover:bg-primary/[0.03]
-                    "
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      <Lock className="size-3.5" />
-                      Save repeatable
-                      searches
-                    </span>
+                          <ArrowRight className="size-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    ),
+                  )}
+              </div>
+            ) : (
+              <div
+                className="
+                  rounded-2xl
+                  border
+                  border-dashed
+                  border-border
+                  bg-card/60
+                  px-4
+                  py-5
+                  text-sm
+                  text-muted-foreground
+                "
+              >
+                Your saved
+                searches will
+                appear here.
+              </div>
+            )
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                setUpgradeOpen(
+                  true,
+                )
+              }
+              className="
+                flex
+                w-full
+                items-center
+                justify-between
+                rounded-2xl
+                border
+                border-dashed
+                border-border
+                bg-card
+                px-4
+                py-4
+                text-left
+              "
+            >
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Lock className="size-4" />
+                Save repeatable
+                searches
+              </span>
 
-                    <span className="text-primary">
-                      Agency
-                    </span>
-                  </button>
-                )}
-              </section>
-            </div>
-          </aside>
-        </div>
+              <span className="text-xs font-semibold text-primary">
+                Agency
+              </span>
+            </button>
+          )}
+        </section>
 
-        {/* MOBILE CREDIT METER BOTTOM */}
+        {/* CREDIT */}
 
-        <div className="lg:hidden">
+        <div className="mt-6">
           <CreditMeter />
         </div>
+
+        {/* RESULTS HEADER */}
+
+        {(loading ||
+          searched) && (
+          <div
+            className="
+              mt-7
+              flex
+              items-center
+              justify-between
+              gap-3
+              border-b
+              border-border
+              pb-3
+            "
+          >
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {loading
+                  ? "Searching..."
+                  : `${shown.length} lead${
+                      shown.length ===
+                      1
+                        ? ""
+                        : "s"
+                    }`}
+              </p>
+
+              {savedSearchRun && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {
+                    newLeadIds.size
+                  }{" "}
+                  new since
+                  last run
+                </p>
+              )}
+            </div>
+
+            {searched &&
+              !loading && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={
+                    saveCurrentSearch
+                  }
+                  disabled={
+                    savingSearch
+                  }
+                >
+                  {agencyUser ? (
+                    <BookmarkPlus className="size-4" />
+                  ) : (
+                    <Lock className="size-4" />
+                  )}
+
+                  {savingSearch
+                    ? "Saving..."
+                    : "Save"}
+                </Button>
+              )}
+          </div>
+        )}
+
+        {/* LOADING */}
+
+        {loading && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {Array.from({
+              length: 4,
+            }).map((_, i) => (
+              <LeadResultSkeleton
+                key={i}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* RESULTS */}
+
+        {!loading &&
+          visible.length >
+            0 && (
+            <>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {visible.map(
+                  (lead) => (
+                    <LeadResultCard
+                      key={
+                        lead.placeId
+                      }
+                      lead={
+                        lead
+                      }
+                      category={
+                        meta.category
+                      }
+                      location={
+                        meta.location
+                      }
+                      isNew={newLeadIds.has(
+                        lead.placeId,
+                      )}
+                    />
+                  ),
+                )}
+              </div>
+
+              {hasMore && (
+                <div
+                  ref={
+                    sentinelRef
+                  }
+                  className="mt-6 flex justify-center"
+                >
+                  <Button
+                    variant="outline"
+                    onClick={
+                      loadMore
+                    }
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+
+        {/* EMPTY STATE */}
+
+        {!searched &&
+          !loading && (
+            <div
+              className="
+                mt-7
+                flex
+                flex-col
+                items-center
+                justify-center
+                rounded-2xl
+                border
+                border-dashed
+                border-border
+                px-5
+                py-12
+                text-center
+              "
+            >
+              <span
+                className="
+                  flex
+                  size-11
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-primary/10
+                  text-primary
+                "
+              >
+                <Search className="size-5" />
+              </span>
+
+              <h3 className="mt-3 text-sm font-semibold">
+                Find your next
+                client
+              </h3>
+
+              <p className="mt-1 max-w-xs text-xs leading-5 text-muted-foreground">
+                Pick a category
+                and location to
+                start searching.
+              </p>
+            </div>
+          )}
+
+        {searched &&
+          !loading &&
+          shown.length ===
+            0 && (
+            <div
+              className="
+                mt-7
+                rounded-2xl
+                border
+                border-dashed
+                border-border
+                px-5
+                py-10
+                text-center
+              "
+            >
+              <Search className="mx-auto size-5 text-muted-foreground" />
+
+              <h3 className="mt-3 text-sm font-semibold">
+                No matching
+                leads
+              </h3>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                Try changing
+                your location,
+                category or
+                website filter.
+              </p>
+            </div>
+          )}
       </div>
 
       <UpgradeDialog
-        open={upgradeOpen}
+        open={
+          upgradeOpen
+        }
         onOpenChange={
           setUpgradeOpen
         }
@@ -1196,5 +1008,42 @@ function DashboardPage() {
         requiredPlan="agency"
       />
     </DashboardShell>
+  );
+}
+
+function FilterButton({
+  children,
+  active,
+  onClick,
+}: {
+  children:
+    React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={
+        onClick
+      }
+      className={`
+        rounded-lg
+        px-2
+        py-2.5
+        text-[11px]
+        font-semibold
+        transition-all
+        sm:text-xs
+
+        ${
+          active
+            ? "bg-background text-primary shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }
+      `}
+    >
+      {children}
+    </button>
   );
 }
