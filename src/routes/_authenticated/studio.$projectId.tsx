@@ -1,22 +1,89 @@
-import { createFileRoute, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
 import {
-  ArrowLeft, Rocket, History, Send, ExternalLink,
-  FileCode, FileJson, FileType2, File, Globe, X, Loader2,
-  Code2, Eye, RefreshCw, FolderGit2, Pencil,
-  MessageSquare, Check,
+  createFileRoute,
+  useNavigate,
+  useParams,
+  useSearch,
+} from "@tanstack/react-router";
+
+import {
+  useServerFn,
+} from "@tanstack/react-start";
+
+import {
+  useState,
+  useEffect,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
+
+import {
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+import {
+  toast,
+} from "sonner";
+
+import {
+  formatDistanceToNow,
+} from "date-fns";
+
+import {
+  ArrowLeft,
+  Rocket,
+  History,
+  Send,
+  ExternalLink,
+  FileCode,
+  FileJson,
+  FileType2,
+  File,
+  X,
+  Loader2,
+  Code2,
+  Eye,
+  FolderGit2,
+  Pencil,
+  MessageSquare,
+  Check,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
-import { useAnimatedPlaceholder } from "@/hooks/use-animated-placeholder";
-import { useIsMobile } from "@/hooks/use-mobile";
+
+import {
+  Button,
+} from "@/components/ui/button";
+
+import {
+  Textarea,
+} from "@/components/ui/textarea";
+
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+
+import {
+  StudioLivePreview,
+} from "@/components/studio/StudioLivePreview";
+
+import {
+  useAuth,
+} from "@/lib/auth";
+
+import {
+  supabase,
+} from "@/integrations/supabase/client";
+
+import {
+  useAnimatedPlaceholder,
+} from "@/hooks/use-animated-placeholder";
+
+import {
+  useIsMobile,
+} from "@/hooks/use-mobile";
+
 import {
   getStudioProject,
   listStudioMessages,
@@ -24,8 +91,6 @@ import {
   listStudioSnapshots,
   updateStudioProject,
   createStudioSnapshot,
-  generateBusinessWebsite,
-  applyBusinessWebsiteEdit,
   saveStudioFiles,
   undoLastBusinessWebsiteEdit,
   deployBusinessWebsite,
@@ -33,876 +98,2751 @@ import {
   type StudioMessage,
   type StudioSnapshot,
 } from "@/lib/studio.functions";
-import { fromStudioFileMap, isSafeStudioPath, parseStudioFiles, toStudioFileMap } from "@/lib/studio-files";
 
-const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+import {
+  generateBusinessWebsite,
+  applyBusinessWebsiteEdit,
+} from "@/lib/studio-builder-v2.functions";
 
-export const Route = createFileRoute("/_authenticated/studio/$projectId")({
-  head: () => ({ meta: [{ title: "Studio Builder — Kodarai" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({ generate: search.generate === "1" ? "1" : undefined }),
-  component: Builder,
-});
+import {
+  fromStudioFileMap,
+  isSafeStudioPath,
+  parseStudioFiles,
+  toStudioFileMap,
+} from "@/lib/studio-files";
 
-// ─── Types matching backend SSE payloads ──────────────────────────────────────
+const MonacoEditor =
+  lazy(
+    () =>
+      import(
+        "@monaco-editor/react"
+      ),
+  );
 
-type FileAction = "create" | "update" | "delete";
+export const Route =
+  createFileRoute(
+    "/_authenticated/studio/$projectId",
+  )({
+    head: () => ({
+      meta: [
+        {
+          title:
+            "Studio Builder — Kodarai",
+        },
+      ],
+    }),
+
+    validateSearch: (
+      search: Record<
+        string,
+        unknown
+      >,
+    ) => ({
+      generate:
+        search.generate ===
+        "1"
+          ? "1"
+          : undefined,
+    }),
+
+    component:
+      Builder,
+  });
+
+/* -------------------------------------------------------------------------- */
+/*                                STREAM TYPES                                */
+/* -------------------------------------------------------------------------- */
+
+type FileAction =
+  | "create"
+  | "update"
+  | "delete";
 
 type FileChange = {
   path: string;
-  action: FileAction;
+
+  action:
+    FileAction;
+
   content: string;
 };
 
 type StreamEvent =
-  | { type: "progress" }
-  | { type: "text"; text: string }
-  | { type: "files"; fileChanges: FileChange[] }
   | {
-      type: "done";
-      fullContent?: string;
-      summary?: string;
-      fileChanges?: FileChange[];
-      filesChanged?: string[];
+      type:
+        "progress";
     }
-  | { type: "error"; error: string };
+  | {
+      type:
+        "text";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+      text:
+        string;
+    }
+  | {
+      type:
+        "files";
 
-// Apply the STRUCTURED file changes the backend already parsed. Do not
-// re-parse raw XML on the client — the backend is the single source of
-// truth for that (see parseFileChanges in api/studio/generate).
+      fileChanges:
+        FileChange[];
+    }
+  | {
+      type:
+        "done";
+
+      fullContent?:
+        string;
+
+      summary?:
+        string;
+
+      fileChanges?:
+        FileChange[];
+
+      filesChanged?:
+        string[];
+    }
+  | {
+      type:
+        "error";
+
+      error:
+        string;
+    };
+
+/* -------------------------------------------------------------------------- */
+/*                                  HELPERS                                   */
+/* -------------------------------------------------------------------------- */
+
 function applyStructuredChanges(
-  current: Record<string, string>,
-  changes: FileChange[],
-): Record<string, string> {
-  const result = { ...current };
-  for (const { path, action, content } of changes) {
-    if (action === "delete") {
-      delete result[path];
+  current:
+    Record<
+      string,
+      string
+    >,
+
+  changes:
+    FileChange[],
+): Record<
+  string,
+  string
+> {
+  const result = {
+    ...current,
+  };
+
+  for (
+    const {
+      path,
+      action,
+      content,
+    } of changes
+  ) {
+    if (
+      action ===
+      "delete"
+    ) {
+      delete result[
+        path
+      ];
     } else {
-      result[path] = content;
+      result[
+        path
+      ] =
+        content;
     }
   }
+
   return result;
 }
 
-const CHAT_PLACEHOLDERS = [
-  "Ask Studio to build something...",
-  "Add a dark mode toggle...",
-  "Create a contact form with validation...",
-  "Add a WhatsApp floating button...",
-  "Build a services section with icons...",
-  "Fix the layout on mobile...",
-  "Make the header sticky on scroll...",
-  "Add a Google Maps embed...",
-];
+const CHAT_PLACEHOLDERS =
+  [
+    "Ask Studio to build something...",
 
-const QUICK_STARTS = [
-  { label: "Add hero section", prompt: "Add a stunning hero section with a headline, subheading, and call-to-action button." },
-  { label: "Contact section", prompt: "Add a contact section with phone, email, WhatsApp button, and a simple enquiry form." },
-  { label: "Make mobile-friendly", prompt: "Make the site fully responsive and mobile-friendly with a hamburger menu." },
-  { label: "Improve speed", prompt: "Optimize the HTML and CSS for performance: lazy load images, clean up unused styles, and compress scripts." },
-];
+    "Add a dark mode toggle...",
 
-// ─── Preview helpers ──────────────────────────────────────────────────────────
+    "Create a contact form with validation...",
 
-function buildPreviewDoc(files: Record<string, string>): string | null {
-  const html = files["index.html"] || files["index.htm"];
-  if (!html) return null;
-  let doc = html.replace(
-    /<link\s+[^>]*href="([^"?#]+\.css)"[^>]*\/?>/gi,
-    (_, href: string) => {
-      const key = href.replace(/^\.?\//, "");
-      const css = files[key] || files[href];
-      return css ? `<style>${css}</style>` : "";
+    "Add a WhatsApp floating button...",
+
+    "Build a services section with icons...",
+
+    "Fix the layout on mobile...",
+
+    "Make the header sticky on scroll...",
+
+    "Add a Google Maps embed...",
+  ];
+
+const QUICK_STARTS =
+  [
+    {
+      label:
+        "Add hero section",
+
+      prompt:
+        "Add a stunning hero section with a headline, subheading, and call-to-action button.",
     },
-  );
-  doc = doc.replace(
-    /<script\s+[^>]*src="([^"?#]+\.js)"[^>]*><\/script>/gi,
-    (_, src: string) => {
-      const key = src.replace(/^\.?\//, "");
-      const js = files[key] || files[src];
-      return js ? `<script>${js}</script>` : "";
+
+    {
+      label:
+        "Contact section",
+
+      prompt:
+        "Add a contact section with phone, email, WhatsApp button, and a simple enquiry form.",
     },
-  );
-  return doc;
-}
 
-function LivePreview({
-  files, deploymentUrl, onDeploy, fileCount,
-}: {
-  files: Record<string, string>;
-  deploymentUrl: string | null;
-  onDeploy: () => void;
-  fileCount: number;
-}) {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [previewMode, setPreviewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
-  const previewDoc = buildPreviewDoc(files);
+    {
+      label:
+        "Make mobile-friendly",
 
-  const filesJson = JSON.stringify(files);
-  const prevFilesJson = useRef(filesJson);
-  useEffect(() => {
-    if (prevFilesJson.current !== filesJson) {
-      prevFilesJson.current = filesJson;
-      setRefreshKey((k) => k + 1);
-    }
-  }, [filesJson]);
+      prompt:
+        "Make the site fully responsive and mobile-friendly with a hamburger menu.",
+    },
 
-  if (previewDoc) {
-    return (
-      <div className="flex flex-col h-full bg-[#0f0f12]">
-        {/* Browser chrome */}
-        <div className="flex items-center gap-2 h-10 px-3 bg-[#1a1a20] border-b border-white/5 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-            <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
-            <div className="w-3 h-3 rounded-full bg-[#28c840]" />
-          </div>
-          <div className="flex-1 bg-[#0f0f12] rounded-md h-6 flex items-center px-3 mx-1 border border-white/5">
-            <Globe className="w-3 h-3 text-zinc-600 mr-1.5 shrink-0" />
-            <span className="text-[11px] text-zinc-500 font-mono truncate">
-              {deploymentUrl ? deploymentUrl.replace(/^https?:\/\//, "") : "preview — kodarai studio"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => setRefreshKey((k) => k + 1)}
-              className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-600 hover:bg-white/5 hover:text-zinc-300 transition-colors"
-              title="Refresh preview"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-            {deploymentUrl && (
-              <a
-                href={deploymentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-7 h-7 rounded-md flex items-center justify-center text-emerald-500 hover:bg-white/5 transition-colors"
-                title="Open live site"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            )}
-          </div>
-        </div>
-        <div className="flex h-9 items-center justify-center gap-1 border-b border-white/5 bg-[#15151b] px-2">
-          {(["desktop", "tablet", "mobile"] as const).map((mode) => (
-            <button key={mode} onClick={() => setPreviewMode(mode)} className={`rounded px-2 py-1 text-[10px] font-medium capitalize transition-colors ${previewMode === mode ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-              {mode}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1 overflow-auto bg-[#202025] p-3">
-          <div className="mx-auto h-full overflow-hidden bg-white shadow-2xl transition-[width] duration-200" style={{ width: previewMode === "desktop" ? "100%" : previewMode === "tablet" ? "768px" : "390px", maxWidth: "100%" }}>
-            <iframe
-              key={refreshKey}
-              srcDoc={previewDoc}
-              className="h-full w-full border-0"
-              sandbox="allow-scripts allow-same-origin allow-forms"
-              title="Site preview"
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
+    {
+      label:
+        "Improve speed",
 
-  // Empty state
-  return (
-    <div className="relative flex flex-1 flex-col items-center justify-center bg-[#0f0f12] overflow-hidden">
-      {/* Subtle dot grid */}
-      <div
-        className="absolute inset-0 opacity-[0.025]"
-        style={{
-          backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
-        }}
-      />
-      {/* Ambient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/4 rounded-full blur-3xl pointer-events-none" />
+      prompt:
+        "Optimize the website for performance: lazy load images, clean up unused styles, and improve loading speed.",
+    },
+  ];
 
-      <div className="relative z-10 flex flex-col items-center text-center max-w-xs px-6">
-        {deploymentUrl ? (
-          <>
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/5">
-              <Globe className="w-8 h-8 text-emerald-400" />
-            </div>
-            <h3 className="mb-1.5 text-sm font-semibold text-zinc-100">Live on the web</h3>
-            <p className="mb-5 break-all font-mono text-[11px] text-zinc-500 leading-relaxed">{deploymentUrl.replace("https://", "")}</p>
-            <a href={deploymentUrl} target="_blank" rel="noopener noreferrer" className="w-full">
-              <Button className="h-9 w-full gap-2 bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-medium shadow-lg shadow-emerald-500/20">
-                <ExternalLink className="w-3.5 h-3.5" /> Open live site
-              </Button>
-            </a>
-          </>
-        ) : (
-          <>
-            {/* Preview illustration */}
-            <div className="mb-6 relative">
-              <div className="w-20 h-20 rounded-2xl border border-white/6 bg-white/[0.02] flex items-center justify-center shadow-xl">
-                <svg width="44" height="40" viewBox="0 0 44 40" fill="none">
-                  <rect x="2" y="2" width="40" height="7" rx="2" fill="rgba(255,255,255,0.08)"/>
-                  <rect x="2" y="13" width="25" height="4" rx="2" fill="rgba(255,255,255,0.05)"/>
-                  <rect x="2" y="21" width="40" height="4" rx="2" fill="rgba(255,255,255,0.05)"/>
-                  <rect x="2" y="29" width="30" height="4" rx="2" fill="rgba(255,255,255,0.05)"/>
-                  <rect x="2" y="37" width="20" height="4" rx="2" fill="rgba(255,255,255,0.03)"/>
-                </svg>
-              </div>
-            </div>
-
-            <h3 className="mb-2 text-sm font-semibold text-zinc-200">No preview yet</h3>
-            <p className="mb-6 text-xs text-zinc-500 leading-relaxed">
-              {fileCount > 0
-                ? `${fileCount} file${fileCount !== 1 ? "s" : ""} ready — ask Studio to create an index.html to see a live preview.`
-                : "Describe your website in the chat and Studio will build it live here."}
-            </p>
-            <Button
-              onClick={onDeploy}
-              variant="outline"
-              className="h-9 w-full gap-2 border-white/8 bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200 hover:border-white/15 text-xs transition-all"
-            >
-              <Rocket className="w-3.5 h-3.5" /> Deploy to Vercel
-            </Button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                                  BUILDER                                   */
+/* -------------------------------------------------------------------------- */
 
 function Builder() {
-  const { projectId } = useParams({ from: "/_authenticated/studio/$projectId" });
-  const { generate } = useSearch({ from: "/_authenticated/studio/$projectId" });
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-
-  const runGetProject     = useServerFn(getStudioProject);
-  const runListMessages   = useServerFn(listStudioMessages);
-  const runCreateMessage  = useServerFn(createStudioMessage);
-  const runListSnapshots  = useServerFn(listStudioSnapshots);
-  const runUpdateProject  = useServerFn(updateStudioProject);
-  const runCreateSnapshot = useServerFn(createStudioSnapshot);
-  const runGenerateWebsite = useServerFn(generateBusinessWebsite);
-  const runApplyWebsiteEdit = useServerFn(applyBusinessWebsiteEdit);
-  const runSaveFiles = useServerFn(saveStudioFiles);
-  const runUndoEdit = useServerFn(undoLastBusinessWebsiteEdit);
-
-  // ── Data ─────────────────────────────────────────────────────────────────────
-  const { data: projectRes } = useQuery({
-    queryKey: ["studio-project", projectId],
-    queryFn: () => runGetProject({ data: { id: projectId } }),
-    enabled: !!user && !!projectId,
-  });
-  const project = projectRes && "project" in projectRes ? projectRes.project : null;
-
-  const { data: messagesRes, refetch: refetchMessages } = useQuery({
-    queryKey: ["studio-messages", projectId],
-    queryFn: () => runListMessages({ data: { project_id: projectId } }),
-    enabled: !!user && !!projectId,
-  });
-  const messages: StudioMessage[] = messagesRes?.messages ?? [];
-
-  const { data: snapshotsRes, refetch: refetchSnapshots } = useQuery({
-    queryKey: ["studio-snapshots", projectId],
-    queryFn: () => runListSnapshots({ data: { project_id: projectId } }),
-    enabled: !!user && !!projectId,
-  });
-  const snapshots: StudioSnapshot[] = snapshotsRes?.snapshots ?? [];
-
-  // ── Local state ───────────────────────────────────────────────────────────────
-  const [projectName, setProjectName]     = useState("");
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [files, setFiles]                 = useState<Record<string, string>>({});
-  const [currentFile, setCurrentFile]     = useState<string | null>(null);
-  const [openFiles, setOpenFiles]         = useState<string[]>([]);
-  const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
-  const [showDeploy, setShowDeploy]       = useState(false);
-  const [mobileTab, setMobileTab]         = useState<"chat" | "code" | "preview">("chat");
-  const [mounted, setMounted]             = useState(false);
-  const [isStreaming, setIsStreaming]     = useState(false);
-  const [isSaving, setIsSaving]           = useState(false);
-  const [optimisticMessages, setOptimisticMessages] = useState<StudioMessage[]>([]);
-  const allMessages = [...messages, ...optimisticMessages];
-
-  // ── Effects ───────────────────────────────────────────────────────────────────
-  useEffect(() => { setMounted(true); }, []);
-
-  useEffect(() => {
-    if (!project) return;
-    if (!isEditingName) setProjectName(project.name);
-    if (project.deployment_url) setDeploymentUrl(project.deployment_url);
-    try {
-      const parsed = toStudioFileMap(parseStudioFiles(project.files_json));
-      setFiles(parsed);
-      const paths = Object.keys(parsed);
-      if (paths.length > 0 && !currentFile) {
-        setCurrentFile(paths[0]);
-        setOpenFiles([paths[0]]);
-      }
-    } catch { setFiles({}); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id, project?.files_json, project?.name, project?.deployment_url]);
-
-  useEffect(() => {
-    if (!projectId || !user || messages.length > 0 || isStreaming) return;
-    const stored = sessionStorage.getItem(`studio_initial_prompt_${projectId}`);
-    if (stored) {
-      sessionStorage.removeItem(`studio_initial_prompt_${projectId}`);
-      const t = setTimeout(() => handleSend(stored), 800);
-      return () => clearTimeout(t);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, user, messages.length]);
-
-  useEffect(() => {
-    if ((generate !== "1" && project?.generation_status !== "idle") || !project || project.template !== "business-website" || project.generation_status === "ready" || isStreaming) return;
-    let cancelled = false;
-    setIsStreaming(true);
-    runGenerateWebsite({ data: { project_id: projectId } })
-      .then((result) => {
-        if (cancelled) return;
-        if ("error" in result) { toast.error(result.message); return; }
-        setFiles(toStudioFileMap(result.files));
-        const first = result.files[0]?.path;
-        if (first) handleFileSelect(first);
-        toast.success("Website generated — it is ready to preview.");
-        queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
-        queryClient.invalidateQueries({ queryKey: ["studio-messages", projectId] });
-      })
-      .catch(() => !cancelled && toast.error("Website generation failed. Please try again."))
-      .finally(() => !cancelled && setIsStreaming(false));
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generate, project?.id, project?.generation_status]);
-
-  // ── Name editing ──────────────────────────────────────────────────────────────
-  const handleNameBlur = async () => {
-    setIsEditingName(false);
-    if (!projectName.trim() || projectName === project?.name) return;
-    await runUpdateProject({ data: { id: projectId, name: projectName.trim() } });
-    queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
-    queryClient.invalidateQueries({ queryKey: ["studio-projects"] });
-  };
-
-  const handleManualFileChange = (path: string, content: string) => {
-    setFiles((current) => ({ ...current, [path]: content }));
-  };
-
-  const handleCreateFile = () => {
-    const path = window.prompt("New file path (for example: notes.txt)")?.trim();
-    if (!path) return;
-    if (!isSafeStudioPath(path) || files[path] !== undefined) { toast.error("Use a new, relative file path without .. or backslashes."); return; }
-    setFiles((current) => ({ ...current, [path]: "" }));
-    handleFileSelect(path);
-  };
-
-  const handleDeleteFile = (path: string) => {
-    if (path === "index.html") { toast.error("index.html is required for preview and publishing."); return; }
-    if (!window.confirm(`Delete ${path}?`)) return;
-    setFiles((current) => {
-      const next = { ...current };
-      delete next[path];
-      return next;
+  const {
+    projectId,
+  } =
+    useParams({
+      from:
+        "/_authenticated/studio/$projectId",
     });
-    setOpenFiles((current) => current.filter((file) => file !== path));
-    if (currentFile === path) setCurrentFile(null);
-  };
 
-  const handleRenameFile = (path: string) => {
-    const nextPath = window.prompt("Rename file", path)?.trim();
-    if (!nextPath || nextPath === path) return;
-    if (!isSafeStudioPath(nextPath) || files[nextPath] !== undefined) { toast.error("Use a new, relative file path without .. or backslashes."); return; }
-    setFiles((current) => {
-      const next = { ...current, [nextPath]: current[path] };
-      delete next[path];
-      return next;
+  const {
+    generate,
+  } =
+    useSearch({
+      from:
+        "/_authenticated/studio/$projectId",
     });
-    setOpenFiles((current) => current.map((file) => file === path ? nextPath : file));
-    if (currentFile === path) setCurrentFile(nextPath);
-  };
 
-  const handleSaveFiles = async () => {
-    setIsSaving(true);
-    try {
-      const result = await runSaveFiles({ data: { project_id: projectId, files: fromStudioFileMap(files) } });
-      if ("error" in result) { toast.error(result.message); return; }
-      toast.success("Website saved.");
-      queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
-    } catch {
-      toast.error("Could not save the website.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const navigate =
+    useNavigate();
 
-  const handleUndo = async () => {
-    try {
-      const result = await runUndoEdit({ data: { project_id: projectId } });
-      if ("error" in result) { toast.error(result.message); return; }
-      setFiles(toStudioFileMap(result.files));
-      toast.success("Last AI edit undone.");
-      queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
-      refetchSnapshots();
-    } catch {
-      toast.error("Could not undo the last edit.");
-    }
-  };
+  const {
+    user,
+  } =
+    useAuth();
 
-  // ── File management ───────────────────────────────────────────────────────────
-  const handleFileSelect = (path: string) => {
-    if (!openFiles.includes(path)) setOpenFiles((p) => [...p, path]);
-    setCurrentFile(path);
-    if (isMobile) setMobileTab("code");
-  };
+  const queryClient =
+    useQueryClient();
 
-  const closeFile = (e: React.MouseEvent, path: string) => {
-    e.stopPropagation();
-    const next = openFiles.filter((p) => p !== path);
-    setOpenFiles(next);
-    if (currentFile === path) setCurrentFile(next.length > 0 ? next[next.length - 1] : null);
-  };
+  const isMobile =
+    useIsMobile();
 
-  // ── AI generation ─────────────────────────────────────────────────────────────
-  const handleSend = async (promptText: string) => {
-    if (!promptText.trim() || isStreaming || !user) return;
+  const runGetProject =
+    useServerFn(
+      getStudioProject,
+    );
 
-    // Business websites use the controlled server-side generator. This is the
-    // critical path that persists actual project files instead of merely
-    // displaying AI code in the chat transcript.
-    if (project?.template === "business-website") {
-      setIsStreaming(true);
-      try {
-        if (Object.keys(files).length === 0) {
-          const result = await runGenerateWebsite({ data: { project_id: projectId } });
-          if ("error" in result) { toast.error(result.message); return; }
-          setFiles(toStudioFileMap(result.files));
-          const first = result.files[0]?.path;
-          if (first) handleFileSelect(first);
-          toast.success("Website generated — it is ready to preview.");
-        } else {
-          const result = await runApplyWebsiteEdit({ data: { project_id: projectId, request: promptText } });
-          if ("error" in result) { toast.error(result.message); return; }
-          setFiles(toStudioFileMap(result.files));
-          toast.success("Website updated.");
-        }
-        queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] });
-        queryClient.invalidateQueries({ queryKey: ["studio-messages", projectId] });
-        refetchMessages();
-        refetchSnapshots();
-      } catch {
-        toast.error("Could not update this website. Please try again.");
-      } finally {
-        setIsStreaming(false);
-      }
-      return;
-    }
+  const runListMessages =
+    useServerFn(
+      listStudioMessages,
+    );
 
-    const tempUserMsg: StudioMessage = {
-      id: `temp_${Date.now()}`,
-      project_id: projectId,
-      role: "user",
-      content: promptText,
-      file_changes: null,
-      created_at: new Date().toISOString(),
-    };
-    setOptimisticMessages((prev) => [...prev, tempUserMsg]);
+  const runCreateMessage =
+    useServerFn(
+      createStudioMessage,
+    );
 
-    await runCreateMessage({ data: { project_id: projectId, role: "user", content: promptText } });
-    queryClient.invalidateQueries({ queryKey: ["studio-messages", projectId] });
+  const runListSnapshots =
+    useServerFn(
+      listStudioSnapshots,
+    );
 
-    let leadContext: { businessName: string; category: string; city: string; phone?: string } | undefined;
-    const storedLead = sessionStorage.getItem(`studio_lead_context_${projectId}`);
-    if (storedLead) {
-      try { leadContext = JSON.parse(storedLead); } catch { /* ignore */ }
-    }
+  const runUpdateProject =
+    useServerFn(
+      updateStudioProject,
+    );
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) { toast.error("Not authenticated."); return; }
+  const runCreateSnapshot =
+    useServerFn(
+      createStudioSnapshot,
+    );
 
-    setIsStreaming(true);
+  /*
+   * Builder V2:
+   *
+   * - React/Vite websites
+   * - 10 credits per website
+   * - 1 credit per AI edit
+   */
+  const runGenerateWebsite =
+    useServerFn(
+      generateBusinessWebsite,
+    );
 
-    const tempAsstId = `streaming_${Date.now()}`;
-    setOptimisticMessages((prev) => [
-      ...prev,
-      { id: tempAsstId, project_id: projectId, role: "assistant", content: "", file_changes: null, created_at: new Date().toISOString() },
-    ]);
+  const runApplyWebsiteEdit =
+    useServerFn(
+      applyBusinessWebsiteEdit,
+    );
 
-    const historyForAI = [...messages, tempUserMsg]
-      .filter((m) => m.id !== tempAsstId)
-      .slice(-10)
-      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+  const runSaveFiles =
+    useServerFn(
+      saveStudioFiles,
+    );
 
-    try {
-      const res = await fetch("/api/studio/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ projectId, messages: historyForAI, files, currentFile: currentFile ?? undefined, leadContext }),
-      });
+  const runUndoEdit =
+    useServerFn(
+      undoLastBusinessWebsiteEdit,
+    );
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        if (err.error === "limit_reached") {
-          toast.error(err.message ?? "Monthly AI message limit reached. Upgrade to continue.");
-        } else {
-          toast.error(err.error || err.message || "Generation failed. Please try again.");
-        }
-        setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempAsstId && m.id !== tempUserMsg.id));
+  /* ------------------------------------------------------------------------ */
+  /*                                   DATA                                   */
+  /* ------------------------------------------------------------------------ */
+
+  const {
+    data:
+      projectRes,
+  } =
+    useQuery({
+      queryKey: [
+        "studio-project",
+        projectId,
+      ],
+
+      queryFn:
+        () =>
+          runGetProject({
+            data: {
+              id:
+                projectId,
+            },
+          }),
+
+      enabled:
+        !!user &&
+        !!projectId,
+    });
+
+  const project =
+    projectRes &&
+    "project" in
+      projectRes
+      ? projectRes.project
+      : null;
+
+  const {
+    data:
+      messagesRes,
+
+    refetch:
+      refetchMessages,
+  } =
+    useQuery({
+      queryKey: [
+        "studio-messages",
+        projectId,
+      ],
+
+      queryFn:
+        () =>
+          runListMessages({
+            data: {
+              project_id:
+                projectId,
+            },
+          }),
+
+      enabled:
+        !!user &&
+        !!projectId,
+    });
+
+  const messages:
+    StudioMessage[] =
+      messagesRes
+        ?.messages ??
+      [];
+
+  const {
+    data:
+      snapshotsRes,
+
+    refetch:
+      refetchSnapshots,
+  } =
+    useQuery({
+      queryKey: [
+        "studio-snapshots",
+        projectId,
+      ],
+
+      queryFn:
+        () =>
+          runListSnapshots({
+            data: {
+              project_id:
+                projectId,
+            },
+          }),
+
+      enabled:
+        !!user &&
+        !!projectId,
+    });
+
+  const snapshots:
+    StudioSnapshot[] =
+      snapshotsRes
+        ?.snapshots ??
+      [];
+
+  /* ------------------------------------------------------------------------ */
+  /*                              LOCAL STATE                                 */
+  /* ------------------------------------------------------------------------ */
+
+  const [
+    projectName,
+    setProjectName,
+  ] =
+    useState("");
+
+  const [
+    isEditingName,
+    setIsEditingName,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    files,
+    setFiles,
+  ] =
+    useState<
+      Record<
+        string,
+        string
+      >
+    >({});
+
+  const [
+    currentFile,
+    setCurrentFile,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    openFiles,
+    setOpenFiles,
+  ] =
+    useState<
+      string[]
+    >([]);
+
+  const [
+    deploymentUrl,
+    setDeploymentUrl,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    showDeploy,
+    setShowDeploy,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    mobileTab,
+    setMobileTab,
+  ] =
+    useState<
+      | "chat"
+      | "code"
+      | "preview"
+    >(
+      "chat",
+    );
+
+  const [
+    mounted,
+    setMounted,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    isStreaming,
+    setIsStreaming,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    isSaving,
+    setIsSaving,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
+    optimisticMessages,
+    setOptimisticMessages,
+  ] =
+    useState<
+      StudioMessage[]
+    >([]);
+
+  const allMessages =
+    [
+      ...messages,
+      ...optimisticMessages,
+    ];
+
+  /* ------------------------------------------------------------------------ */
+  /*                                 EFFECTS                                  */
+  /* ------------------------------------------------------------------------ */
+
+  useEffect(
+    () => {
+      setMounted(
+        true,
+      );
+    },
+
+    [],
+  );
+
+  useEffect(
+    () => {
+      if (!project) {
         return;
       }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
+      if (
+        !isEditingName
+      ) {
+        setProjectName(
+          project.name,
+        );
+      }
 
-      // These come from the backend's already-parsed output — do NOT
-      // re-parse raw XML on the client. The backend is the single
-      // source of truth for file changes and the human summary.
-      let finalSummary = "";
-      let finalFileChanges: FileChange[] = [];
-      let sawError = false;
+      if (
+        project.deployment_url
+      ) {
+        setDeploymentUrl(
+          project.deployment_url,
+        );
+      }
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-          let event: StreamEvent;
-          try {
-            event = JSON.parse(line.slice(6)) as StreamEvent;
-          } catch {
-            continue; // skip malformed SSE record
+      try {
+        const parsed =
+          toStudioFileMap(
+            parseStudioFiles(
+              project.files_json,
+            ),
+          );
+
+        setFiles(
+          parsed,
+        );
+
+        const paths =
+          Object.keys(
+            parsed,
+          );
+
+        if (
+          paths.length >
+            0 &&
+          !currentFile
+        ) {
+          const preferred =
+            paths.includes(
+              "src/App.jsx",
+            )
+              ? "src/App.jsx"
+              : paths.includes(
+                    "index.html",
+                  )
+                ? "index.html"
+                : paths[0];
+
+          setCurrentFile(
+            preferred,
+          );
+
+          setOpenFiles([
+            preferred,
+          ]);
+        }
+      } catch {
+        setFiles({});
+      }
+    },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      project?.id,
+      project?.files_json,
+      project?.name,
+      project?.deployment_url,
+    ],
+  );
+
+  /*
+   * Projects created by the generic Studio creation flow
+   * may contain an initial prompt in sessionStorage.
+   */
+  useEffect(
+    () => {
+      if (
+        !projectId ||
+        !user ||
+        messages.length >
+          0 ||
+        isStreaming
+      ) {
+        return;
+      }
+
+      const stored =
+        sessionStorage.getItem(
+          `studio_initial_prompt_${projectId}`,
+        );
+
+      if (
+        stored
+      ) {
+        sessionStorage.removeItem(
+          `studio_initial_prompt_${projectId}`,
+        );
+
+        const timeout =
+          setTimeout(
+            () =>
+              handleSend(
+                stored,
+              ),
+
+            800,
+          );
+
+        return () =>
+          clearTimeout(
+            timeout,
+          );
+      }
+    },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      projectId,
+      user,
+      messages.length,
+    ],
+  );
+
+  /*
+   * Automatic business website generation.
+   *
+   * This is triggered by:
+   *
+   * /studio/:id?generate=1
+   *
+   * Builder V2 now charges Studio credits server-side
+   * only after successful generation.
+   */
+  useEffect(
+    () => {
+      if (
+        (
+          generate !==
+            "1" &&
+          project
+            ?.generation_status !==
+            "idle"
+        ) ||
+        !project ||
+        project.template !==
+          "business-website" ||
+        project
+          .generation_status ===
+          "ready" ||
+        isStreaming
+      ) {
+        return;
+      }
+
+      let cancelled =
+        false;
+
+      setIsStreaming(
+        true,
+      );
+
+      runGenerateWebsite({
+        data: {
+          project_id:
+            projectId,
+        },
+      })
+        .then(
+          (
+            result,
+          ) => {
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            if (
+              "error" in
+              result
+            ) {
+              toast.error(
+                result.message,
+              );
+
+              return;
+            }
+
+            const mapped =
+              toStudioFileMap(
+                result.files,
+              );
+
+            setFiles(
+              mapped,
+            );
+
+            const preferred =
+              mapped[
+                "src/App.jsx"
+              ] !==
+              undefined
+                ? "src/App.jsx"
+                : result
+                    .files[0]
+                    ?.path;
+
+            if (
+              preferred
+            ) {
+              handleFileSelect(
+                preferred,
+              );
+            }
+
+            const remaining =
+              result
+                .studioCredits
+                ?.remaining;
+
+            if (
+              remaining ===
+              null
+            ) {
+              toast.success(
+                "Website generated — Agency Studio credits are unlimited.",
+              );
+            } else if (
+              typeof remaining ===
+              "number"
+            ) {
+              toast.success(
+                `Website generated — ${result.studioCredits.charged} Studio credits used. ${remaining} remaining.`,
+              );
+            } else {
+              toast.success(
+                "Website generated — it is ready to preview.",
+              );
+            }
+
+            queryClient.invalidateQueries(
+              {
+                queryKey: [
+                  "studio-project",
+                  projectId,
+                ],
+              },
+            );
+
+            queryClient.invalidateQueries(
+              {
+                queryKey: [
+                  "studio-messages",
+                  projectId,
+                ],
+              },
+            );
+
+            queryClient.invalidateQueries(
+              {
+                queryKey: [
+                  "studio-usage",
+                ],
+              },
+            );
+          },
+        )
+        .catch(
+          () => {
+            if (
+              !cancelled
+            ) {
+              toast.error(
+                "Website generation failed. Please try again.",
+              );
+            }
+          },
+        )
+        .finally(
+          () => {
+            if (
+              !cancelled
+            ) {
+              setIsStreaming(
+                false,
+              );
+            }
+          },
+        );
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      generate,
+      project?.id,
+      project?.generation_status,
+    ],
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /*                              PROJECT NAME                                */
+  /* ------------------------------------------------------------------------ */
+
+  const handleNameBlur =
+    async () => {
+      setIsEditingName(
+        false,
+      );
+
+      if (
+        !projectName.trim() ||
+        projectName ===
+          project?.name
+      ) {
+        return;
+      }
+
+      await runUpdateProject({
+        data: {
+          id:
+            projectId,
+
+          name:
+            projectName.trim(),
+        },
+      });
+
+      queryClient.invalidateQueries(
+        {
+          queryKey: [
+            "studio-project",
+            projectId,
+          ],
+        },
+      );
+
+      queryClient.invalidateQueries(
+        {
+          queryKey: [
+            "studio-projects",
+          ],
+        },
+      );
+    };
+
+  /* ------------------------------------------------------------------------ */
+  /*                              FILE EDITING                                */
+  /* ------------------------------------------------------------------------ */
+
+  const handleManualFileChange =
+    (
+      path: string,
+
+      content: string,
+    ) => {
+      setFiles(
+        (
+          current,
+        ) => ({
+          ...current,
+
+          [path]:
+            content,
+        }),
+      );
+    };
+
+  const handleCreateFile =
+    () => {
+      const path =
+        window
+          .prompt(
+            "New file path (for example: src/components/NewSection.jsx)",
+          )
+          ?.trim();
+
+      if (!path) {
+        return;
+      }
+
+      if (
+        !isSafeStudioPath(
+          path,
+        ) ||
+        files[
+          path
+        ] !==
+          undefined
+      ) {
+        toast.error(
+          "Use a new, relative file path without .. or backslashes.",
+        );
+
+        return;
+      }
+
+      setFiles(
+        (
+          current,
+        ) => ({
+          ...current,
+
+          [path]:
+            "",
+        }),
+      );
+
+      handleFileSelect(
+        path,
+      );
+    };
+
+  const handleDeleteFile =
+    (
+      path: string,
+    ) => {
+      if (
+        path ===
+        "index.html"
+      ) {
+        toast.error(
+          "index.html is required by the Vite project.",
+        );
+
+        return;
+      }
+
+      if (
+        path ===
+        "package.json"
+      ) {
+        toast.error(
+          "package.json is required by the React/Vite project.",
+        );
+
+        return;
+      }
+
+      if (
+        path ===
+          "src/main.jsx" ||
+        path ===
+          "src/App.jsx"
+      ) {
+        toast.error(
+          `${path} is required by the React website.`,
+        );
+
+        return;
+      }
+
+      if (
+        !window.confirm(
+          `Delete ${path}?`,
+        )
+      ) {
+        return;
+      }
+
+      setFiles(
+        (
+          current,
+        ) => {
+          const next = {
+            ...current,
+          };
+
+          delete next[
+            path
+          ];
+
+          return next;
+        },
+      );
+
+      setOpenFiles(
+        (
+          current,
+        ) =>
+          current.filter(
+            (
+              file,
+            ) =>
+              file !==
+              path,
+          ),
+      );
+
+      if (
+        currentFile ===
+        path
+      ) {
+        setCurrentFile(
+          null,
+        );
+      }
+    };
+
+  const handleRenameFile =
+    (
+      path: string,
+    ) => {
+      const nextPath =
+        window
+          .prompt(
+            "Rename file",
+            path,
+          )
+          ?.trim();
+
+      if (
+        !nextPath ||
+        nextPath ===
+          path
+      ) {
+        return;
+      }
+
+      if (
+        path ===
+          "index.html" ||
+        path ===
+          "package.json" ||
+        path ===
+          "src/main.jsx" ||
+        path ===
+          "src/App.jsx"
+      ) {
+        toast.error(
+          `${path} is a required project file and cannot be renamed.`,
+        );
+
+        return;
+      }
+
+      if (
+        !isSafeStudioPath(
+          nextPath,
+        ) ||
+        files[
+          nextPath
+        ] !==
+          undefined
+      ) {
+        toast.error(
+          "Use a new, relative file path without .. or backslashes.",
+        );
+
+        return;
+      }
+
+      setFiles(
+        (
+          current,
+        ) => {
+          const next = {
+            ...current,
+
+            [nextPath]:
+              current[
+                path
+              ],
+          };
+
+          delete next[
+            path
+          ];
+
+          return next;
+        },
+      );
+
+      setOpenFiles(
+        (
+          current,
+        ) =>
+          current.map(
+            (
+              file,
+            ) =>
+              file ===
+              path
+                ? nextPath
+                : file,
+          ),
+      );
+
+      if (
+        currentFile ===
+        path
+      ) {
+        setCurrentFile(
+          nextPath,
+        );
+      }
+    };
+
+  const handleSaveFiles =
+    async () => {
+      setIsSaving(
+        true,
+      );
+
+      try {
+        const result =
+          await runSaveFiles(
+            {
+              data: {
+                project_id:
+                  projectId,
+
+                files:
+                  fromStudioFileMap(
+                    files,
+                  ),
+              },
+            },
+          );
+
+        if (
+          "error" in
+          result
+        ) {
+          toast.error(
+            result.message,
+          );
+
+          return;
+        }
+
+        toast.success(
+          "Website saved.",
+        );
+
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              "studio-project",
+              projectId,
+            ],
+          },
+        );
+      } catch {
+        toast.error(
+          "Could not save the website.",
+        );
+      } finally {
+        setIsSaving(
+          false,
+        );
+      }
+    };
+
+  const handleUndo =
+    async () => {
+      try {
+        const result =
+          await runUndoEdit(
+            {
+              data: {
+                project_id:
+                  projectId,
+              },
+            },
+          );
+
+        if (
+          "error" in
+          result
+        ) {
+          toast.error(
+            result.message,
+          );
+
+          return;
+        }
+
+        setFiles(
+          toStudioFileMap(
+            result.files,
+          ),
+        );
+
+        toast.success(
+          "Last AI edit undone.",
+        );
+
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              "studio-project",
+              projectId,
+            ],
+          },
+        );
+
+        refetchSnapshots();
+      } catch {
+        toast.error(
+          "Could not undo the last edit.",
+        );
+      }
+    };
+
+  /* ------------------------------------------------------------------------ */
+  /*                            FILE NAVIGATION                               */
+  /* ------------------------------------------------------------------------ */
+
+  const handleFileSelect =
+    (
+      path: string,
+    ) => {
+      if (
+        !openFiles.includes(
+          path,
+        )
+      ) {
+        setOpenFiles(
+          (
+            previous,
+          ) => [
+            ...previous,
+            path,
+          ],
+        );
+      }
+
+      setCurrentFile(
+        path,
+      );
+
+      if (
+        isMobile
+      ) {
+        setMobileTab(
+          "code",
+        );
+      }
+    };
+
+  const closeFile =
+    (
+      event:
+        React.MouseEvent,
+
+      path: string,
+    ) => {
+      event.stopPropagation();
+
+      const next =
+        openFiles.filter(
+          (
+            item,
+          ) =>
+            item !==
+            path,
+        );
+
+      setOpenFiles(
+        next,
+      );
+
+      if (
+        currentFile ===
+        path
+      ) {
+        setCurrentFile(
+          next.length >
+            0
+            ? next[
+                next.length -
+                  1
+              ]
+            : null,
+        );
+      }
+    };
+
+  /* ------------------------------------------------------------------------ */
+  /*                            AI GENERATION                                 */
+  /* ------------------------------------------------------------------------ */
+
+  const handleSend =
+    async (
+      promptText:
+        string,
+    ) => {
+      if (
+        !promptText.trim() ||
+        isStreaming ||
+        !user
+      ) {
+        return;
+      }
+
+      /*
+       * Business website projects use Builder V2.
+       *
+       * Initial build = 10 Studio credits.
+       * AI edits      = 1 Studio credit.
+       *
+       * Credit enforcement happens server-side.
+       */
+      if (
+        project?.template ===
+        "business-website"
+      ) {
+        setIsStreaming(
+          true,
+        );
+
+        try {
+          if (
+            Object.keys(
+              files,
+            ).length ===
+            0
+          ) {
+            const result =
+              await runGenerateWebsite(
+                {
+                  data: {
+                    project_id:
+                      projectId,
+                  },
+                },
+              );
+
+            if (
+              "error" in
+              result
+            ) {
+              toast.error(
+                result.message,
+              );
+
+              return;
+            }
+
+            const mapped =
+              toStudioFileMap(
+                result.files,
+              );
+
+            setFiles(
+              mapped,
+            );
+
+            const preferred =
+              mapped[
+                "src/App.jsx"
+              ] !==
+              undefined
+                ? "src/App.jsx"
+                : result
+                    .files[0]
+                    ?.path;
+
+            if (
+              preferred
+            ) {
+              handleFileSelect(
+                preferred,
+              );
+            }
+
+            const remaining =
+              result
+                .studioCredits
+                ?.remaining;
+
+            if (
+              remaining ===
+              null
+            ) {
+              toast.success(
+                "Website generated — Agency Studio credits are unlimited.",
+              );
+            } else if (
+              typeof remaining ===
+              "number"
+            ) {
+              toast.success(
+                `Website generated — ${result.studioCredits.charged} Studio credits used. ${remaining} remaining.`,
+              );
+            } else {
+              toast.success(
+                "Website generated — it is ready to preview.",
+              );
+            }
+          } else {
+            const result =
+              await runApplyWebsiteEdit(
+                {
+                  data: {
+                    project_id:
+                      projectId,
+
+                    request:
+                      promptText,
+                  },
+                },
+              );
+
+            if (
+              "error" in
+              result
+            ) {
+              toast.error(
+                result.message,
+              );
+
+              return;
+            }
+
+            setFiles(
+              toStudioFileMap(
+                result.files,
+              ),
+            );
+
+            const remaining =
+              result
+                .studioCredits
+                ?.remaining;
+
+            if (
+              remaining ===
+              null
+            ) {
+              toast.success(
+                "Website updated.",
+              );
+            } else if (
+              typeof remaining ===
+              "number"
+            ) {
+              toast.success(
+                `Website updated — 1 Studio credit used. ${remaining} remaining.`,
+              );
+            } else {
+              toast.success(
+                "Website updated.",
+              );
+            }
           }
 
-          if (event.type === "progress") {
-            // Mid-generation heartbeat only — no text payload by design
-            // (the backend withholds raw XML while it's still streaming).
-            continue;
-          }
+          queryClient.invalidateQueries(
+            {
+              queryKey: [
+                "studio-project",
+                projectId,
+              ],
+            },
+          );
 
-          if (event.type === "text") {
-            // Backend sends the final, already-stripped summary here.
-            finalSummary = event.text;
-            setOptimisticMessages((prev) =>
-              prev.map((m) => (m.id === tempAsstId ? { ...m, content: finalSummary } : m)),
+          queryClient.invalidateQueries(
+            {
+              queryKey: [
+                "studio-messages",
+                projectId,
+              ],
+            },
+          );
+
+          queryClient.invalidateQueries(
+            {
+              queryKey: [
+                "studio-usage",
+              ],
+            },
+          );
+
+          refetchMessages();
+
+          refetchSnapshots();
+        } catch {
+          toast.error(
+            "Could not update this website. Please try again.",
+          );
+        } finally {
+          setIsStreaming(
+            false,
+          );
+        }
+
+        return;
+      }
+
+      /*
+       * Legacy/general Studio projects still use
+       * the generic SSE generation route.
+       */
+      const tempUserMsg:
+        StudioMessage = {
+        id:
+          `temp_${Date.now()}`,
+
+        project_id:
+          projectId,
+
+        role:
+          "user",
+
+        content:
+          promptText,
+
+        file_changes:
+          null,
+
+        created_at:
+          new Date().toISOString(),
+      };
+
+      setOptimisticMessages(
+        (
+          previous,
+        ) => [
+          ...previous,
+          tempUserMsg,
+        ],
+      );
+
+      await runCreateMessage({
+        data: {
+          project_id:
+            projectId,
+
+          role:
+            "user",
+
+          content:
+            promptText,
+        },
+      });
+
+      queryClient.invalidateQueries(
+        {
+          queryKey: [
+            "studio-messages",
+            projectId,
+          ],
+        },
+      );
+
+      let leadContext:
+        | {
+            businessName:
+              string;
+
+            category:
+              string;
+
+            city:
+              string;
+
+            phone?:
+              string;
+          }
+        | undefined;
+
+      const storedLead =
+        sessionStorage.getItem(
+          `studio_lead_context_${projectId}`,
+        );
+
+      if (
+        storedLead
+      ) {
+        try {
+          leadContext =
+            JSON.parse(
+              storedLead,
+            );
+        } catch {
+          // Ignore invalid session data.
+        }
+      }
+
+      const {
+        data: {
+          session,
+        },
+      } =
+        await supabase.auth.getSession();
+
+      const token =
+        session?.access_token;
+
+      if (!token) {
+        toast.error(
+          "Not authenticated.",
+        );
+
+        return;
+      }
+
+      setIsStreaming(
+        true,
+      );
+
+      const tempAsstId =
+        `streaming_${Date.now()}`;
+
+      setOptimisticMessages(
+        (
+          previous,
+        ) => [
+          ...previous,
+
+          {
+            id:
+              tempAsstId,
+
+            project_id:
+              projectId,
+
+            role:
+              "assistant",
+
+            content:
+              "",
+
+            file_changes:
+              null,
+
+            created_at:
+              new Date().toISOString(),
+          },
+        ],
+      );
+
+      const historyForAI =
+        [
+          ...messages,
+          tempUserMsg,
+        ]
+          .filter(
+            (
+              message,
+            ) =>
+              message.id !==
+              tempAsstId,
+          )
+          .slice(
+            -10,
+          )
+          .map(
+            (
+              message,
+            ) => ({
+              role:
+                message.role as
+                  | "user"
+                  | "assistant",
+
+              content:
+                message.content,
+            }),
+          );
+
+      try {
+        const response =
+          await fetch(
+            "/api/studio/generate",
+            {
+              method:
+                "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                Authorization:
+                  `Bearer ${token}`,
+              },
+
+              body:
+                JSON.stringify({
+                  projectId,
+
+                  messages:
+                    historyForAI,
+
+                  files,
+
+                  currentFile:
+                    currentFile ??
+                    undefined,
+
+                  leadContext,
+                }),
+            },
+          );
+
+        if (
+          !response.ok
+        ) {
+          const error =
+            await response
+              .json()
+              .catch(
+                () => ({
+                  error:
+                    "Unknown error",
+                }),
+              );
+
+          if (
+            error.error ===
+            "limit_reached"
+          ) {
+            toast.error(
+              error.message ??
+                "Monthly AI limit reached. Upgrade to continue.",
+            );
+          } else {
+            toast.error(
+              error.error ||
+                error.message ||
+                "Generation failed. Please try again.",
             );
           }
 
-          if (event.type === "files") {
-            finalFileChanges = event.fileChanges ?? [];
+          setOptimisticMessages(
+            (
+              previous,
+            ) =>
+              previous.filter(
+                (
+                  message,
+                ) =>
+                  message.id !==
+                    tempAsstId &&
+                  message.id !==
+                    tempUserMsg.id,
+              ),
+          );
+
+          return;
+        }
+
+        if (
+          !response.body
+        ) {
+          toast.error(
+            "AI returned an empty response.",
+          );
+
+          return;
+        }
+
+        const reader =
+          response.body.getReader();
+
+        const decoder =
+          new TextDecoder();
+
+        let finalSummary =
+          "";
+
+        let finalFileChanges:
+          FileChange[] =
+          [];
+
+        let sawError =
+          false;
+
+        while (
+          true
+        ) {
+          const {
+            value,
+            done,
+          } =
+            await reader.read();
+
+          if (
+            done
+          ) {
+            break;
           }
 
-          if (event.type === "done") {
-            if (event.summary) finalSummary = event.summary;
-            if (event.fileChanges) finalFileChanges = event.fileChanges;
-          }
+          const chunk =
+            decoder.decode(
+              value,
+              {
+                stream:
+                  true,
+              },
+            );
 
-          if (event.type === "error") {
-            sawError = true;
-            console.error("Studio generate stream error:", event.error);
+          for (
+            const line of
+            chunk.split(
+              "\n",
+            )
+          ) {
+            if (
+              !line.startsWith(
+                "data: ",
+              )
+            ) {
+              continue;
+            }
+
+            let event:
+              StreamEvent;
+
+            try {
+              event =
+                JSON.parse(
+                  line.slice(
+                    6,
+                  ),
+                ) as StreamEvent;
+            } catch {
+              continue;
+            }
+
+            if (
+              event.type ===
+              "progress"
+            ) {
+              continue;
+            }
+
+            if (
+              event.type ===
+              "text"
+            ) {
+              finalSummary =
+                event.text;
+
+              setOptimisticMessages(
+                (
+                  previous,
+                ) =>
+                  previous.map(
+                    (
+                      message,
+                    ) =>
+                      message.id ===
+                      tempAsstId
+                        ? {
+                            ...message,
+
+                            content:
+                              finalSummary,
+                          }
+                        : message,
+                  ),
+              );
+            }
+
+            if (
+              event.type ===
+              "files"
+            ) {
+              finalFileChanges =
+                event.fileChanges ??
+                [];
+            }
+
+            if (
+              event.type ===
+              "done"
+            ) {
+              if (
+                event.summary
+              ) {
+                finalSummary =
+                  event.summary;
+              }
+
+              if (
+                event.fileChanges
+              ) {
+                finalFileChanges =
+                  event.fileChanges;
+              }
+            }
+
+            if (
+              event.type ===
+              "error"
+            ) {
+              sawError =
+                true;
+
+              console.error(
+                "Studio generate stream error:",
+                event.error,
+              );
+            }
           }
         }
-      }
 
-      if (sawError && !finalSummary && finalFileChanges.length === 0) {
-        toast.error("Generation failed. Please try again.");
-        setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempAsstId && m.id !== tempUserMsg.id));
-        return;
-      }
+        if (
+          sawError &&
+          !finalSummary &&
+          finalFileChanges.length ===
+            0
+        ) {
+          toast.error(
+            "Generation failed. Please try again.",
+          );
 
-      const newFiles = applyStructuredChanges(files, finalFileChanges);
-      setFiles(newFiles);
+          setOptimisticMessages(
+            (
+              previous,
+            ) =>
+              previous.filter(
+                (
+                  message,
+                ) =>
+                  message.id !==
+                    tempAsstId &&
+                  message.id !==
+                    tempUserMsg.id,
+              ),
+          );
 
-      if (finalFileChanges.length > 0) {
-        handleFileSelect(finalFileChanges[0].path);
-      }
+          return;
+        }
 
-      const summaryText = finalSummary || "Done — I updated the site.";
-      // Store a compact JSON marker (used only to show the "Files updated"
-      // badge) instead of a slice of raw XML.
-      const changesMarker = finalFileChanges.length > 0
-        ? JSON.stringify(finalFileChanges.map((f) => ({ path: f.path, action: f.action })))
-        : null;
+        const newFiles =
+          applyStructuredChanges(
+            files,
+            finalFileChanges,
+          );
 
-      await runCreateMessage({ data: { project_id: projectId, role: "assistant", content: summaryText, file_changes: changesMarker } });
-      await runUpdateProject({ data: { id: projectId, files_json: JSON.stringify(newFiles) } });
+        setFiles(
+          newFiles,
+        );
 
-      if (changesMarker) {
-        await runCreateSnapshot({
-          data: { project_id: projectId, label: promptText.slice(0, 80), files_json: JSON.stringify(newFiles), files_count: Object.keys(newFiles).length },
+        if (
+          finalFileChanges.length >
+          0
+        ) {
+          handleFileSelect(
+            finalFileChanges[
+              0
+            ].path,
+          );
+        }
+
+        const summaryText =
+          finalSummary ||
+          "Done — I updated the site.";
+
+        const changesMarker =
+          finalFileChanges.length >
+          0
+            ? JSON.stringify(
+                finalFileChanges.map(
+                  (
+                    file,
+                  ) => ({
+                    path:
+                      file.path,
+
+                    action:
+                      file.action,
+                  }),
+                ),
+              )
+            : null;
+
+        await runCreateMessage({
+          data: {
+            project_id:
+              projectId,
+
+            role:
+              "assistant",
+
+            content:
+              summaryText,
+
+            file_changes:
+              changesMarker,
+          },
         });
-        refetchSnapshots();
+
+        await runUpdateProject({
+          data: {
+            id:
+              projectId,
+
+            files_json:
+              JSON.stringify(
+                newFiles,
+              ),
+          },
+        });
+
+        if (
+          changesMarker
+        ) {
+          await runCreateSnapshot(
+            {
+              data: {
+                project_id:
+                  projectId,
+
+                label:
+                  promptText.slice(
+                    0,
+                    80,
+                  ),
+
+                files_json:
+                  JSON.stringify(
+                    newFiles,
+                  ),
+
+                files_count:
+                  Object.keys(
+                    newFiles,
+                  ).length,
+              },
+            },
+          );
+
+          refetchSnapshots();
+        }
+
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              "studio-messages",
+              projectId,
+            ],
+          },
+        );
+
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              "studio-projects",
+            ],
+          },
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          "Studio generate error:",
+          error,
+        );
+
+        toast.error(
+          "Could not reach AI. Check your connection.",
+        );
+      } finally {
+        setIsStreaming(
+          false,
+        );
+
+        setOptimisticMessages(
+          (
+            previous,
+          ) =>
+            previous.filter(
+              (
+                message,
+              ) =>
+                message.id !==
+                  tempAsstId &&
+                message.id !==
+                  tempUserMsg.id,
+            ),
+        );
+
+        refetchMessages();
       }
+    };
 
-      queryClient.invalidateQueries({ queryKey: ["studio-messages", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["studio-projects"] });
-    } catch (err) {
-      console.error("Studio generate error:", err);
-      toast.error("Could not reach AI. Check your connection.");
-    } finally {
-      setIsStreaming(false);
-      setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempAsstId && m.id !== tempUserMsg.id));
-      refetchMessages();
-    }
-  };
+  const fileCount =
+    Object.keys(
+      files,
+    ).length;
 
-  const fileCount = Object.keys(files).length;
+  /* ------------------------------------------------------------------------ */
+  /*                                  RENDER                                  */
+  /* ------------------------------------------------------------------------ */
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-[#0f0f12] text-foreground overflow-hidden">
-      {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
-      <header className="h-12 border-b border-white/5 bg-[#0f0f12]/95 backdrop-blur-sm flex items-center justify-between px-3 shrink-0 gap-2">
-        {/* Left: back + brand + project name */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#0f0f12] text-foreground">
+      {/* Top bar */}
+
+      <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#0f0f12]/95 px-3 backdrop-blur-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
-            onClick={() => navigate({ to: "/studio" })}
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors shrink-0"
+            onClick={() =>
+              navigate({
+                to:
+                  "/studio",
+              })
+            }
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
             title="Back to Studio"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
 
-          <div className="w-px h-4 bg-white/8 shrink-0" />
+          <div className="h-4 w-px shrink-0 bg-white/8" />
 
-          {/* Brand pill */}
-          <div className="flex items-center gap-1.5 shrink-0 select-none">
-            <span className="flex size-6 items-center justify-center rounded-lg border border-primary/20 bg-primary/15 font-mono text-[10px] font-semibold text-primary">K</span>
-            <span className="text-xs font-semibold text-zinc-300 hidden sm:block tracking-tight">Studio</span>
+          <div className="flex shrink-0 select-none items-center gap-1.5">
+            <span className="flex size-6 items-center justify-center rounded-lg border border-primary/20 bg-primary/15 font-mono text-[10px] font-semibold text-primary">
+              K
+            </span>
+
+            <span className="hidden text-xs font-semibold tracking-tight text-zinc-300 sm:block">
+              Studio
+            </span>
           </div>
 
-          <div className="w-px h-4 bg-white/8 shrink-0 hidden sm:block" />
+          <div className="hidden h-4 w-px shrink-0 bg-white/8 sm:block" />
 
-          {/* Project name — inline editable */}
-          <div className="flex items-center gap-1 min-w-0">
+          <div className="flex min-w-0 items-center gap-1">
             {isEditingName ? (
               <div className="flex items-center gap-1">
                 <input
                   type="text"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  onBlur={handleNameBlur}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleNameBlur();
-                    if (e.key === "Escape") { setIsEditingName(false); setProjectName(project?.name ?? ""); }
+                  value={
+                    projectName
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setProjectName(
+                      event
+                        .target
+                        .value,
+                    )
+                  }
+                  onBlur={
+                    handleNameBlur
+                  }
+                  onKeyDown={(
+                    event,
+                  ) => {
+                    if (
+                      event.key ===
+                      "Enter"
+                    ) {
+                      handleNameBlur();
+                    }
+
+                    if (
+                      event.key ===
+                      "Escape"
+                    ) {
+                      setIsEditingName(
+                        false,
+                      );
+
+                      setProjectName(
+                        project?.name ??
+                          "",
+                      );
+                    }
                   }}
                   autoFocus
-                  className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-sm font-medium text-zinc-100 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/10 w-[140px] sm:w-[200px] transition-all"
+                  className="w-[140px] rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-sm font-medium text-zinc-100 outline-none transition-all focus:border-primary/50 focus:ring-1 focus:ring-primary/10 sm:w-[200px]"
                 />
+
                 <button
-                  onClick={handleNameBlur}
-                  className="w-6 h-6 rounded flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                  onClick={
+                    handleNameBlur
+                  }
+                  className="flex h-6 w-6 items-center justify-center rounded text-emerald-400 transition-colors hover:bg-emerald-500/10"
                 >
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="h-3.5 w-3.5" />
                 </button>
               </div>
             ) : (
               <button
-                onClick={() => setIsEditingName(true)}
-                className="flex items-center gap-1.5 group px-2 py-1 rounded-lg hover:bg-white/5 transition-colors max-w-[120px] sm:max-w-[220px]"
+                onClick={() =>
+                  setIsEditingName(
+                    true,
+                  )
+                }
+                className="group flex max-w-[120px] items-center gap-1.5 rounded-lg px-2 py-1 transition-colors hover:bg-white/5 sm:max-w-[220px]"
                 title="Click to rename project"
               >
-                <span className="text-sm font-medium text-zinc-200 truncate">{project?.name || "Loading…"}</span>
-                <Pencil className="w-3 h-3 text-zinc-700 group-hover:text-zinc-400 shrink-0 transition-colors" />
+                <span className="truncate text-sm font-medium text-zinc-200">
+                  {project
+                    ?.name ||
+                    "Loading…"}
+                </span>
+
+                <Pencil className="h-3 w-3 shrink-0 text-zinc-700 transition-colors group-hover:text-zinc-400" />
               </button>
             )}
           </div>
 
-          {/* Generating bounce dots */}
           {isStreaming && (
-            <div className="hidden sm:flex items-center gap-1.5 ml-1 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:120ms]" />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:240ms]" />
+            <div className="ml-1 hidden shrink-0 items-center gap-1.5 sm:flex">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0ms]" />
+
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:120ms]" />
+
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:240ms]" />
             </div>
           )}
         </div>
 
-        {/* Right: status + deploy */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             size="sm"
             variant="outline"
-            onClick={handleSaveFiles}
-            disabled={isSaving || fileCount === 0}
+            onClick={
+              handleSaveFiles
+            }
+            disabled={
+              isSaving ||
+              fileCount ===
+                0
+            }
             className="h-8 border-white/10 bg-transparent px-2 text-xs text-zinc-200 hover:bg-white/5 sm:px-3"
           >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+            {isSaving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Save"
+            )}
           </Button>
-          {project?.template === "business-website" && (
-            <Button size="sm" variant="ghost" onClick={handleUndo} className="hidden h-8 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-100 sm:inline-flex">
+
+          {project?.template ===
+            "business-website" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={
+                handleUndo
+              }
+              className="hidden h-8 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-100 sm:inline-flex"
+            >
               Undo AI edit
             </Button>
           )}
+
           {deploymentUrl ? (
             <a
-              href={deploymentUrl}
+              href={
+                deploymentUrl
+              }
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors px-2 py-1 rounded-lg hover:bg-emerald-500/5"
+              className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/5 hover:text-emerald-300 sm:flex"
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
+
               Live
-              <ExternalLink className="w-3 h-3" />
+
+              <ExternalLink className="h-3 w-3" />
             </a>
           ) : (
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-600 px-2">
-              <div className="w-1.5 h-1.5 bg-zinc-700 rounded-full" />
-              <span>Draft</span>
+            <div className="hidden items-center gap-1.5 px-2 text-xs text-zinc-600 sm:flex">
+              <div className="h-1.5 w-1.5 rounded-full bg-zinc-700" />
+
+              <span>
+                Draft
+              </span>
             </div>
           )}
 
           <Button
             size="sm"
-            onClick={() => setShowDeploy(true)}
-            className="h-8 bg-primary hover:bg-primary/90 text-white text-xs px-3 gap-1.5 shadow-md shadow-primary/20 transition-all"
+            onClick={() =>
+              setShowDeploy(
+                true,
+              )
+            }
+            className="h-8 gap-1.5 bg-primary px-3 text-xs text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90"
           >
-            <Rocket className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline font-medium">Publish</span>
+            <Rocket className="h-3.5 w-3.5" />
+
+            <span className="hidden font-medium sm:inline">
+              Publish
+            </span>
           </Button>
         </div>
       </header>
 
-      {/* ── Body ────────────────────────────────────────────────────────────── */}
+      {/* Main workspace */}
+
       {isMobile ? (
         <MobileLayout
-          projectId={projectId}
-          files={files}
-          currentFile={currentFile}
-          openFiles={openFiles}
-          tab={mobileTab}
-          deploymentUrl={deploymentUrl}
-          allMessages={allMessages}
-          snapshots={snapshots}
-          isStreaming={isStreaming}
-          mounted={mounted}
-          onFileSelect={handleFileSelect}
-          onCloseFile={closeFile}
-          onFileChange={handleManualFileChange}
-          onCreateFile={handleCreateFile}
-          onDeleteFile={handleDeleteFile}
-          onRenameFile={handleRenameFile}
-          onSend={handleSend}
-          onDeploy={() => setShowDeploy(true)}
+          projectId={
+            projectId
+          }
+          files={
+            files
+          }
+          currentFile={
+            currentFile
+          }
+          openFiles={
+            openFiles
+          }
+          tab={
+            mobileTab
+          }
+          deploymentUrl={
+            deploymentUrl
+          }
+          allMessages={
+            allMessages
+          }
+          snapshots={
+            snapshots
+          }
+          isStreaming={
+            isStreaming
+          }
+          mounted={
+            mounted
+          }
+          onFileSelect={
+            handleFileSelect
+          }
+          onCloseFile={
+            closeFile
+          }
+          onFileChange={
+            handleManualFileChange
+          }
+          onCreateFile={
+            handleCreateFile
+          }
+          onDeleteFile={
+            handleDeleteFile
+          }
+          onRenameFile={
+            handleRenameFile
+          }
+          onSend={
+            handleSend
+          }
+          onDeploy={() =>
+            setShowDeploy(
+              true,
+            )
+          }
         />
       ) : (
         <DesktopLayout
-          files={files}
-          currentFile={currentFile}
-          openFiles={openFiles}
-          deploymentUrl={deploymentUrl}
-          allMessages={allMessages}
-          snapshots={snapshots}
-          isStreaming={isStreaming}
-          fileCount={fileCount}
-          mounted={mounted}
-          onFileSelect={handleFileSelect}
-          onCloseFile={closeFile}
-          onFileChange={handleManualFileChange}
-          onCreateFile={handleCreateFile}
-          onDeleteFile={handleDeleteFile}
-          onRenameFile={handleRenameFile}
-          onSend={handleSend}
-          onDeploy={() => setShowDeploy(true)}
+          files={
+            files
+          }
+          currentFile={
+            currentFile
+          }
+          openFiles={
+            openFiles
+          }
+          deploymentUrl={
+            deploymentUrl
+          }
+          allMessages={
+            allMessages
+          }
+          snapshots={
+            snapshots
+          }
+          isStreaming={
+            isStreaming
+          }
+          fileCount={
+            fileCount
+          }
+          mounted={
+            mounted
+          }
+          onFileSelect={
+            handleFileSelect
+          }
+          onCloseFile={
+            closeFile
+          }
+          onFileChange={
+            handleManualFileChange
+          }
+          onCreateFile={
+            handleCreateFile
+          }
+          onDeleteFile={
+            handleDeleteFile
+          }
+          onRenameFile={
+            handleRenameFile
+          }
+          onSend={
+            handleSend
+          }
+          onDeploy={() =>
+            setShowDeploy(
+              true,
+            )
+          }
         />
       )}
 
-      {/* ── Mobile Bottom Nav ────────────────────────────────────────────────── */}
+      {/* Mobile Studio tabs */}
+
       {isMobile && (
-        <nav className="h-16 border-t border-white/5 bg-[#0f0f12] flex items-center px-2 shrink-0 gap-1">
-          {([
-            { id: "chat"    as const, icon: MessageSquare, label: "Chat"    },
-            { id: "code"    as const, icon: Code2,         label: "Code"    },
-            { id: "preview" as const, icon: Eye,           label: "Preview" },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setMobileTab(tab.id)}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
-                mobileTab === tab.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-zinc-600 hover:text-zinc-400"
-              }`}
-            >
-              <tab.icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{tab.label}</span>
-            </button>
-          ))}
+        <nav className="flex h-16 shrink-0 items-center gap-1 border-t border-white/5 bg-[#0f0f12] px-2">
+          {(
+            [
+              {
+                id:
+                  "chat" as const,
+
+                icon:
+                  MessageSquare,
+
+                label:
+                  "Chat",
+              },
+
+              {
+                id:
+                  "code" as const,
+
+                icon:
+                  Code2,
+
+                label:
+                  "Code",
+              },
+
+              {
+                id:
+                  "preview" as const,
+
+                icon:
+                  Eye,
+
+                label:
+                  "Preview",
+              },
+            ] as const
+          ).map(
+            (
+              tab,
+            ) => (
+              <button
+                key={
+                  tab.id
+                }
+                onClick={() =>
+                  setMobileTab(
+                    tab.id,
+                  )
+                }
+                className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 transition-all ${
+                  mobileTab ===
+                  tab.id
+                    ? "bg-primary/10 text-primary"
+                    : "text-zinc-600 hover:text-zinc-400"
+                }`}
+              >
+                <tab.icon className="h-5 w-5" />
+
+                <span className="text-[10px] font-medium">
+                  {
+                    tab.label
+                  }
+                </span>
+              </button>
+            ),
+          )}
         </nav>
       )}
 
       {showDeploy && (
         <DeploySheet
-          projectId={projectId}
-          projectName={project?.name || ""}
-          fileCount={fileCount}
-          onClose={() => setShowDeploy(false)}
-          onDeployed={(url) => { setDeploymentUrl(url); setShowDeploy(false); }}
+          projectId={
+            projectId
+          }
+          projectName={
+            project?.name ||
+            ""
+          }
+          fileCount={
+            fileCount
+          }
+          onClose={() =>
+            setShowDeploy(
+              false,
+            )
+          }
+          onDeployed={(
+            url,
+          ) => {
+            setDeploymentUrl(
+              url,
+            );
+
+            setShowDeploy(
+              false,
+            );
+          }}
         />
       )}
     </div>
   );
 }
 
-// ─── Desktop Layout ───────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                               DESKTOP LAYOUT                               */
+/* -------------------------------------------------------------------------- */
 
 function DesktopLayout({
-  files, currentFile, openFiles, deploymentUrl,
-  allMessages, snapshots, isStreaming, fileCount, mounted,
-  onFileSelect, onCloseFile, onFileChange, onCreateFile, onDeleteFile, onRenameFile, onSend, onDeploy,
+  files,
+  currentFile,
+  openFiles,
+  deploymentUrl,
+  allMessages,
+  snapshots,
+  isStreaming,
+  fileCount,
+  mounted,
+  onFileSelect,
+  onCloseFile,
+  onFileChange,
+  onCreateFile,
+  onDeleteFile,
+  onRenameFile,
+  onSend,
+  onDeploy,
 }: {
-  files: Record<string, string>;
-  currentFile: string | null;
-  openFiles: string[];
-  deploymentUrl: string | null;
-  allMessages: StudioMessage[];
-  snapshots: StudioSnapshot[];
-  isStreaming: boolean;
-  fileCount: number;
-  mounted: boolean;
-  onFileSelect: (p: string) => void;
-  onCloseFile: (e: React.MouseEvent, p: string) => void;
-  onFileChange: (path: string, content: string) => void;
-  onCreateFile: () => void;
-  onDeleteFile: (path: string) => void;
-  onRenameFile: (path: string) => void;
-  onSend: (prompt: string) => void;
-  onDeploy: () => void;
+  files:
+    Record<
+      string,
+      string
+    >;
+
+  currentFile:
+    string | null;
+
+  openFiles:
+    string[];
+
+  deploymentUrl:
+    string | null;
+
+  allMessages:
+    StudioMessage[];
+
+  snapshots:
+    StudioSnapshot[];
+
+  isStreaming:
+    boolean;
+
+  fileCount:
+    number;
+
+  mounted:
+    boolean;
+
+  onFileSelect:
+    (
+      path:
+        string,
+    ) => void;
+
+  onCloseFile:
+    (
+      event:
+        React.MouseEvent,
+
+      path:
+        string,
+    ) => void;
+
+  onFileChange:
+    (
+      path:
+        string,
+
+      content:
+        string,
+    ) => void;
+
+  onCreateFile:
+    () => void;
+
+  onDeleteFile:
+    (
+      path:
+        string,
+    ) => void;
+
+  onRenameFile:
+    (
+      path:
+        string,
+    ) => void;
+
+  onSend:
+    (
+      prompt:
+        string,
+    ) => void;
+
+  onDeploy:
+    () => void;
 }) {
   return (
     <div className="flex-1 overflow-hidden">
-      <ResizablePanelGroup orientation="horizontal" className="h-full">
-        {/* Left — Chat */}
-        <ResizablePanel defaultSize={34} minSize={26} maxSize={46} className="flex flex-col min-h-0">
-          <ChatPanel allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="h-full"
+      >
+        <ResizablePanel
+          defaultSize={
+            34
+          }
+          minSize={
+            26
+          }
+          maxSize={
+            46
+          }
+          className="flex min-h-0 flex-col"
+        >
+          <ChatPanel
+            allMessages={
+              allMessages
+            }
+            isStreaming={
+              isStreaming
+            }
+            onSend={
+              onSend
+            }
+          />
         </ResizablePanel>
 
-        <ResizableHandle className="w-px bg-white/5 hover:bg-primary/30 transition-colors duration-200 cursor-col-resize" />
+        <ResizableHandle className="w-px cursor-col-resize bg-white/5 transition-colors duration-200 hover:bg-primary/30" />
 
-        {/* Right — Workspace */}
-        <ResizablePanel defaultSize={66} minSize={40} className="flex flex-col min-h-0">
+        <ResizablePanel
+          defaultSize={
+            66
+          }
+          minSize={
+            40
+          }
+          className="flex min-h-0 flex-col"
+        >
           <WorkspacePanel
-            files={files}
-            currentFile={currentFile}
-            openFiles={openFiles}
-            deploymentUrl={deploymentUrl}
-            snapshots={snapshots}
-            fileCount={fileCount}
-            mounted={mounted}
-            onFileSelect={onFileSelect}
-            onCloseFile={onCloseFile}
-            onFileChange={onFileChange}
-            onCreateFile={onCreateFile}
-            onDeleteFile={onDeleteFile}
-            onRenameFile={onRenameFile}
-            onDeploy={onDeploy}
+            files={
+              files
+            }
+            currentFile={
+              currentFile
+            }
+            openFiles={
+              openFiles
+            }
+            deploymentUrl={
+              deploymentUrl
+            }
+            snapshots={
+              snapshots
+            }
+            fileCount={
+              fileCount
+            }
+            mounted={
+              mounted
+            }
+            onFileSelect={
+              onFileSelect
+            }
+            onCloseFile={
+              onCloseFile
+            }
+            onFileChange={
+              onFileChange
+            }
+            onCreateFile={
+              onCreateFile
+            }
+            onDeleteFile={
+              onDeleteFile
+            }
+            onRenameFile={
+              onRenameFile
+            }
+            onDeploy={
+              onDeploy
+            }
           />
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -910,173 +2850,519 @@ function DesktopLayout({
   );
 }
 
-// ─── Mobile Layout ────────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                                MOBILE LAYOUT                               */
+/* -------------------------------------------------------------------------- */
 
 function MobileLayout({
-  files, currentFile, openFiles, tab, deploymentUrl,
-  allMessages, snapshots, isStreaming, mounted,
-  onFileSelect, onCloseFile, onFileChange, onCreateFile, onDeleteFile, onRenameFile, onSend, onDeploy,
+  files,
+  currentFile,
+  openFiles,
+  tab,
+  deploymentUrl,
+  allMessages,
+  snapshots,
+  isStreaming,
+  mounted,
+  onFileSelect,
+  onCloseFile,
+  onFileChange,
+  onCreateFile,
+  onDeleteFile,
+  onRenameFile,
+  onSend,
+  onDeploy,
 }: {
-  projectId: string;
-  files: Record<string, string>;
-  currentFile: string | null;
-  openFiles: string[];
-  tab: "chat" | "code" | "preview";
-  deploymentUrl: string | null;
-  allMessages: StudioMessage[];
-  snapshots: StudioSnapshot[];
-  isStreaming: boolean;
-  mounted: boolean;
-  onFileSelect: (p: string) => void;
-  onCloseFile: (e: React.MouseEvent, p: string) => void;
-  onFileChange: (path: string, content: string) => void;
-  onCreateFile: () => void;
-  onDeleteFile: (path: string) => void;
-  onRenameFile: (path: string) => void;
-  onSend: (prompt: string) => void;
-  onDeploy: () => void;
+  projectId:
+    string;
+
+  files:
+    Record<
+      string,
+      string
+    >;
+
+  currentFile:
+    string | null;
+
+  openFiles:
+    string[];
+
+  tab:
+    | "chat"
+    | "code"
+    | "preview";
+
+  deploymentUrl:
+    string | null;
+
+  allMessages:
+    StudioMessage[];
+
+  snapshots:
+    StudioSnapshot[];
+
+  isStreaming:
+    boolean;
+
+  mounted:
+    boolean;
+
+  onFileSelect:
+    (
+      path:
+        string,
+    ) => void;
+
+  onCloseFile:
+    (
+      event:
+        React.MouseEvent,
+
+      path:
+        string,
+    ) => void;
+
+  onFileChange:
+    (
+      path:
+        string,
+
+      content:
+        string,
+    ) => void;
+
+  onCreateFile:
+    () => void;
+
+  onDeleteFile:
+    (
+      path:
+        string,
+    ) => void;
+
+  onRenameFile:
+    (
+      path:
+        string,
+    ) => void;
+
+  onSend:
+    (
+      prompt:
+        string,
+    ) => void;
+
+  onDeploy:
+    () => void;
 }) {
   return (
     <div className="flex-1 overflow-hidden">
-      {tab === "chat" && (
-        <ChatPanel allMessages={allMessages} isStreaming={isStreaming} onSend={onSend} />
+      {tab ===
+        "chat" && (
+        <ChatPanel
+          allMessages={
+            allMessages
+          }
+          isStreaming={
+            isStreaming
+          }
+          onSend={
+            onSend
+          }
+        />
       )}
 
-      {tab === "code" && (
-        <div className="h-full flex flex-col bg-[#09090b]">
-          {openFiles.length > 0 && (
+      {tab ===
+        "code" && (
+        <div className="flex h-full flex-col bg-[#09090b]">
+          {openFiles.length >
+            0 && (
             <div
-              className="flex bg-[#0f0f12] border-b border-white/5 overflow-x-auto shrink-0"
-              style={{ scrollbarWidth: "none" }}
+              className="flex shrink-0 overflow-x-auto border-b border-white/5 bg-[#0f0f12]"
+              style={{
+                scrollbarWidth:
+                  "none",
+              }}
             >
-              {openFiles.map((path) => (
-                <div
-                  key={path}
-                  onClick={() => onFileSelect(path)}
-                  className={`flex items-center px-3 h-9 text-xs font-mono border-r border-white/5 cursor-pointer group shrink-0 transition-colors ${
-                    currentFile === path
-                      ? "bg-[#09090b] text-zinc-100 border-t border-t-primary"
-                      : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  <FileIcon path={path} className="w-3.5 h-3.5 mr-1.5" />
-                  {path.split("/").pop()}
-                  <button onClick={(e) => onCloseFile(e, path)} className="ml-2 text-zinc-600 hover:text-zinc-300 transition-colors">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+              {openFiles.map(
+                (
+                  path,
+                ) => (
+                  <div
+                    key={
+                      path
+                    }
+                    onClick={() =>
+                      onFileSelect(
+                        path,
+                      )
+                    }
+                    className={`group flex h-9 shrink-0 cursor-pointer items-center border-r border-white/5 px-3 font-mono text-xs transition-colors ${
+                      currentFile ===
+                      path
+                        ? "border-t border-t-primary bg-[#09090b] text-zinc-100"
+                        : "text-zinc-500 hover:text-zinc-300"
+                    }`}
+                  >
+                    <FileIcon
+                      path={
+                        path
+                      }
+                      className="mr-1.5 h-3.5 w-3.5"
+                    />
+
+                    {path
+                      .split(
+                        "/",
+                      )
+                      .pop()}
+
+                    <button
+                      onClick={(
+                        event,
+                      ) =>
+                        onCloseFile(
+                          event,
+                          path,
+                        )
+                      }
+                      className="ml-2 text-zinc-600 transition-colors hover:text-zinc-300"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ),
+              )}
             </div>
           )}
 
-          {mounted && currentFile && files[currentFile] !== undefined ? (
+          {mounted &&
+          currentFile &&
+          files[
+            currentFile
+          ] !==
+            undefined ? (
             <div className="flex-1">
-              <Suspense fallback={<EditorSkeleton />}>
+              <Suspense
+                fallback={
+                  <EditorSkeleton />
+                }
+              >
                 <MonacoEditor
-                  key={currentFile}
+                  key={
+                    currentFile
+                  }
                   height="100%"
-                  path={currentFile}
-                  value={files[currentFile] || ""}
-                  onChange={(value) => onFileChange(currentFile, value ?? "")}
+                  path={
+                    currentFile
+                  }
+                  value={
+                    files[
+                      currentFile
+                    ] ||
+                    ""
+                  }
+                  onChange={(
+                    value,
+                  ) =>
+                    onFileChange(
+                      currentFile,
+                      value ??
+                        "",
+                    )
+                  }
                   theme="vs-dark"
-                  options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: "monospace", padding: { top: 12 }, scrollBeyondLastLine: false }}
+                  options={{
+                    minimap: {
+                      enabled:
+                        false,
+                    },
+
+                    fontSize:
+                      13,
+
+                    fontFamily:
+                      "monospace",
+
+                    padding: {
+                      top:
+                        12,
+                    },
+
+                    scrollBeyondLastLine:
+                      false,
+
+                    automaticLayout:
+                      true,
+                  }}
                 />
               </Suspense>
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto">
-              <FilesTab files={files} onFileSelect={onFileSelect} onCreateFile={onCreateFile} onDeleteFile={onDeleteFile} onRenameFile={onRenameFile} />
+              <FilesTab
+                files={
+                  files
+                }
+                onFileSelect={
+                  onFileSelect
+                }
+                onCreateFile={
+                  onCreateFile
+                }
+                onDeleteFile={
+                  onDeleteFile
+                }
+                onRenameFile={
+                  onRenameFile
+                }
+              />
             </div>
           )}
         </div>
       )}
 
-      {tab === "preview" && (
-        <div className="h-full flex flex-col">
-          <LivePreview files={files} deploymentUrl={deploymentUrl} onDeploy={onDeploy} fileCount={Object.keys(files).length} />
+      {tab ===
+        "preview" && (
+        <div className="flex h-full flex-col">
+          <StudioLivePreview
+            files={
+              files
+            }
+            deploymentUrl={
+              deploymentUrl
+            }
+            onDeploy={
+              onDeploy
+            }
+            fileCount={
+              Object.keys(
+                files,
+              ).length
+            }
+          />
         </div>
       )}
     </div>
   );
 }
 
-// ─── Chat Panel ───────────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                                 CHAT PANEL                                 */
+/* -------------------------------------------------------------------------- */
 
 function ChatPanel({
-  allMessages, isStreaming, onSend,
+  allMessages,
+  isStreaming,
+  onSend,
 }: {
-  allMessages: StudioMessage[];
-  isStreaming: boolean;
-  onSend: (prompt: string) => void;
+  allMessages:
+    StudioMessage[];
+
+  isStreaming:
+    boolean;
+
+  onSend:
+    (
+      prompt:
+        string,
+    ) => void;
 }) {
-  const [prompt, setPrompt] = useState("");
-  const placeholder = useAnimatedPlaceholder(CHAT_PLACEHOLDERS, 2800);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [
+    prompt,
+    setPrompt,
+  ] =
+    useState("");
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [allMessages]);
+  const placeholder =
+    useAnimatedPlaceholder(
+      CHAT_PLACEHOLDERS,
+      2800,
+    );
 
-  const handleSend = () => {
-    if (!prompt.trim() || isStreaming) return;
-    onSend(prompt.trim());
-    setPrompt("");
-  };
+  const messagesEndRef =
+    useRef<HTMLDivElement>(
+      null,
+    );
 
-  const handleQuickStart = (p: string) => { onSend(p); };
+  const textareaRef =
+    useRef<HTMLTextAreaElement>(
+      null,
+    );
+
+  useEffect(
+    () => {
+      messagesEndRef.current?.scrollIntoView(
+        {
+          behavior:
+            "smooth",
+        },
+      );
+    },
+
+    [
+      allMessages,
+    ],
+  );
+
+  const handleSend =
+    () => {
+      if (
+        !prompt.trim() ||
+        isStreaming
+      ) {
+        return;
+      }
+
+      onSend(
+        prompt.trim(),
+      );
+
+      setPrompt("");
+    };
+
+  const handleQuickStart =
+    (
+      value: string,
+    ) => {
+      onSend(
+        value,
+      );
+    };
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0d10]">
-      {/* Messages */}
+    <div className="flex h-full flex-col bg-[#0d0d10]">
       <div
         className="flex-1 overflow-y-auto"
-        style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.07) transparent" }}
+        style={{
+          scrollbarWidth:
+            "thin",
+
+          scrollbarColor:
+            "rgba(255,255,255,0.07) transparent",
+        }}
       >
-        {allMessages.length === 0 ? (
-          <ChatEmptyState onQuickStart={handleQuickStart} isStreaming={isStreaming} />
+        {allMessages.length ===
+        0 ? (
+          <ChatEmptyState
+            onQuickStart={
+              handleQuickStart
+            }
+            isStreaming={
+              isStreaming
+            }
+          />
         ) : (
-          <div className="px-4 py-5 space-y-6">
-            {allMessages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} isStreaming={isStreaming} />
-            ))}
-            <div ref={messagesEndRef} />
+          <div className="space-y-6 px-4 py-5">
+            {allMessages.map(
+              (
+                message,
+              ) => (
+                <MessageBubble
+                  key={
+                    message.id
+                  }
+                  message={
+                    message
+                  }
+                  isStreaming={
+                    isStreaming
+                  }
+                />
+              ),
+            )}
+
+            <div
+              ref={
+                messagesEndRef
+              }
+            />
           </div>
         )}
       </div>
 
-      {/* Input */}
       <div className="shrink-0 border-t border-white/5 bg-[#0d0d10] p-3">
-        <div className={`relative rounded-xl border transition-all duration-200 ${
-          isStreaming
-            ? "border-primary/20 bg-white/[0.02]"
-            : "border-white/8 bg-white/[0.02] focus-within:border-primary/30 focus-within:shadow-[0_0_0_3px_rgba(var(--primary-rgb,139,92,246),0.06)]"
-        }`}>
+        <div
+          className={`relative rounded-xl border transition-all duration-200 ${
+            isStreaming
+              ? "border-primary/20 bg-white/[0.02]"
+              : "border-white/8 bg-white/[0.02] focus-within:border-primary/30"
+          }`}
+        >
           <Textarea
-            ref={textareaRef}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim() && !isStreaming) {
-                e.preventDefault();
+            ref={
+              textareaRef
+            }
+            value={
+              prompt
+            }
+            onChange={(
+              event,
+            ) =>
+              setPrompt(
+                event.target
+                  .value,
+              )
+            }
+            onKeyDown={(
+              event,
+            ) => {
+              if (
+                event.key ===
+                  "Enter" &&
+                (
+                  event.metaKey ||
+                  event.ctrlKey
+                ) &&
+                prompt.trim() &&
+                !isStreaming
+              ) {
+                event.preventDefault();
+
                 handleSend();
               }
             }}
-            placeholder={isStreaming ? "Studio is writing…" : placeholder}
-            className="min-h-[80px] max-h-[180px] bg-transparent border-0 focus-visible:ring-0 text-sm text-zinc-100 resize-none py-3.5 px-4 placeholder:text-zinc-600 leading-relaxed"
-            disabled={isStreaming}
+            placeholder={
+              isStreaming
+                ? "Studio is writing…"
+                : placeholder
+            }
+            className="min-h-[80px] max-h-[180px] resize-none border-0 bg-transparent px-4 py-3.5 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-0"
+            disabled={
+              isStreaming
+            }
           />
+
           <div className="flex items-center justify-between px-3 pb-3">
-            <span className="text-[11px] text-zinc-700 select-none">⌘↵ to send</span>
+            <span className="select-none text-[11px] text-zinc-700">
+              ⌘↵ to send
+            </span>
+
             <Button
               size="sm"
-              onClick={handleSend}
-              disabled={!prompt.trim() || isStreaming}
-              className="h-8 px-4 bg-primary hover:bg-primary/90 text-white text-xs font-medium gap-1.5 disabled:opacity-30 shadow-md shadow-primary/20 transition-all"
+              onClick={
+                handleSend
+              }
+              disabled={
+                !prompt.trim() ||
+                isStreaming
+              }
+              className="h-8 gap-1.5 bg-primary px-4 text-xs font-medium text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-30"
             >
-              {isStreaming
-                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Writing…</>
-                : <><Send className="w-3.5 h-3.5" /> Send</>}
+              {isStreaming ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+
+                  Writing…
+                </>
+              ) : (
+                <>
+                  <Send className="h-3.5 w-3.5" />
+
+                  Send
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -1085,40 +3371,113 @@ function ChatPanel({
   );
 }
 
-function ChatEmptyState({ onQuickStart, isStreaming }: { onQuickStart: (p: string) => void; isStreaming: boolean }) {
+/* -------------------------------------------------------------------------- */
+/*                              CHAT EMPTY STATE                              */
+/* -------------------------------------------------------------------------- */
+
+function ChatEmptyState({
+  onQuickStart,
+  isStreaming,
+}: {
+  onQuickStart:
+    (
+      prompt:
+        string,
+    ) => void;
+
+  isStreaming:
+    boolean;
+}) {
   return (
-    <div className="flex flex-col h-full min-h-[420px] items-center justify-center px-6 py-8">
-      <div className="mb-5 flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 font-mono text-sm font-semibold tracking-[0.18em] text-primary shadow-xl shadow-primary/10">01</div>
-      <h3 className="text-sm font-semibold text-zinc-100 mb-1.5">What are we building?</h3>
-      <p className="text-xs text-zinc-500 mb-7 max-w-[220px] text-center leading-relaxed">
-        Describe a website or pick a quick action to get started instantly.
+    <div className="flex h-full min-h-[420px] flex-col items-center justify-center px-6 py-8">
+      <div className="mb-5 flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 font-mono text-sm font-semibold tracking-[0.18em] text-primary shadow-xl shadow-primary/10">
+        01
+      </div>
+
+      <h3 className="mb-1.5 text-sm font-semibold text-zinc-100">
+        What are we
+        building?
+      </h3>
+
+      <p className="mb-7 max-w-[220px] text-center text-xs leading-relaxed text-zinc-500">
+        Describe a website
+        or pick a quick
+        action to get
+        started.
       </p>
-      <div className="w-full space-y-2 max-w-[280px]">
-        {QUICK_STARTS.map((qs, index) => (
-          <button
-            key={qs.label}
-            onClick={() => !isStreaming && onQuickStart(qs.prompt)}
-            disabled={isStreaming}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/6 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-all text-left group disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <span className="shrink-0 font-mono text-[10px] text-zinc-600">{String(index + 1).padStart(2, "0")}</span>
-            <span className="text-xs font-medium text-zinc-400 group-hover:text-zinc-200 transition-colors flex-1">{qs.label}</span>
-          </button>
-        ))}
+
+      <div className="w-full max-w-[280px] space-y-2">
+        {QUICK_STARTS.map(
+          (
+            quickStart,
+            index,
+          ) => (
+            <button
+              key={
+                quickStart.label
+              }
+              onClick={() =>
+                !isStreaming &&
+                onQuickStart(
+                  quickStart.prompt,
+                )
+              }
+              disabled={
+                isStreaming
+              }
+              className="group flex w-full items-center gap-3 rounded-xl border border-white/6 bg-white/[0.02] px-4 py-3 text-left transition-all hover:border-white/10 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span className="shrink-0 font-mono text-[10px] text-zinc-600">
+                {String(
+                  index +
+                    1,
+                ).padStart(
+                  2,
+                  "0",
+                )}
+              </span>
+
+              <span className="flex-1 text-xs font-medium text-zinc-400 transition-colors group-hover:text-zinc-200">
+                {
+                  quickStart.label
+                }
+              </span>
+            </button>
+          ),
+        )}
       </div>
     </div>
   );
 }
 
-function MessageBubble({ message, isStreaming }: { message: StudioMessage; isStreaming: boolean }) {
-  const isUser = message.role === "user";
-  const isEmpty = !message.content;
+/* -------------------------------------------------------------------------- */
+/*                              MESSAGE BUBBLE                                */
+/* -------------------------------------------------------------------------- */
+
+function MessageBubble({
+  message,
+  isStreaming,
+}: {
+  message:
+    StudioMessage;
+
+  isStreaming:
+    boolean;
+}) {
+  const isUser =
+    message.role ===
+    "user";
+
+  const isEmpty =
+    !message.content;
 
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[88%] px-4 py-3 rounded-2xl rounded-tr-md bg-primary/15 border border-primary/20 text-sm text-zinc-100 leading-relaxed break-words">
-          {message.content}
+        <div className="max-w-[88%] break-words rounded-2xl rounded-tr-md border border-primary/20 bg-primary/15 px-4 py-3 text-sm leading-relaxed text-zinc-100">
+          {
+            message.content
+          }
         </div>
       </div>
     );
@@ -1126,23 +3485,32 @@ function MessageBubble({ message, isStreaming }: { message: StudioMessage; isStr
 
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 font-mono text-[10px] font-semibold text-primary">K</span>
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 font-mono text-[10px] font-semibold text-primary">
+        K
+      </span>
 
-      <div className="flex-1 min-w-0 pt-0.5">
-        {isEmpty && isStreaming ? (
+      <div className="min-w-0 flex-1 pt-0.5">
+        {isEmpty &&
+        isStreaming ? (
           <div className="flex items-center gap-1.5 py-1">
-            <span className="w-2 h-2 rounded-full bg-zinc-600 animate-bounce [animation-delay:0ms]" />
-            <span className="w-2 h-2 rounded-full bg-zinc-600 animate-bounce [animation-delay:150ms]" />
-            <span className="w-2 h-2 rounded-full bg-zinc-600 animate-bounce [animation-delay:300ms]" />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-600 [animation-delay:0ms]" />
+
+            <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-600 [animation-delay:150ms]" />
+
+            <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-600 [animation-delay:300ms]" />
           </div>
         ) : (
-          <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap break-words">
-            {message.content}
+          <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-300">
+            {
+              message.content
+            }
           </div>
         )}
+
         {message.file_changes && (
-          <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/8 border border-emerald-500/15 text-[11px] text-emerald-400 font-medium">
-            <FileCode className="w-3 h-3" />
+          <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-1.5 text-[11px] font-medium text-emerald-400">
+            <FileCode className="h-3 w-3" />
+
             Files updated
           </div>
         )}
@@ -1151,377 +3519,1160 @@ function MessageBubble({ message, isStreaming }: { message: StudioMessage; isStr
   );
 }
 
-// ─── Workspace Panel ──────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                             WORKSPACE PANEL                                */
+/* -------------------------------------------------------------------------- */
 
 function WorkspacePanel({
-  files, currentFile, openFiles, deploymentUrl, snapshots,
-  fileCount, mounted, onFileSelect, onCloseFile, onDeploy,
-  onFileChange, onCreateFile, onDeleteFile, onRenameFile,
+  files,
+  currentFile,
+  openFiles,
+  deploymentUrl,
+  snapshots,
+  fileCount,
+  mounted,
+  onFileSelect,
+  onCloseFile,
+  onDeploy,
+  onFileChange,
+  onCreateFile,
+  onDeleteFile,
+  onRenameFile,
 }: {
-  files: Record<string, string>;
-  currentFile: string | null;
-  openFiles: string[];
-  deploymentUrl: string | null;
-  snapshots: StudioSnapshot[];
-  fileCount: number;
-  mounted: boolean;
-  onFileSelect: (p: string) => void;
-  onCloseFile: (e: React.MouseEvent, p: string) => void;
-  onFileChange: (path: string, content: string) => void;
-  onCreateFile: () => void;
-  onDeleteFile: (path: string) => void;
-  onRenameFile: (path: string) => void;
-  onDeploy: () => void;
-}) {
-  const [activeTab, setActiveTab] = useState<"preview" | "code" | "files" | "history">("preview");
+  files:
+    Record<
+      string,
+      string
+    >;
 
-  const tabs = [
-    { id: "preview" as const, icon: Eye,       label: "Preview" },
-    { id: "code"    as const, icon: Code2,      label: "Code"    },
-    { id: "files"   as const, icon: FolderGit2, label: "Files"   },
-    { id: "history" as const, icon: History,    label: "History" },
-  ];
+  currentFile:
+    string | null;
+
+  openFiles:
+    string[];
+
+  deploymentUrl:
+    string | null;
+
+  snapshots:
+    StudioSnapshot[];
+
+  fileCount:
+    number;
+
+  mounted:
+    boolean;
+
+  onFileSelect:
+    (
+      path:
+        string,
+    ) => void;
+
+  onCloseFile:
+    (
+      event:
+        React.MouseEvent,
+
+      path:
+        string,
+    ) => void;
+
+  onFileChange:
+    (
+      path:
+        string,
+
+      content:
+        string,
+    ) => void;
+
+  onCreateFile:
+    () => void;
+
+  onDeleteFile:
+    (
+      path:
+        string,
+    ) => void;
+
+  onRenameFile:
+    (
+      path:
+        string,
+    ) => void;
+
+  onDeploy:
+    () => void;
+}) {
+  const [
+    activeTab,
+    setActiveTab,
+  ] =
+    useState<
+      | "preview"
+      | "code"
+      | "files"
+      | "history"
+    >(
+      "preview",
+    );
+
+  const tabs =
+    [
+      {
+        id:
+          "preview" as const,
+
+        icon:
+          Eye,
+
+        label:
+          "Preview",
+      },
+
+      {
+        id:
+          "code" as const,
+
+        icon:
+          Code2,
+
+        label:
+          "Code",
+      },
+
+      {
+        id:
+          "files" as const,
+
+        icon:
+          FolderGit2,
+
+        label:
+          "Files",
+      },
+
+      {
+        id:
+          "history" as const,
+
+        icon:
+          History,
+
+        label:
+          "History",
+      },
+    ];
 
   return (
-    <div className="flex flex-col h-full bg-[#0f0f12]">
-      {/* Tab strip */}
-      <div className="flex items-center border-b border-white/5 bg-[#0f0f12] shrink-0 h-10 px-1">
-        <div className="flex items-center flex-1 h-full">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`relative flex items-center gap-1.5 px-3.5 h-full text-xs font-medium transition-colors ${
-                activeTab === t.id ? "text-zinc-100" : "text-zinc-600 hover:text-zinc-400"
-              }`}
-            >
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
-              {activeTab === t.id && (
-                <span className="absolute bottom-0 left-2 right-2 h-px bg-primary rounded-full" />
-              )}
-            </button>
-          ))}
+    <div className="flex h-full flex-col bg-[#0f0f12]">
+      <div className="flex h-10 shrink-0 items-center border-b border-white/5 bg-[#0f0f12] px-1">
+        <div className="flex h-full flex-1 items-center">
+          {tabs.map(
+            (
+              tab,
+            ) => (
+              <button
+                key={
+                  tab.id
+                }
+                onClick={() =>
+                  setActiveTab(
+                    tab.id,
+                  )
+                }
+                className={`relative flex h-full items-center gap-1.5 px-3.5 text-xs font-medium transition-colors ${
+                  activeTab ===
+                  tab.id
+                    ? "text-zinc-100"
+                    : "text-zinc-600 hover:text-zinc-400"
+                }`}
+              >
+                <tab.icon className="h-3.5 w-3.5" />
+
+                {
+                  tab.label
+                }
+
+                {activeTab ===
+                  tab.id && (
+                  <span className="absolute bottom-0 left-2 right-2 h-px rounded-full bg-primary" />
+                )}
+              </button>
+            ),
+          )}
         </div>
+
         {deploymentUrl && (
           <a
-            href={deploymentUrl}
+            href={
+              deploymentUrl
+            }
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors pr-3 font-medium"
+            className="flex items-center gap-1.5 pr-3 text-xs font-medium text-emerald-400 transition-colors hover:text-emerald-300"
           >
             <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
             </span>
+
             Live
-            <ExternalLink className="w-3 h-3" />
+
+            <ExternalLink className="h-3 w-3" />
           </a>
         )}
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === "preview" && (
-          <LivePreview files={files} deploymentUrl={deploymentUrl} onDeploy={onDeploy} fileCount={fileCount} />
+        {activeTab ===
+          "preview" && (
+          <StudioLivePreview
+            files={
+              files
+            }
+            deploymentUrl={
+              deploymentUrl
+            }
+            onDeploy={
+              onDeploy
+            }
+            fileCount={
+              fileCount
+            }
+          />
         )}
 
-        {activeTab === "code" && (
-          <div className="flex flex-col h-full bg-[#09090b]">
-            {openFiles.length > 0 && (
+        {activeTab ===
+          "code" && (
+          <div className="flex h-full flex-col bg-[#09090b]">
+            {openFiles.length >
+              0 && (
               <div
-                className="flex bg-[#0f0f12] border-b border-white/5 overflow-x-auto shrink-0"
-                style={{ scrollbarWidth: "none" }}
+                className="flex shrink-0 overflow-x-auto border-b border-white/5 bg-[#0f0f12]"
+                style={{
+                  scrollbarWidth:
+                    "none",
+                }}
               >
-                {openFiles.map((path) => (
-                  <div
-                    key={path}
-                    onClick={() => onFileSelect(path)}
-                    className={`flex items-center px-3.5 h-9 text-xs font-mono border-r border-white/5 cursor-pointer group shrink-0 transition-colors ${
-                      currentFile === path
-                        ? "bg-[#09090b] text-zinc-100 border-t border-t-primary"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-white/3"
-                    }`}
-                  >
-                    <FileIcon path={path} className="w-3.5 h-3.5 mr-1.5" />
-                    {path.split("/").pop()}
-                    <button
-                      onClick={(e) => onCloseFile(e, path)}
-                      className="ml-2.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-zinc-400"
+                {openFiles.map(
+                  (
+                    path,
+                  ) => (
+                    <div
+                      key={
+                        path
+                      }
+                      onClick={() =>
+                        onFileSelect(
+                          path,
+                        )
+                      }
+                      className={`group flex h-9 shrink-0 cursor-pointer items-center border-r border-white/5 px-3.5 font-mono text-xs transition-colors ${
+                        currentFile ===
+                        path
+                          ? "border-t border-t-primary bg-[#09090b] text-zinc-100"
+                          : "text-zinc-500 hover:bg-white/3 hover:text-zinc-300"
+                      }`}
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                      <FileIcon
+                        path={
+                          path
+                        }
+                        className="mr-1.5 h-3.5 w-3.5"
+                      />
+
+                      {path
+                        .split(
+                          "/",
+                        )
+                        .pop()}
+
+                      <button
+                        onClick={(
+                          event,
+                        ) =>
+                          onCloseFile(
+                            event,
+                            path,
+                          )
+                        }
+                        className="ml-2.5 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-60 hover:!opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ),
+                )}
               </div>
             )}
-            <div className="flex-1 relative overflow-hidden">
-              {mounted && currentFile && files[currentFile] !== undefined ? (
-                <Suspense fallback={<EditorSkeleton />}>
+
+            <div className="relative flex-1 overflow-hidden">
+              {mounted &&
+              currentFile &&
+              files[
+                currentFile
+              ] !==
+                undefined ? (
+                <Suspense
+                  fallback={
+                    <EditorSkeleton />
+                  }
+                >
                   <MonacoEditor
-                    key={currentFile}
+                    key={
+                      currentFile
+                    }
                     height="100%"
-                    path={currentFile}
-                    value={files[currentFile] || ""}
-                    onChange={(value) => onFileChange(currentFile, value ?? "")}
+                    path={
+                      currentFile
+                    }
+                    value={
+                      files[
+                        currentFile
+                      ] ||
+                      ""
+                    }
+                    onChange={(
+                      value,
+                    ) =>
+                      onFileChange(
+                        currentFile,
+                        value ??
+                          "",
+                      )
+                    }
                     theme="vs-dark"
                     options={{
-                      minimap: { enabled: false },
-                      fontSize: 13,
-                      fontFamily: "Geist Mono, JetBrains Mono, monospace",
-                      padding: { top: 16 },
-                      scrollBeyondLastLine: false,
-                      lineHeight: 24,
-                      smoothScrolling: true,
-                      cursorBlinking: "smooth",
+                      minimap: {
+                        enabled:
+                          false,
+                      },
+
+                      fontSize:
+                        13,
+
+                      fontFamily:
+                        "Geist Mono, JetBrains Mono, monospace",
+
+                      padding: {
+                        top:
+                          16,
+                      },
+
+                      scrollBeyondLastLine:
+                        false,
+
+                      lineHeight:
+                        24,
+
+                      smoothScrolling:
+                        true,
+
+                      cursorBlinking:
+                        "smooth",
+
+                      automaticLayout:
+                        true,
                     }}
                   />
                 </Suspense>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                  <Code2 className="w-10 h-10 text-zinc-800 mb-3" />
-                  <p className="text-sm text-zinc-600">Select a file from the Files tab</p>
+                <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+                  <Code2 className="mb-3 h-10 w-10 text-zinc-800" />
+
+                  <p className="text-sm text-zinc-600">
+                    Select a
+                    file from
+                    the Files
+                    tab
+                  </p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {activeTab === "files" && (
-          <FilesTab files={files} onFileSelect={(p) => { onFileSelect(p); setActiveTab("code"); }} onCreateFile={onCreateFile} onDeleteFile={onDeleteFile} onRenameFile={onRenameFile} />
+        {activeTab ===
+          "files" && (
+          <FilesTab
+            files={
+              files
+            }
+            onFileSelect={(
+              path,
+            ) => {
+              onFileSelect(
+                path,
+              );
+
+              setActiveTab(
+                "code",
+              );
+            }}
+            onCreateFile={
+              onCreateFile
+            }
+            onDeleteFile={
+              onDeleteFile
+            }
+            onRenameFile={
+              onRenameFile
+            }
+          />
         )}
 
-        {activeTab === "history" && <HistoryTab snapshots={snapshots} />}
+        {activeTab ===
+          "history" && (
+          <HistoryTab
+            snapshots={
+              snapshots
+            }
+          />
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Files Tab ────────────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                                  FILES TAB                                 */
+/* -------------------------------------------------------------------------- */
 
 function FilesTab({
-  files, onFileSelect, onCreateFile, onDeleteFile, onRenameFile,
+  files,
+  onFileSelect,
+  onCreateFile,
+  onDeleteFile,
+  onRenameFile,
 }: {
-  files: Record<string, string>;
-  onFileSelect: (p: string) => void;
-  onCreateFile: () => void;
-  onDeleteFile: (path: string) => void;
-  onRenameFile: (path: string) => void;
+  files:
+    Record<
+      string,
+      string
+    >;
+
+  onFileSelect:
+    (
+      path:
+        string,
+    ) => void;
+
+  onCreateFile:
+    () => void;
+
+  onDeleteFile:
+    (
+      path:
+        string,
+    ) => void;
+
+  onRenameFile:
+    (
+      path:
+        string,
+    ) => void;
 }) {
-  const paths = Object.keys(files).sort();
+  const paths =
+    Object.keys(
+      files,
+    ).sort();
+
+  const protectedFiles =
+    new Set([
+      "index.html",
+      "package.json",
+      "src/main.jsx",
+      "src/App.jsx",
+    ]);
+
   return (
     <div
       className="h-full overflow-y-auto bg-[#0f0f12]"
-      style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.07) transparent" }}
+      style={{
+        scrollbarWidth:
+          "thin",
+
+        scrollbarColor:
+          "rgba(255,255,255,0.07) transparent",
+      }}
     >
-      <div className="flex items-center justify-between px-3 pt-3 pb-1">
-        <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Project files</span>
-        <button type="button" onClick={onCreateFile} className="rounded px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/10">New file</button>
+      <div className="flex items-center justify-between px-3 pb-1 pt-3">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+          Project files
+        </span>
+
+        <button
+          type="button"
+          onClick={
+            onCreateFile
+          }
+          className="rounded px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/10"
+        >
+          New file
+        </button>
       </div>
-      {paths.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-          <FolderGit2 className="w-10 h-10 text-zinc-800 mb-3" />
-          <p className="text-xs text-zinc-600 leading-relaxed max-w-[180px]">No files yet — ask Studio to build something.</p>
+
+      {paths.length ===
+      0 ? (
+        <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+          <FolderGit2 className="mb-3 h-10 w-10 text-zinc-800" />
+
+          <p className="max-w-[180px] text-xs leading-relaxed text-zinc-600">
+            No files yet
+            — ask Studio
+            to build
+            something.
+          </p>
         </div>
       ) : (
-        <div className="px-1 pb-3 mt-1 space-y-px">
-          {paths.map((path) => {
-            const parts = path.split("/");
-            const name = parts.pop() || path;
-            return (
-              <div
-                key={path}
-                onClick={() => onFileSelect(path)}
-                className="flex items-center py-1.5 hover:bg-white/5 rounded-md cursor-pointer group transition-colors"
-                style={{ paddingLeft: `${parts.length * 14 + 10}px`, paddingRight: "10px" }}
-              >
-                <FileIcon path={path} className="w-3.5 h-3.5 mr-2 shrink-0" />
-                <span className="text-[12px] font-mono text-zinc-500 group-hover:text-zinc-200 truncate transition-colors">{name}</span>
-                <div className="ml-auto hidden items-center gap-1 group-hover:flex">
-                  <button type="button" onClick={(event) => { event.stopPropagation(); onRenameFile(path); }} className="rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:bg-white/10 hover:text-zinc-200">Rename</button>
-                  {path !== "index.html" && <button type="button" onClick={(event) => { event.stopPropagation(); onDeleteFile(path); }} className="rounded px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-red-500/10">Delete</button>}
+        <div className="mt-1 space-y-px px-1 pb-3">
+          {paths.map(
+            (
+              path,
+            ) => {
+              const parts =
+                path.split(
+                  "/",
+                );
+
+              const name =
+                parts.pop() ||
+                path;
+
+              const protectedFile =
+                protectedFiles.has(
+                  path,
+                );
+
+              return (
+                <div
+                  key={
+                    path
+                  }
+                  onClick={() =>
+                    onFileSelect(
+                      path,
+                    )
+                  }
+                  className="group flex cursor-pointer items-center rounded-md py-1.5 transition-colors hover:bg-white/5"
+                  style={{
+                    paddingLeft:
+                      `${parts.length * 14 + 10}px`,
+
+                    paddingRight:
+                      "10px",
+                  }}
+                >
+                  <FileIcon
+                    path={
+                      path
+                    }
+                    className="mr-2 h-3.5 w-3.5 shrink-0"
+                  />
+
+                  <span className="truncate font-mono text-[12px] text-zinc-500 transition-colors group-hover:text-zinc-200">
+                    {
+                      name
+                    }
+                  </span>
+
+                  {!protectedFile && (
+                    <div className="ml-auto hidden items-center gap-1 group-hover:flex">
+                      <button
+                        type="button"
+                        onClick={(
+                          event,
+                        ) => {
+                          event.stopPropagation();
+
+                          onRenameFile(
+                            path,
+                          );
+                        }}
+                        className="rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
+                      >
+                        Rename
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(
+                          event,
+                        ) => {
+                          event.stopPropagation();
+
+                          onDeleteFile(
+                            path,
+                          );
+                        }}
+                        className="rounded px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-red-500/10"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            },
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ─── History Tab ──────────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                                 HISTORY TAB                                */
+/* -------------------------------------------------------------------------- */
 
-function HistoryTab({ snapshots }: { snapshots: StudioSnapshot[] }) {
+function HistoryTab({
+  snapshots,
+}: {
+  snapshots:
+    StudioSnapshot[];
+}) {
   return (
     <div
       className="h-full overflow-y-auto bg-[#0f0f12] p-4"
-      style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.07) transparent" }}
+      style={{
+        scrollbarWidth:
+          "thin",
+
+        scrollbarColor:
+          "rgba(255,255,255,0.07) transparent",
+      }}
     >
-      <div className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-4">Snapshots</div>
-      {snapshots.length === 0 ? (
+      <div className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+        Snapshots
+      </div>
+
+      {snapshots.length ===
+      0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <History className="w-10 h-10 text-zinc-800 mb-3" />
-          <p className="text-xs text-zinc-600 leading-relaxed max-w-[180px]">Each AI edit creates a snapshot you can browse here.</p>
+          <History className="mb-3 h-10 w-10 text-zinc-800" />
+
+          <p className="max-w-[180px] text-xs leading-relaxed text-zinc-600">
+            Each AI edit
+            creates a
+            snapshot you
+            can browse
+            here.
+          </p>
         </div>
       ) : (
-        <div className="relative pl-4 border-l border-white/6 space-y-5">
-          {snapshots.map((snap) => (
-            <div key={snap.id} className="relative group">
-              <div className="absolute w-2.5 h-2.5 rounded-full border-2 border-zinc-700 bg-[#0f0f12] group-hover:border-primary -left-[17px] top-1 transition-colors" />
-              <p className="text-sm text-zinc-300 font-medium leading-snug line-clamp-2">{snap.label}</p>
-              <p className="text-[11px] text-zinc-600 mt-1">
-                {formatDistanceToNow(new Date(snap.created_at), { addSuffix: true })}
-                <span className="mx-1.5 text-zinc-700">·</span>
-                {snap.files_count} file{snap.files_count !== 1 ? "s" : ""}
-              </p>
-            </div>
-          ))}
+        <div className="relative space-y-5 border-l border-white/6 pl-4">
+          {snapshots.map(
+            (
+              snapshot,
+            ) => (
+              <div
+                key={
+                  snapshot.id
+                }
+                className="group relative"
+              >
+                <div className="absolute -left-[17px] top-1 h-2.5 w-2.5 rounded-full border-2 border-zinc-700 bg-[#0f0f12] transition-colors group-hover:border-primary" />
+
+                <p className="line-clamp-2 text-sm font-medium leading-snug text-zinc-300">
+                  {
+                    snapshot.label
+                  }
+                </p>
+
+                <p className="mt-1 text-[11px] text-zinc-600">
+                  {formatDistanceToNow(
+                    new Date(
+                      snapshot.created_at,
+                    ),
+                    {
+                      addSuffix:
+                        true,
+                    },
+                  )}
+
+                  <span className="mx-1.5 text-zinc-700">
+                    ·
+                  </span>
+
+                  {
+                    snapshot.files_count
+                  }{" "}
+                  file
+                  {snapshot.files_count !==
+                  1
+                    ? "s"
+                    : ""}
+                </p>
+              </div>
+            ),
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Deploy Sheet ─────────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                                DEPLOY SHEET                                */
+/* -------------------------------------------------------------------------- */
 
 function DeploySheet({
-  projectId, projectName, fileCount, onClose, onDeployed,
+  projectId,
+  projectName,
+  fileCount,
+  onClose,
+  onDeployed,
 }: {
-  projectId: string;
-  projectName: string;
-  fileCount: number;
-  onClose: () => void;
-  onDeployed: (url: string) => void;
+  projectId:
+    string;
+
+  projectName:
+    string;
+
+  fileCount:
+    number;
+
+  onClose:
+    () => void;
+
+  onDeployed:
+    (
+      url:
+        string,
+    ) => void;
 }) {
-  const [deploying, setDeploying] = useState(false);
-  const [waitingForDeployment, setWaitingForDeployment] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const runDeploy = useServerFn(deployBusinessWebsite);
-  const runDeploymentStatus = useServerFn(getBusinessWebsiteDeploymentStatus);
+  const [
+    deploying,
+    setDeploying,
+  ] =
+    useState(
+      false,
+    );
 
-  useEffect(() => {
-    if (!waitingForDeployment) return;
-    let cancelled = false;
-    const checkStatus = async () => {
-      try {
-        const result = await runDeploymentStatus({ data: { project_id: projectId } });
-        if (cancelled) return;
-        if ("error" in result) {
-          setWaitingForDeployment(false);
-          setError(result.message || "Could not check the website status.");
-          return;
-        }
-        const url = (result as { url?: unknown }).url;
-        if (result.status === "ready" && typeof url === "string") {
-          setWaitingForDeployment(false);
-          toast.success("Your website is live!");
-          onDeployed(url);
-          return;
-        }
-        if (result.status === "error") {
-          setWaitingForDeployment(false);
-          const detail = (result as { detail?: unknown }).detail;
-          setError(typeof detail === "string" ? detail : "Vercel could not build this website.");
-        }
-      } catch {
-        if (!cancelled) {
-          setWaitingForDeployment(false);
-          setError("Could not check the website status. Try again shortly.");
-        }
-      }
-    };
-    void checkStatus();
-    const interval = window.setInterval(() => void checkStatus(), 5_000);
-    return () => { cancelled = true; window.clearInterval(interval); };
-  }, [onDeployed, projectId, runDeploymentStatus, waitingForDeployment]);
+  const [
+    waitingForDeployment,
+    setWaitingForDeployment,
+  ] =
+    useState(
+      false,
+    );
 
-  const handleDeploy = async () => {
-    setDeploying(true); setError(null);
-    try {
-      const data = await runDeploy({ data: { project_id: projectId } });
-      if ("error" in data) {
-        setError(data.error === "vercel_not_configured"
-          ? "Kodarai's managed publishing service has not been configured yet."
-          : data.message || "Deployment failed.");
+  const [
+    error,
+    setError,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const runDeploy =
+    useServerFn(
+      deployBusinessWebsite,
+    );
+
+  const runDeploymentStatus =
+    useServerFn(
+      getBusinessWebsiteDeploymentStatus,
+    );
+
+  useEffect(
+    () => {
+      if (
+        !waitingForDeployment
+      ) {
         return;
       }
-      if (data.status === "ready" && data.url) {
-        toast.success("Your website is live!");
-        onDeployed(data.url);
-      } else {
-        setWaitingForDeployment(true);
+
+      let cancelled =
+        false;
+
+      const checkStatus =
+        async () => {
+          try {
+            const result =
+              await runDeploymentStatus(
+                {
+                  data: {
+                    project_id:
+                      projectId,
+                  },
+                },
+              );
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            if (
+              "error" in
+              result
+            ) {
+              setWaitingForDeployment(
+                false,
+              );
+
+              setError(
+                result.message ||
+                  "Could not check the website status.",
+              );
+
+              return;
+            }
+
+            const url =
+              (
+                result as {
+                  url?: unknown;
+                }
+              ).url;
+
+            if (
+              result.status ===
+                "ready" &&
+              typeof url ===
+                "string"
+            ) {
+              setWaitingForDeployment(
+                false,
+              );
+
+              toast.success(
+                "Your website is live!",
+              );
+
+              onDeployed(
+                url,
+              );
+
+              return;
+            }
+
+            if (
+              result.status ===
+              "error"
+            ) {
+              setWaitingForDeployment(
+                false,
+              );
+
+              const detail =
+                (
+                  result as {
+                    detail?: unknown;
+                  }
+                ).detail;
+
+              setError(
+                typeof detail ===
+                  "string"
+                  ? detail
+                  : "Vercel could not build this website.",
+              );
+            }
+          } catch {
+            if (
+              !cancelled
+            ) {
+              setWaitingForDeployment(
+                false,
+              );
+
+              setError(
+                "Could not check the website status. Try again shortly.",
+              );
+            }
+          }
+        };
+
+      void checkStatus();
+
+      const interval =
+        window.setInterval(
+          () =>
+            void checkStatus(),
+
+          5000,
+        );
+
+      return () => {
+        cancelled =
+          true;
+
+        window.clearInterval(
+          interval,
+        );
+      };
+    },
+
+    [
+      onDeployed,
+      projectId,
+      runDeploymentStatus,
+      waitingForDeployment,
+    ],
+  );
+
+  const handleDeploy =
+    async () => {
+      setDeploying(
+        true,
+      );
+
+      setError(
+        null,
+      );
+
+      try {
+        const data =
+          await runDeploy(
+            {
+              data: {
+                project_id:
+                  projectId,
+              },
+            },
+          );
+
+        if (
+          "error" in
+          data
+        ) {
+          setError(
+            data.error ===
+            "vercel_not_configured"
+              ? "Kodarai's managed publishing service has not been configured yet."
+              : data.message ||
+                  "Deployment failed.",
+          );
+
+          return;
+        }
+
+        if (
+          data.status ===
+            "ready" &&
+          data.url
+        ) {
+          toast.success(
+            "Your website is live!",
+          );
+
+          onDeployed(
+            data.url,
+          );
+        } else {
+          setWaitingForDeployment(
+            true,
+          );
+        }
+      } catch {
+        setError(
+          "Network error. Try again.",
+        );
+      } finally {
+        setDeploying(
+          false,
+        );
       }
-    } catch { setError("Network error. Try again."); }
-    finally { setDeploying(false); }
-  };
+    };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-[#18181f] border border-white/8 rounded-2xl w-full max-w-md p-6 shadow-2xl shadow-black/50">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-md"
+        onClick={
+          onClose
+        }
+      />
+
+      <div className="relative w-full max-w-md rounded-2xl border border-white/8 bg-[#18181f] p-6 shadow-2xl shadow-black/50">
+        <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/5 border border-white/8 rounded-xl flex items-center justify-center">
-              <svg viewBox="0 0 76 65" className="w-4 h-4 fill-zinc-50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/5">
+              <svg
+                viewBox="0 0 76 65"
+                className="h-4 w-4 fill-zinc-50"
+              >
                 <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
               </svg>
             </div>
+
             <div>
-              <h2 className="text-zinc-100 font-semibold text-sm">Publish Website</h2>
-              <p className="text-zinc-500 text-xs mt-0.5 truncate max-w-[200px]">{projectName}</p>
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Publish
+                Website
+              </h2>
+
+              <p className="mt-0.5 max-w-[200px] truncate text-xs text-zinc-500">
+                {
+                  projectName
+                }
+              </p>
             </div>
           </div>
+
           <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-white/5 hover:text-zinc-300 transition-colors"
+            onClick={
+              onClose
+            }
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Info */}
-        <div className="space-y-2.5 mb-6">
-          <div className="bg-white/3 border border-white/6 rounded-xl p-3.5 flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Files ready</span>
-            <span className="text-sm font-mono font-medium text-zinc-100">{fileCount}</span>
+        <div className="mb-6 space-y-2.5">
+          <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 p-3.5">
+            <span className="text-sm text-zinc-400">
+              Project
+              files
+            </span>
+
+            <span className="font-mono text-sm font-medium text-zinc-100">
+              {
+                fileCount
+              }
+            </span>
           </div>
-          <div className="bg-white/3 border border-white/6 rounded-xl p-3.5 flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Publishing service</span>
-            <span className="text-xs text-zinc-500">Managed by Kodarai</span>
+
+          <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 p-3.5">
+            <span className="text-sm text-zinc-400">
+              Framework
+            </span>
+
+            <span className="text-xs text-zinc-500">
+              React +
+              Vite
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 p-3.5">
+            <span className="text-sm text-zinc-400">
+              Publishing
+            </span>
+
+            <span className="text-xs text-zinc-500">
+              Managed by
+              Kodarai
+            </span>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 text-sm text-destructive">
-            {error}
+          <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {
+              error
+            }
           </div>
         )}
 
         <Button
-          onClick={handleDeploy}
-          disabled={deploying || waitingForDeployment || fileCount === 0}
-          className="w-full bg-zinc-50 text-zinc-950 hover:bg-white font-semibold h-10 gap-2 shadow-lg shadow-black/30 transition-all"
+          onClick={
+            handleDeploy
+          }
+          disabled={
+            deploying ||
+            waitingForDeployment ||
+            fileCount ===
+              0
+          }
+          className="h-10 w-full gap-2 bg-zinc-50 font-semibold text-zinc-950 shadow-lg shadow-black/30 transition-all hover:bg-white"
         >
-          {deploying || waitingForDeployment
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> {waitingForDeployment ? "Building website…" : "Publishing…"}</>
-            : <><Rocket className="w-4 h-4" /> Publish Website</>}
+          {deploying ||
+          waitingForDeployment ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+
+              {waitingForDeployment
+                ? "Building React website…"
+                : "Publishing…"}
+            </>
+          ) : (
+            <>
+              <Rocket className="h-4 w-4" />
+
+              Publish
+              Website
+            </>
+          )}
         </Button>
 
-        <p className="text-center text-xs text-zinc-600 mt-3">No GitHub or Vercel account is needed. Kodarai publishes through its managed deployment service.</p>
+        <p className="mt-3 text-center text-xs text-zinc-600">
+          No GitHub or
+          Vercel account
+          is needed.
+          Kodarai
+          publishes
+          through its
+          managed
+          deployment
+          service.
+        </p>
       </div>
     </div>
   );
 }
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*                              SHARED HELPERS                                */
+/* -------------------------------------------------------------------------- */
 
-function FileIcon({ path, className }: { path: string; className?: string }) {
-  if (/\.(tsx?|jsx?)$/.test(path)) return <FileCode className={`${className} text-blue-400`} />;
-  if (path.endsWith(".json"))       return <FileJson className={`${className} text-yellow-400`} />;
-  if (path.endsWith(".css"))        return <FileType2 className={`${className} text-emerald-400`} />;
-  return <File className={`${className} text-zinc-500`} />;
+function FileIcon({
+  path,
+  className,
+}: {
+  path:
+    string;
+
+  className?:
+    string;
+}) {
+  if (
+    /\.(tsx?|jsx?)$/.test(
+      path,
+    )
+  ) {
+    return (
+      <FileCode
+        className={`${className ?? ""} text-blue-400`}
+      />
+    );
+  }
+
+  if (
+    path.endsWith(
+      ".json",
+    )
+  ) {
+    return (
+      <FileJson
+        className={`${className ?? ""} text-yellow-400`}
+      />
+    );
+  }
+
+  if (
+    path.endsWith(
+      ".css",
+    )
+  ) {
+    return (
+      <FileType2
+        className={`${className ?? ""} text-emerald-400`}
+      />
+    );
+  }
+
+  return (
+    <File
+      className={`${className ?? ""} text-zinc-500`}
+    />
+  );
 }
 
 function EditorSkeleton() {
