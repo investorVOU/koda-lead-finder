@@ -184,7 +184,7 @@ export function StudioHosting({
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0b0e11] p-4 sm:p-5">
+    <div className="h-full overflow-y-auto bg-[#0b0e11] p-4 text-zinc-100 sm:p-5">
       <div className="mx-auto w-full max-w-2xl space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -638,7 +638,7 @@ function Sheet({ children, onClose }: { children: ReactNode; onClose: () => void
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[88vh] w-full max-w-[460px] overflow-y-auto border border-white/[0.1] bg-[#101418] p-5 shadow-2xl sm:max-h-[80vh]">
+      <div className="max-h-[88vh] w-full max-w-[460px] overflow-y-auto border border-white/[0.1] bg-[#101418] p-5 text-zinc-100 shadow-2xl sm:max-h-[80vh]">
         {children}
       </div>
     </div>,
