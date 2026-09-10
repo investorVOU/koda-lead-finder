@@ -1,6 +1,44 @@
 import { z } from "zod";
 import { type StudioFile } from "@/lib/studio-files";
 
+export type WebsiteHeroStyle =
+  | "background"
+  | "split"
+  | "editorial";
+
+export type WebsiteOverlayStrength =
+  | "light"
+  | "medium"
+  | "dark";
+
+export type WebsiteImage = {
+  id: string;
+  url: string;
+  largeUrl: string;
+  thumbnailUrl: string;
+  alt: string;
+  photographer: string;
+  photographerUrl: string;
+  sourceUrl: string;
+  source: "pexels";
+};
+
+export type WebsiteVisuals = {
+  heroStyle: WebsiteHeroStyle;
+  overlayStrength:
+    WebsiteOverlayStrength;
+  heroImage:
+    | WebsiteImage
+    | null;
+  galleryImages: WebsiteImage[];
+  sourceName:
+    | string
+    | null;
+  sourceUrl:
+    | string
+    | null;
+};
+
 export const WEBSITE_TEMPLATE_KEYS = [
   "restaurant", "professional", "salon", "hotel", "real-estate",
   "church", "gym", "retail", "healthcare", "general",
