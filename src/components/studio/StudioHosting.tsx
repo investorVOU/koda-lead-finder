@@ -327,8 +327,8 @@ export function StudioHosting({
             {currentStatus !== "connected" && (
               <>
                 <p className="mt-4 text-xs leading-5 text-zinc-500">
-                  Add the DNS records Vercel returns below. We refresh this status automatically
-                  while it is pending.
+                  Add the below DNS records to your hosting/domain provider. We refresh this
+                  status automatically while it is pending.
                 </p>
                 <DnsRecords records={records} />
                 <div className="mt-4 flex flex-wrap gap-2">
