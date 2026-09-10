@@ -1,9 +1,12 @@
 import {
+  useMemo,
   useRef,
   useState,
   type FormEvent,
 } from "react";
 import {
+  Check,
+  ChevronDown,
   Loader2,
   Search,
   X,
@@ -14,24 +17,17 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 
-import {
-  LEAD_CATEGORY_GROUPS,
-} from "@/lib/constants";
-
+import { LEAD_CATEGORY_GROUPS } from "@/lib/constants";
 import {
   UNIQUE_COUNTRIES,
   getStates,
   buildLocationString,
 } from "@/lib/locations";
-
-const CUSTOM_SENTINEL = "__custom__";
 
 export function SearchForm({
   onSearch,
@@ -47,73 +43,54 @@ export function SearchForm({
   defaultCategory?: string;
   defaultLocation?: string;
 }) {
-  const allItems =
-    LEAD_CATEGORY_GROUPS.flatMap(
-      (group) => group.items,
-    );
-
-  const isKnown =
-    !defaultCategory ||
-    allItems.includes(defaultCategory);
-
-  const [
-    selectValue,
-    setSelectValue,
-  ] = useState(
-    defaultCategory
-      ? isKnown
-        ? defaultCategory
-        : CUSTOM_SENTINEL
-      : "",
+  const allCategories = useMemo(
+    () =>
+      LEAD_CATEGORY_GROUPS.flatMap(
+        (group) => group.items,
+      ),
+    [],
   );
 
-  const [
-    customText,
-    setCustomText,
-  ] = useState(
-    defaultCategory && !isKnown
-      ? defaultCategory
-      : "",
+  const [category, setCategory] =
+    useState(defaultCategory ?? "");
+
+  const [categoryOpen, setCategoryOpen] =
+    useState(false);
+
+  const [countryCode, setCountryCode] =
+    useState("");
+
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [cityInput, setCityInput] =
+    useState("");
+
+  const categoryRef =
+    useRef<HTMLDivElement>(null);
+
+  const filteredCategories = useMemo(() => {
+    const query = category
+      .trim()
+      .toLowerCase();
+
+    if (!query) {
+      return allCategories.slice(0, 18);
+    }
+
+    return allCategories
+      .filter((item) =>
+        item
+          .toLowerCase()
+          .includes(query),
+      )
+      .slice(0, 18);
+  }, [allCategories, category]);
+
+  const states = getStates(countryCode);
+
+  const selectedState = states.find(
+    (item) => item.name === state,
   );
-
-  const [
-    countryCode,
-    setCountryCode,
-  ] = useState("");
-
-  const [state, setState] =
-    useState("");
-
-  const [city, setCity] =
-    useState("");
-
-  const [
-    cityInput,
-    setCityInput,
-  ] = useState("");
-
-  const customRef =
-    useRef<HTMLInputElement>(null);
-
-  const isCustom =
-    selectValue === CUSTOM_SENTINEL;
-
-  const resolvedCategory =
-    isCustom
-      ? customText.trim()
-      : selectValue;
-
-  const states =
-    getStates(countryCode);
-
-  const hasStates =
-    states.length > 0;
-
-  const selectedState =
-    states.find(
-      (item) =>
-        item.name === state,
-    );
 
   const cities =
     selectedState?.cities ?? [];
@@ -123,6 +100,17 @@ export function SearchForm({
       (country) =>
         country.code === countryCode,
     );
+
+  const resolvedLocation =
+    buildLocationString(
+      selectedCountry?.name ?? "",
+      state,
+      city || cityInput,
+    );
+
+  const canSearch =
+    category.trim().length > 0 &&
+    !!selectedCountry;
 
   const handleCountryChange = (
     value: string,
@@ -141,162 +129,207 @@ export function SearchForm({
     setCityInput("");
   };
 
-  const handleSelectChange = (
-    value: string,
-  ) => {
-    setSelectValue(value);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
 
-    if (
-      value === CUSTOM_SENTINEL
-    ) {
-      setTimeout(() => {
-        customRef.current?.focus();
-      }, 60);
-    }
-  };
-
-  const clearCustom = () => {
-    setSelectValue("");
-    setCustomText("");
-  };
-
-  const resolvedLocation =
-    buildLocationString(
-      selectedCountry?.name ?? "",
-      state,
-      city || cityInput,
-    );
-
-  const canSearch =
-    !!resolvedCategory &&
-    !!selectedCountry;
-
-  const submit = (
-    e: FormEvent,
-  ) => {
-    e.preventDefault();
-
-    if (!canSearch) {
-      return;
-    }
+    if (!canSearch) return;
 
     onSearch(
-      resolvedCategory,
+      category.trim(),
       resolvedLocation ||
         selectedCountry!.name,
     );
+
+    setCategoryOpen(false);
   };
 
   return (
     <form
       onSubmit={submit}
-      className="space-y-4"
+      className="space-y-3.5"
     >
       {/* CATEGORY */}
 
-      <div>
-        <label className="mb-2 block text-xs font-medium text-muted-foreground">
+      <div
+        ref={categoryRef}
+        className="relative"
+      >
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
           Business category
         </label>
 
-        {!isCustom ? (
-          <Select
-            value={selectValue}
-            onValueChange={
-              handleSelectChange
+        <div className="relative">
+          <Search
+            className="
+              pointer-events-none
+              absolute
+              left-3.5
+              top-1/2
+              size-4
+              -translate-y-1/2
+              text-muted-foreground
+            "
+          />
+
+          <Input
+            value={category}
+            onChange={(event) => {
+              setCategory(
+                event.target.value,
+              );
+              setCategoryOpen(true);
+            }}
+            onFocus={() =>
+              setCategoryOpen(true)
             }
-          >
-            <SelectTrigger
-              className="
-                h-12
-                rounded-xl
-                border-border
-                bg-background
-                px-4
-              "
-            >
-              <SelectValue placeholder="e.g. Plumbers" />
-            </SelectTrigger>
+            onBlur={() => {
+              window.setTimeout(() => {
+                setCategoryOpen(false);
+              }, 150);
+            }}
+            placeholder="Search business types..."
+            autoComplete="off"
+            className="
+              h-11
+              rounded-xl
+              border-border
+              bg-background
+              pl-10
+              pr-10
+            "
+          />
 
-            <SelectContent className="max-h-80">
-              {LEAD_CATEGORY_GROUPS.map(
-                (group) => (
-                  <SelectGroup
-                    key={
-                      group.group
-                    }
-                  >
-                    <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {group.group}
-                    </SelectLabel>
-
-                    {group.items.map(
-                      (category) => (
-                        <SelectItem
-                          key={
-                            category
-                          }
-                          value={
-                            category
-                          }
-                        >
-                          {category}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectGroup>
-                ),
-              )}
-
-              <SelectGroup>
-                <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Other
-                </SelectLabel>
-
-                <SelectItem
-                  value={
-                    CUSTOM_SENTINEL
-                  }
-                >
-                  Custom category…
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        ) : (
-          <div className="relative">
-            <Input
-              ref={customRef}
-              value={customText}
-              onChange={(e) =>
-                setCustomText(
-                  e.target.value,
-                )
-              }
-              placeholder="Type any business type…"
-              className="
-                h-12
-                rounded-xl
-                bg-background
-                pr-10
-              "
-            />
-
+          {category ? (
             <button
               type="button"
-              onClick={clearCustom}
+              onMouseDown={(event) =>
+                event.preventDefault()
+              }
+              onClick={() => {
+                setCategory("");
+                setCategoryOpen(true);
+              }}
               className="
                 absolute
                 right-3
                 top-1/2
                 -translate-y-1/2
+                rounded-md
+                p-1
                 text-muted-foreground
                 transition
                 hover:text-foreground
               "
+              aria-label="Clear category"
             >
               <X className="size-4" />
             </button>
+          ) : (
+            <ChevronDown
+              className="
+                pointer-events-none
+                absolute
+                right-3.5
+                top-1/2
+                size-4
+                -translate-y-1/2
+                text-muted-foreground
+              "
+            />
+          )}
+        </div>
+
+        {categoryOpen && (
+          <div
+            className="
+              absolute
+              left-0
+              right-0
+              top-full
+              z-50
+              mt-1.5
+              max-h-64
+              overflow-y-auto
+              rounded-xl
+              border
+              border-border
+              bg-popover
+              p-1.5
+              shadow-xl
+            "
+          >
+            {filteredCategories.length >
+            0 ? (
+              filteredCategories.map(
+                (item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onMouseDown={(
+                      event,
+                    ) =>
+                      event.preventDefault()
+                    }
+                    onClick={() => {
+                      setCategory(item);
+                      setCategoryOpen(
+                        false,
+                      );
+                    }}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      justify-between
+                      gap-3
+                      rounded-lg
+                      px-3
+                      py-2.5
+                      text-left
+                      text-sm
+                      text-foreground
+                      transition
+                      hover:bg-muted
+                    "
+                  >
+                    <span className="truncate">
+                      {item}
+                    </span>
+
+                    {category === item && (
+                      <Check className="size-4 shrink-0 text-primary" />
+                    )}
+                  </button>
+                ),
+              )
+            ) : (
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  event.preventDefault()
+                }
+                onClick={() =>
+                  setCategoryOpen(false)
+                }
+                className="
+                  w-full
+                  rounded-lg
+                  px-3
+                  py-3
+                  text-left
+                  text-sm
+                "
+              >
+                <span className="font-medium text-foreground">
+                  Use “{category}”
+                </span>
+
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Search using your custom
+                  business category.
+                </span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -304,7 +337,7 @@ export function SearchForm({
       {/* COUNTRY */}
 
       <div>
-        <label className="mb-2 block text-xs font-medium text-muted-foreground">
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
           Country
         </label>
 
@@ -316,26 +349,22 @@ export function SearchForm({
         >
           <SelectTrigger
             className="
-              h-12
+              h-11
               rounded-xl
               border-border
               bg-background
-              px-4
+              px-3.5
             "
           >
-            <SelectValue placeholder="Choose country" />
+            <SelectValue placeholder="Select country" />
           </SelectTrigger>
 
           <SelectContent className="max-h-72">
             {UNIQUE_COUNTRIES.map(
               (country) => (
                 <SelectItem
-                  key={
-                    country.code
-                  }
-                  value={
-                    country.code
-                  }
+                  key={country.code}
+                  value={country.code}
                 >
                   {country.flag}{" "}
                   {country.name}
@@ -348,25 +377,23 @@ export function SearchForm({
 
       {/* STATE + CITY */}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-2 block text-xs font-medium text-muted-foreground">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="min-w-0">
+          <label className="mb-1.5 block truncate text-xs font-medium text-muted-foreground">
             State / Region
           </label>
 
-          {hasStates ? (
+          {states.length > 0 ? (
             <Select
               value={state}
               onValueChange={
                 handleStateChange
               }
-              disabled={
-                !countryCode
-              }
+              disabled={!countryCode}
             >
               <SelectTrigger
                 className="
-                  h-12
+                  h-11
                   rounded-xl
                   border-border
                   bg-background
@@ -377,36 +404,28 @@ export function SearchForm({
               </SelectTrigger>
 
               <SelectContent className="max-h-72">
-                {states.map(
-                  (item) => (
-                    <SelectItem
-                      key={
-                        item.name
-                      }
-                      value={
-                        item.name
-                      }
-                    >
-                      {item.name}
-                    </SelectItem>
-                  ),
-                )}
+                {states.map((item) => (
+                  <SelectItem
+                    key={item.name}
+                    value={item.name}
+                  >
+                    {item.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           ) : (
             <Input
               value={state}
-              onChange={(e) =>
+              onChange={(event) =>
                 setState(
-                  e.target.value,
+                  event.target.value,
                 )
               }
-              placeholder="Optional"
-              disabled={
-                !countryCode
-              }
+              placeholder="State"
+              disabled={!countryCode}
               className="
-                h-12
+                h-11
                 rounded-xl
                 bg-background
               "
@@ -414,22 +433,20 @@ export function SearchForm({
           )}
         </div>
 
-        <div>
-          <label className="mb-2 block text-xs font-medium text-muted-foreground">
+        <div className="min-w-0">
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
             City
           </label>
 
           {cities.length > 0 ? (
             <Select
               value={city}
-              onValueChange={
-                setCity
-              }
+              onValueChange={setCity}
               disabled={!state}
             >
               <SelectTrigger
                 className="
-                  h-12
+                  h-11
                   rounded-xl
                   border-border
                   bg-background
@@ -440,32 +457,28 @@ export function SearchForm({
               </SelectTrigger>
 
               <SelectContent className="max-h-64">
-                {cities.map(
-                  (item) => (
-                    <SelectItem
-                      key={item}
-                      value={item}
-                    >
-                      {item}
-                    </SelectItem>
-                  ),
-                )}
+                {cities.map((item) => (
+                  <SelectItem
+                    key={item}
+                    value={item}
+                  >
+                    {item}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           ) : (
             <Input
               value={cityInput}
-              onChange={(e) =>
+              onChange={(event) =>
                 setCityInput(
-                  e.target.value,
+                  event.target.value,
                 )
               }
-              placeholder="Optional"
-              disabled={
-                !countryCode
-              }
+              placeholder="City"
+              disabled={!countryCode}
               className="
-                h-12
+                h-11
                 rounded-xl
                 bg-background
               "
@@ -474,29 +487,15 @@ export function SearchForm({
         </div>
       </div>
 
-      {/* LOCATION PREVIEW */}
-
-      {resolvedLocation && (
-        <p className="text-xs text-muted-foreground">
-          Searching in{" "}
-          <span className="font-medium text-foreground">
-            {resolvedLocation}
-          </span>
-        </p>
-      )}
-
-      {/* CTA */}
-
       <Button
         type="submit"
         variant="hero"
         size="lg"
         disabled={
-          loading ||
-          !canSearch
+          loading || !canSearch
         }
         className="
-          h-12
+          h-11
           w-full
           rounded-xl
           text-sm
@@ -506,7 +505,7 @@ export function SearchForm({
         {loading ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Searching
+            Searching...
           </>
         ) : (
           <>
