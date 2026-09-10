@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import {
+  AlertTriangle,
   ExternalLink,
   Globe,
   RefreshCw,
@@ -21,37 +22,29 @@ type PreviewMode =
   | "tablet"
   | "mobile";
 
-type Device =
-  {
-    width: number;
+type Device = {
+  width: number;
 
-    label: string;
-  };
+  label: string;
+};
 
-const DEVICES:
-  Record<
-    PreviewMode,
-    Device
-  > = {
+const DEVICES: Record<
+  PreviewMode,
+  Device
+> = {
   desktop: {
     width: 1440,
-
-    label:
-      "Desktop",
+    label: "Desktop",
   },
 
   tablet: {
     width: 768,
-
-    label:
-      "Tablet",
+    label: "Tablet",
   },
 
   mobile: {
     width: 390,
-
-    label:
-      "Mobile",
+    label: "Mobile",
   },
 };
 
@@ -64,20 +57,30 @@ function escapeScriptEnd(
   );
 }
 
-function removeModuleSyntax(
+function removeImports(
+  source: string,
+) {
+  /*
+   * Handles both:
+   *
+   * import { x } from "..."
+   *
+   * and multiline:
+   *
+   * import {
+   *   x,
+   * } from "...";
+   */
+  return source.replace(
+    /import\s+(?:(?:[\w*\s{},]+)\s+from\s+)?["'][^"']+["'];?/g,
+    "",
+  );
+}
+
+function removeExports(
   source: string,
 ) {
   return source
-    .split("\n")
-    .filter(
-      (line) =>
-        !line
-          .trim()
-          .startsWith(
-            "import ",
-          ),
-    )
-    .join("\n")
     .replace(
       /export\s+default\s+function\s+/g,
       "function ",
@@ -85,6 +88,10 @@ function removeModuleSyntax(
     .replace(
       /export\s+function\s+/g,
       "function ",
+    )
+    .replace(
+      /export\s+default\s+/g,
+      "",
     )
     .replace(
       /export\s+const\s+/g,
@@ -100,20 +107,39 @@ function removeModuleSyntax(
     );
 }
 
+function prepareModule(
+  source: string,
+) {
+  return removeExports(
+    removeImports(
+      source,
+    ),
+  );
+}
+
+function normalizeAssetPath(
+  value: string,
+) {
+  return value
+    .replace(
+      /^\.?\//,
+      "",
+    )
+    .replace(
+      /^\//,
+      "",
+    );
+}
+
 function buildLegacyPreviewDoc(
-  files:
-    Record<
-      string,
-      string
-    >,
+  files: Record<
+    string,
+    string
+  >,
 ) {
   const html =
-    files[
-      "index.html"
-    ] ||
-    files[
-      "index.htm"
-    ];
+    files["index.html"] ||
+    files["index.htm"];
 
   if (!html) {
     return null;
@@ -121,25 +147,19 @@ function buildLegacyPreviewDoc(
 
   let doc =
     html.replace(
-      /<link\s+[^>]*href="([^"?#]+\.css)"[^>]*\/?>/gi,
-
+      /<link\s+[^>]*href=["']([^"'?#]+\.css)["'][^>]*\/?>/gi,
       (
         _,
         href: string,
       ) => {
         const key =
-          href.replace(
-            /^\.?\//,
-            "",
+          normalizeAssetPath(
+            href,
           );
 
         const css =
-          files[
-            key
-          ] ||
-          files[
-            href
-          ];
+          files[key] ||
+          files[href];
 
         return css
           ? `<style>${css}</style>`
@@ -149,25 +169,19 @@ function buildLegacyPreviewDoc(
 
   doc =
     doc.replace(
-      /<script\s+[^>]*src="([^"?#]+\.js)"[^>]*><\/script>/gi,
-
+      /<script\s+[^>]*src=["']([^"'?#]+\.js)["'][^>]*><\/script>/gi,
       (
         _,
         src: string,
       ) => {
         const key =
-          src.replace(
-            /^\.?\//,
-            "",
+          normalizeAssetPath(
+            src,
           );
 
         const js =
-          files[
-            key
-          ] ||
-          files[
-            src
-          ];
+          files[key] ||
+          files[src];
 
         return js
           ? `<script>${escapeScriptEnd(
@@ -181,19 +195,24 @@ function buildLegacyPreviewDoc(
 }
 
 function buildReactPreviewDoc(
-  files:
-    Record<
-      string,
-      string
-    >,
+  files: Record<
+    string,
+    string
+  >,
 ) {
-  if (
-    !files[
+  const appSource =
+    files[
       "src/App.jsx"
-    ] ||
-    !files[
+    ];
+
+  const siteSource =
+    files[
       "src/data/site.js"
-    ]
+    ];
+
+  if (
+    !appSource ||
+    !siteSource
   ) {
     return null;
   }
@@ -213,54 +232,81 @@ function buildReactPreviewDoc(
       )
       .sort();
 
-  const data =
-    removeModuleSyntax(
-      files[
-        "src/data/site.js"
-      ],
+  const siteCode =
+    prepareModule(
+      siteSource,
     );
 
-  const components =
+  const componentsCode =
     componentPaths
       .map(
         (path) =>
-          removeModuleSyntax(
-            files[
-              path
-            ],
+          prepareModule(
+            files[path],
           ),
       )
       .join(
         "\n\n",
       );
 
-  const app =
-    removeModuleSyntax(
-      files[
-        "src/App.jsx"
-      ],
+  const appCode =
+    prepareModule(
+      appSource,
     );
 
   const css =
     files[
       "src/styles/global.css"
-    ] ??
-    "";
+    ] ?? "";
 
-  const appScript =
+  /*
+   * Critical:
+   *
+   * Generated components normally import hooks such as:
+   *
+   * import { useState } from "react";
+   *
+   * We remove imports for the iframe preview, so expose those
+   * hooks from the global React object manually.
+   */
+  const runtimeBindings = `
+const {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  useContext,
+  useReducer,
+} = React;
+`;
+
+  const application =
     escapeScriptEnd(
       `
-${data}
+${runtimeBindings}
 
-${components}
+${siteCode}
 
-${app}
+${componentsCode}
+
+${appCode}
+
+const previewContainer =
+  document.getElementById(
+    "root",
+  );
+
+if (!previewContainer) {
+  throw new Error(
+    "Preview root element was not found.",
+  );
+}
 
 const previewRoot =
   ReactDOM.createRoot(
-    document.getElementById(
-      "root",
-    ),
+    previewContainer,
   );
 
 previewRoot.render(
@@ -283,15 +329,98 @@ previewRoot.render(
     html,
     body,
     #root {
+      width: 100%;
       min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      overflow-x: hidden;
     }
 
     ${css}
+
+    #kodarai-preview-error {
+      display: none;
+      box-sizing: border-box;
+      margin: 20px;
+      padding: 16px;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      background: #fef2f2;
+      color: #991b1b;
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 
 <body>
   <div id="root"></div>
+
+  <pre id="kodarai-preview-error"></pre>
+
+  <script>
+    window.addEventListener(
+      "error",
+      function (event) {
+        var element =
+          document.getElementById(
+            "kodarai-preview-error"
+          );
+
+        if (!element) {
+          return;
+        }
+
+        element.style.display =
+          "block";
+
+        element.textContent =
+          "Preview error:\\n\\n" +
+          (
+            event.error &&
+            event.error.stack
+              ? event.error.stack
+              : event.message
+          );
+      }
+    );
+
+    window.addEventListener(
+      "unhandledrejection",
+      function (event) {
+        var element =
+          document.getElementById(
+            "kodarai-preview-error"
+          );
+
+        if (!element) {
+          return;
+        }
+
+        element.style.display =
+          "block";
+
+        element.textContent =
+          "Preview error:\\n\\n" +
+          String(
+            event.reason &&
+            event.reason.stack
+              ? event.reason.stack
+              : event.reason
+          );
+      }
+    );
+  </script>
 
   <script
     crossorigin
@@ -311,26 +440,25 @@ previewRoot.render(
     type="text/babel"
     data-presets="react"
   >
-    ${appScript}
+    ${application}
   </script>
 </body>
 </html>`;
 }
 
 function buildPreviewDoc(
-  files:
-    Record<
-      string,
-      string
-    >,
+  files: Record<
+    string,
+    string
+  >,
 ) {
-  const react =
+  const reactDoc =
     buildReactPreviewDoc(
       files,
     );
 
-  if (react) {
-    return react;
+  if (reactDoc) {
+    return reactDoc;
   }
 
   return buildLegacyPreviewDoc(
@@ -340,18 +468,14 @@ function buildPreviewDoc(
 
 export function StudioLivePreview({
   files,
-
   deploymentUrl,
-
   onDeploy,
-
   fileCount,
 }: {
-  files:
-    Record<
-      string,
-      string
-    >;
+  files: Record<
+    string,
+    string
+  >;
 
   deploymentUrl:
     | string
@@ -387,9 +511,9 @@ export function StudioLivePreview({
     });
 
   const previewAreaRef =
-    useRef<HTMLDivElement | null>(
-      null,
-    );
+    useRef<
+      HTMLDivElement | null
+    >(null);
 
   const previewDoc =
     useMemo(
@@ -397,37 +521,41 @@ export function StudioLivePreview({
         buildPreviewDoc(
           files,
         ),
-
       [files],
     );
 
-  const filesJson =
-    JSON.stringify(
-      files,
+  const filesSignature =
+    useMemo(
+      () =>
+        JSON.stringify(
+          files,
+        ),
+      [files],
     );
 
-  const previousFilesJson =
+  const previousSignature =
     useRef(
-      filesJson,
+      filesSignature,
     );
 
   useEffect(
     () => {
       if (
-        previousFilesJson.current !==
-        filesJson
+        previousSignature.current ===
+        filesSignature
       ) {
-        previousFilesJson.current =
-          filesJson;
-
-        setRefreshKey(
-          (current) =>
-            current + 1,
-        );
+        return;
       }
-    },
 
-    [filesJson],
+      previousSignature.current =
+        filesSignature;
+
+      setRefreshKey(
+        (current) =>
+          current + 1,
+      );
+    },
+    [filesSignature],
   );
 
   useEffect(
@@ -447,7 +575,6 @@ export function StudioLivePreview({
           setViewportSize({
             width:
               rect.width,
-
             height:
               rect.height,
           });
@@ -467,7 +594,6 @@ export function StudioLivePreview({
       return () =>
         observer.disconnect();
     },
-
     [],
   );
 
@@ -476,18 +602,6 @@ export function StudioLivePreview({
       previewMode
     ];
 
-  /*
-   * The iframe always keeps the real device width.
-   *
-   * If Kodarai Studio itself is narrower,
-   * we visually scale the entire device preview.
-   *
-   * The CSS inside the website still sees:
-   *
-   * Mobile = 390px
-   * Tablet = 768px
-   * Desktop = 1440px
-   */
   const availableWidth =
     Math.max(
       viewportSize.width -
@@ -495,6 +609,17 @@ export function StudioLivePreview({
       1,
     );
 
+  /*
+   * Never shrink the actual iframe viewport.
+   *
+   * The website always sees exactly:
+   *
+   * Mobile  = 390px
+   * Tablet  = 768px
+   * Desktop = 1440px
+   *
+   * We only visually scale the iframe shell.
+   */
   const scale =
     Math.min(
       1,
@@ -502,80 +627,154 @@ export function StudioLivePreview({
         device.width,
     );
 
-  const renderedWidth =
+  const visualWidth =
     device.width *
     scale;
 
+  const visualHeight =
+    Math.max(
+      viewportSize.height -
+        24,
+      200,
+    );
+
   const iframeHeight =
     Math.max(
-      600,
-      (
-        viewportSize.height -
-        24
-      ) /
+      visualHeight /
         Math.max(
           scale,
           0.01,
         ),
+      760,
     );
 
-  if (previewDoc) {
+  if (!previewDoc) {
     return (
-      <div className="flex h-full flex-col bg-[#0f0f12]">
-        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/5 bg-[#1a1a20] px-3">
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-
-            <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-
-            <div className="h-3 w-3 rounded-full bg-[#28c840]" />
+      <div className="relative flex h-full flex-1 flex-col items-center justify-center overflow-hidden bg-[#101013] px-6">
+        <div className="flex max-w-[310px] flex-col items-center text-center">
+          <div className="mb-4 flex size-11 items-center justify-center rounded-xl border border-white/5 bg-white/[0.03]">
+            <AlertTriangle className="size-5 text-zinc-600" />
           </div>
 
-          <div className="mx-1 flex h-6 flex-1 items-center rounded-md border border-white/5 bg-[#0f0f12] px-3">
-            <Globe className="mr-1.5 h-3 w-3 shrink-0 text-zinc-600" />
+          <p className="text-sm font-medium text-zinc-200">
+            Preview unavailable
+          </p>
 
-            <span className="truncate font-mono text-[11px] text-zinc-500">
-              {deploymentUrl
-                ? deploymentUrl.replace(
-                    /^https?:\/\//,
-                    "",
-                  )
-                : "preview — kodarai studio"}
-            </span>
-          </div>
+          <p className="mt-2 text-xs leading-5 text-zinc-500">
+            Studio needs either
+            a React project with
+            src/App.jsx and
+            src/data/site.js, or
+            a legacy index.html
+            project.
+          </p>
 
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              onClick={() =>
-                setRefreshKey(
-                  (current) =>
-                    current +
-                    1,
-                )
+          <p className="mt-3 font-mono text-[10px] text-zinc-700">
+            {fileCount} project
+            file
+            {fileCount === 1
+              ? ""
+              : "s"}
+          </p>
+
+          {deploymentUrl ? (
+            <a
+              href={
+                deploymentUrl
               }
-              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-white/5 hover:text-zinc-300"
-              title="Refresh preview"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-            </button>
-
-            {deploymentUrl && (
-              <a
-                href={
-                  deploymentUrl
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-7 w-7 items-center justify-center rounded-md text-emerald-500 transition-colors hover:bg-white/5"
-                title="Open live site"
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-white/10 bg-transparent text-xs text-zinc-300"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
-          </div>
+                <ExternalLink className="size-3.5" />
+
+                Open live site
+              </Button>
+            </a>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={
+                onDeploy
+              }
+              disabled={
+                fileCount ===
+                0
+              }
+              className="mt-5 gap-2 border-white/10 bg-transparent text-xs text-zinc-300"
+            >
+              <Rocket className="size-3.5" />
+
+              Publish
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-[#101013]">
+      {/* Browser toolbar */}
+
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#17171b] px-3">
+        <div className="hidden items-center gap-1.5 sm:flex">
+          <span className="size-2.5 rounded-full bg-red-400/80" />
+          <span className="size-2.5 rounded-full bg-yellow-400/80" />
+          <span className="size-2.5 rounded-full bg-green-400/80" />
         </div>
 
-        <div className="flex h-10 shrink-0 items-center justify-center gap-1 border-b border-white/5 bg-[#15151b] px-2">
+        <div className="flex h-6 min-w-0 flex-1 items-center rounded-md border border-white/[0.05] bg-[#0f0f12] px-2.5">
+          <Globe className="mr-1.5 size-3 shrink-0 text-zinc-600" />
+
+          <span className="truncate font-mono text-[10px] text-zinc-500">
+            {deploymentUrl
+              ? deploymentUrl.replace(
+                  /^https?:\/\//,
+                  "",
+                )
+              : "preview — kodarai studio"}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setRefreshKey(
+              (current) =>
+                current + 1,
+            )
+          }
+          className="flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-white/5 hover:text-zinc-300"
+          title="Refresh preview"
+        >
+          <RefreshCw className="size-3.5" />
+        </button>
+
+        {deploymentUrl && (
+          <a
+            href={
+              deploymentUrl
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-white/5 hover:text-emerald-400"
+          >
+            <ExternalLink className="size-3.5" />
+          </a>
+        )}
+      </div>
+
+      {/* Device selector */}
+
+      <div className="flex h-11 shrink-0 items-center justify-center border-b border-white/[0.06] bg-[#131317] px-2">
+        <div className="inline-flex rounded-lg bg-white/[0.035] p-1">
           {(
             [
               "desktop",
@@ -594,11 +793,11 @@ export function StudioLivePreview({
                     mode,
                   )
                 }
-                className={`rounded-md px-3 py-1.5 text-[10px] font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${
                   previewMode ===
                   mode
                     ? "bg-white/10 text-zinc-100"
-                    : "text-zinc-500 hover:text-zinc-300"
+                    : "text-zinc-600 hover:text-zinc-300"
                 }`}
               >
                 {
@@ -610,141 +809,54 @@ export function StudioLivePreview({
             ),
           )}
         </div>
+      </div>
 
+      {/* Preview stage */}
+
+      <div
+        ref={
+          previewAreaRef
+        }
+        className="relative flex min-h-0 flex-1 overflow-auto bg-[#242429] p-3"
+      >
         <div
-          ref={
-            previewAreaRef
-          }
-          className="relative flex-1 overflow-auto bg-[#202025] p-3"
+          className="relative mx-auto shrink-0 overflow-hidden bg-white shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
+          style={{
+            width:
+              visualWidth,
+            height:
+              visualHeight,
+          }}
         >
           <div
-            className="mx-auto overflow-hidden bg-white shadow-2xl"
             style={{
               width:
-                renderedWidth,
-
+                device.width,
               height:
-                Math.max(
-                  viewportSize.height -
-                    24,
-                  1,
-                ),
+                iframeHeight,
+              transform:
+                `scale(${scale})`,
+              transformOrigin:
+                "top left",
             }}
           >
-            <div
+            <iframe
+              key={`${refreshKey}-${previewMode}`}
+              srcDoc={
+                previewDoc
+              }
+              title={`${device.label} website preview`}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              className="block border-0 bg-white"
               style={{
                 width:
                   device.width,
-
                 height:
                   iframeHeight,
-
-                transform:
-                  `scale(${scale})`,
-
-                transformOrigin:
-                  "top left",
               }}
-            >
-              <iframe
-                key={`${refreshKey}-${previewMode}`}
-                srcDoc={
-                  previewDoc
-                }
-                title={`${device.label} website preview`}
-                className="border-0"
-                style={{
-                  width:
-                    device.width,
-
-                  height:
-                    iframeHeight,
-                }}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              />
-            </div>
+            />
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#0f0f12]">
-      <div
-        className="absolute inset-0 opacity-[0.025]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, #fff 1px, transparent 1px)",
-
-          backgroundSize:
-            "28px 28px",
-        }}
-      />
-
-      <div className="relative z-10 flex max-w-xs flex-col items-center px-6 text-center">
-        {deploymentUrl ? (
-          <>
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5">
-              <Globe className="h-8 w-8 text-emerald-400" />
-            </div>
-
-            <h3 className="mb-1.5 text-sm font-semibold text-zinc-100">
-              Live on the web
-            </h3>
-
-            <p className="mb-5 break-all font-mono text-[11px] leading-relaxed text-zinc-500">
-              {deploymentUrl.replace(
-                "https://",
-                "",
-              )}
-            </p>
-
-            <a
-              href={
-                deploymentUrl
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full"
-            >
-              <Button className="h-9 w-full gap-2 bg-emerald-500 text-xs font-medium text-white hover:bg-emerald-600">
-                <ExternalLink className="h-3.5 w-3.5" />
-
-                Open live site
-              </Button>
-            </a>
-          </>
-        ) : (
-          <>
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/5 bg-white/[0.02]">
-              <Globe className="h-7 w-7 text-zinc-600" />
-            </div>
-
-            <h3 className="mb-2 text-sm font-semibold text-zinc-200">
-              No preview yet
-            </h3>
-
-            <p className="mb-6 text-xs leading-relaxed text-zinc-500">
-              {fileCount >
-              0
-                ? `${fileCount} project files are available, but Studio could not create a preview.`
-                : "Generate a website and the live preview will appear here."}
-            </p>
-
-            <Button
-              onClick={
-                onDeploy
-              }
-              variant="outline"
-              className="h-9 w-full gap-2 border-white/10 bg-transparent text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-            >
-              <Rocket className="h-3.5 w-3.5" />
-
-              Deploy to Vercel
-            </Button>
-          </>
-        )}
       </div>
     </div>
   );
