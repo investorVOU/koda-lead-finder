@@ -36,6 +36,17 @@ import {
   type StartHeroImage,
 } from "@/lib/start-images.functions";
 
+import {
+  saveFunnelAttribution,
+  trackFunnelCompleted,
+  trackFunnelExperienceSelected,
+  trackFunnelGoalSelected,
+  trackFunnelSituationSelected,
+  trackFunnelStarted,
+  trackFunnelViewed,
+  trackSignupStarted,
+} from "@/lib/analytics";
+
 export const Route =
   createFileRoute(
     "/start",
@@ -101,9 +112,6 @@ type FunnelData =
 
     created_at: string;
   };
-
-const STORAGE_KEY =
-  "kodarai_ad_funnel";
 
 const EXPERIENCE_OPTIONS = [
   {
@@ -301,6 +309,8 @@ function StartPage() {
     useState(true);
 
   useEffect(() => {
+    trackFunnelViewed();
+
     const params =
       new URLSearchParams(
         window.location.search,
@@ -386,18 +396,7 @@ function StartPage() {
         new Date().toISOString(),
     };
 
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-
-        JSON.stringify(
-          payload,
-        ),
-      );
-    } catch {
-      // Storage should never
-      // break the funnel.
-    }
+    saveFunnelAttribution(payload);
   };
 
   const chooseExperience = (
@@ -413,6 +412,8 @@ function StartPage() {
     setAnswers(next);
 
     saveAnswers(next);
+
+    trackFunnelExperienceSelected(value);
 
     window.setTimeout(
       () => {
@@ -435,6 +436,8 @@ function StartPage() {
     setAnswers(next);
 
     saveAnswers(next);
+
+    trackFunnelGoalSelected(value);
 
     window.setTimeout(
       () => {
@@ -459,6 +462,14 @@ function StartPage() {
 
     saveAnswers(next);
 
+    trackFunnelSituationSelected(value);
+
+    trackFunnelCompleted({
+      ...next,
+      source: "ads",
+      ...attribution,
+    });
+
     window.setTimeout(
       () => {
         setStep(4);
@@ -472,6 +483,12 @@ function StartPage() {
     saveAnswers(
       answers,
     );
+
+    trackSignupStarted({
+      ...answers,
+      source: "ads",
+      ...attribution,
+    });
 
     window.location.assign(
       "/signup?source=ads",
@@ -489,9 +506,10 @@ function StartPage() {
             heroLoading={
               heroLoading
             }
-            onStart={() =>
-              setStep(1)
-            }
+            onStart={() => {
+              trackFunnelStarted();
+              setStep(1);
+            }}
             showWhy={
               showWhy
             }

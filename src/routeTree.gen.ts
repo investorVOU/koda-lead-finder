@@ -55,6 +55,8 @@ import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/publ
 import { Route as ApiPublicNumbersRenewalsRouteImport } from './routes/api/public/numbers/renewals'
 import { Route as ApiPublicMarketingWeeklyRouteImport } from './routes/api/public/marketing/weekly'
 import { Route as ApiPublicMarketingUnsubscribeRouteImport } from './routes/api/public/marketing/unsubscribe'
+import { Route as ApiPublicMarketingPlanActivationRouteImport } from './routes/api/public/marketing/plan-activation'
+import { Route as ApiPublicMarketingClickRouteImport } from './routes/api/public/marketing/click'
 import { Route as ApiPublicFollowUpRemindersDueRouteImport } from './routes/api/public/follow-up-reminders/due'
 import { Route as AuthenticatedStudioPreviewProjectIdRouteImport } from './routes/_authenticated/studio.preview.$projectId'
 
@@ -303,6 +305,17 @@ const ApiPublicMarketingUnsubscribeRoute =
     path: '/api/public/marketing/unsubscribe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicMarketingPlanActivationRoute =
+  ApiPublicMarketingPlanActivationRouteImport.update({
+    id: '/api/public/marketing/plan-activation',
+    path: '/api/public/marketing/plan-activation',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicMarketingClickRoute = ApiPublicMarketingClickRouteImport.update({
+  id: '/api/public/marketing/click',
+  path: '/api/public/marketing/click',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFollowUpRemindersDueRoute =
   ApiPublicFollowUpRemindersDueRouteImport.update({
     id: '/api/public/follow-up-reminders/due',
@@ -357,6 +370,8 @@ export interface FileRoutesByFullPath {
   '/studio/': typeof AuthenticatedStudioIndexRoute
   '/studio/preview/$projectId': typeof AuthenticatedStudioPreviewProjectIdRoute
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
+  '/api/public/marketing/click': typeof ApiPublicMarketingClickRoute
+  '/api/public/marketing/plan-activation': typeof ApiPublicMarketingPlanActivationRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
@@ -405,6 +420,8 @@ export interface FileRoutesByTo {
   '/studio': typeof AuthenticatedStudioIndexRoute
   '/studio/preview/$projectId': typeof AuthenticatedStudioPreviewProjectIdRoute
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
+  '/api/public/marketing/click': typeof ApiPublicMarketingClickRoute
+  '/api/public/marketing/plan-activation': typeof ApiPublicMarketingPlanActivationRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
@@ -456,6 +473,8 @@ export interface FileRoutesById {
   '/_authenticated/studio/': typeof AuthenticatedStudioIndexRoute
   '/_authenticated/studio/preview/$projectId': typeof AuthenticatedStudioPreviewProjectIdRoute
   '/api/public/follow-up-reminders/due': typeof ApiPublicFollowUpRemindersDueRoute
+  '/api/public/marketing/click': typeof ApiPublicMarketingClickRoute
+  '/api/public/marketing/plan-activation': typeof ApiPublicMarketingPlanActivationRoute
   '/api/public/marketing/unsubscribe': typeof ApiPublicMarketingUnsubscribeRoute
   '/api/public/marketing/weekly': typeof ApiPublicMarketingWeeklyRoute
   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
@@ -507,6 +526,8 @@ export interface FileRouteTypes {
     | '/studio/'
     | '/studio/preview/$projectId'
     | '/api/public/follow-up-reminders/due'
+    | '/api/public/marketing/click'
+    | '/api/public/marketing/plan-activation'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
     | '/api/public/numbers/renewals'
@@ -555,6 +576,8 @@ export interface FileRouteTypes {
     | '/studio'
     | '/studio/preview/$projectId'
     | '/api/public/follow-up-reminders/due'
+    | '/api/public/marketing/click'
+    | '/api/public/marketing/plan-activation'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
     | '/api/public/numbers/renewals'
@@ -605,6 +628,8 @@ export interface FileRouteTypes {
     | '/_authenticated/studio/'
     | '/_authenticated/studio/preview/$projectId'
     | '/api/public/follow-up-reminders/due'
+    | '/api/public/marketing/click'
+    | '/api/public/marketing/plan-activation'
     | '/api/public/marketing/unsubscribe'
     | '/api/public/marketing/weekly'
     | '/api/public/numbers/renewals'
@@ -631,6 +656,8 @@ export interface RootRouteChildren {
   ApiStudioChannelReviewRoute: typeof ApiStudioChannelReviewRoute
   ApiStudioGenerateRoute: typeof ApiStudioGenerateRoute
   ApiPublicFollowUpRemindersDueRoute: typeof ApiPublicFollowUpRemindersDueRoute
+  ApiPublicMarketingClickRoute: typeof ApiPublicMarketingClickRoute
+  ApiPublicMarketingPlanActivationRoute: typeof ApiPublicMarketingPlanActivationRoute
   ApiPublicMarketingUnsubscribeRoute: typeof ApiPublicMarketingUnsubscribeRoute
   ApiPublicMarketingWeeklyRoute: typeof ApiPublicMarketingWeeklyRoute
   ApiPublicNumbersRenewalsRoute: typeof ApiPublicNumbersRenewalsRoute
@@ -964,6 +991,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMarketingUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/marketing/plan-activation': {
+      id: '/api/public/marketing/plan-activation'
+      path: '/api/public/marketing/plan-activation'
+      fullPath: '/api/public/marketing/plan-activation'
+      preLoaderRoute: typeof ApiPublicMarketingPlanActivationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/marketing/click': {
+      id: '/api/public/marketing/click'
+      path: '/api/public/marketing/click'
+      fullPath: '/api/public/marketing/click'
+      preLoaderRoute: typeof ApiPublicMarketingClickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/follow-up-reminders/due': {
       id: '/api/public/follow-up-reminders/due'
       path: '/api/public/follow-up-reminders/due'
@@ -1068,6 +1109,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStudioChannelReviewRoute: ApiStudioChannelReviewRoute,
   ApiStudioGenerateRoute: ApiStudioGenerateRoute,
   ApiPublicFollowUpRemindersDueRoute: ApiPublicFollowUpRemindersDueRoute,
+  ApiPublicMarketingClickRoute: ApiPublicMarketingClickRoute,
+  ApiPublicMarketingPlanActivationRoute: ApiPublicMarketingPlanActivationRoute,
   ApiPublicMarketingUnsubscribeRoute: ApiPublicMarketingUnsubscribeRoute,
   ApiPublicMarketingWeeklyRoute: ApiPublicMarketingWeeklyRoute,
   ApiPublicNumbersRenewalsRoute: ApiPublicNumbersRenewalsRoute,

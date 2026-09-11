@@ -51,42 +51,15 @@ import {
   sendEmailSignupWelcomeEmail,
 } from "@/lib/welcome-email.functions";
 
-const FUNNEL_STORAGE_KEY =
-  "kodarai_ad_funnel";
-
-type FunnelData = {
-  source?: string;
-
-  experience?: string;
-  goal?: string;
-  situation?: string;
-
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  utm_content?: string;
-  utm_term?: string;
-
-  created_at?: string;
-};
-
-declare global {
-  interface Window {
-    fbq?: (
-      ...args: unknown[]
-    ) => void;
-
-    ttq?: {
-      track?: (
-        event: string,
-        properties?: Record<
-          string,
-          unknown
-        >,
-      ) => void;
-    };
-  }
-}
+import {
+  clearFunnelAttribution,
+  markRegistrationTracked,
+  readFunnelAttribution,
+  trackSignupCompleted,
+  trackSignupStarted,
+  trackSignupSubmitted,
+  type FunnelAttribution,
+} from "@/lib/analytics";
 
 export const Route =
   createFileRoute(
@@ -154,7 +127,7 @@ function SignupPage() {
     funnelData,
     setFunnelData,
   ] =
-    useState<FunnelData | null>(
+    useState<FunnelAttribution | null>(
       null,
     );
 
@@ -181,27 +154,21 @@ function SignupPage() {
     }
 
     try {
-      const stored =
-        localStorage.getItem(
-          FUNNEL_STORAGE_KEY,
-        );
+      const stored = readFunnelAttribution();
 
-      if (stored) {
-        const parsed =
-          JSON.parse(
-            stored,
-          ) as FunnelData;
-
-        setFunnelData(
-          parsed,
-        );
-      }
+      setFunnelData(stored);
     } catch {
       setFunnelData(
         null,
       );
     }
   }, []);
+
+  useEffect(() => {
+    if (funnelData?.source === "ads") {
+      trackSignupStarted(funnelData);
+    }
+  }, [funnelData]);
 
   useEffect(() => {
     if (
@@ -217,49 +184,6 @@ function SignupPage() {
     loading,
     navigate,
   ]);
-
-  const trackRegistration =
-    () => {
-      try {
-        window.fbq?.(
-          "track",
-          "CompleteRegistration",
-          {
-            content_name:
-              "Kodarai Signup",
-
-            source:
-              funnelData?.source ??
-              "direct",
-          },
-        );
-
-        window.ttq?.track?.(
-          "CompleteRegistration",
-          {
-            content_name:
-              "Kodarai Signup",
-
-            source:
-              funnelData?.source ??
-              "direct",
-          },
-        );
-      } catch {
-        // Tracking must never block signup.
-      }
-    };
-
-  const clearCompletedFunnel =
-    () => {
-      try {
-        localStorage.removeItem(
-          FUNNEL_STORAGE_KEY,
-        );
-      } catch {
-        // Ignore localStorage errors.
-      }
-    };
 
   const handleSignup =
     async (
@@ -417,15 +341,18 @@ function SignupPage() {
         }
       }
 
-      trackRegistration();
+      if (data.user?.id) {
+        trackSignupSubmitted(funnelData ?? undefined);
+        trackSignupCompleted(funnelData ?? undefined);
+        markRegistrationTracked(data.user.id);
+        clearFunnelAttribution();
+      }
 
       setBusy(false);
 
       if (
         data.session
       ) {
-        clearCompletedFunnel();
-
         toast.success(
           "Account created. Let's get started.",
         );

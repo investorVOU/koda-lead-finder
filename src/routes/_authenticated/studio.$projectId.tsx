@@ -91,6 +91,11 @@ import {
   toStudioFileMap,
 } from "@/lib/studio-files";
 
+import {
+  trackFirstWebsiteGenerated,
+  trackWebsiteGenerated,
+} from "@/lib/analytics";
+
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 export const Route = createFileRoute("/_authenticated/studio/$projectId")({
@@ -470,6 +475,13 @@ function StudioBuilder() {
 
           const mapped = toStudioFileMap(result.files);
 
+          trackWebsiteGenerated({
+            template: project.template,
+            source: generate === "1" ? "finder" : "manual",
+          });
+
+          trackFirstWebsiteGenerated(user?.id);
+
           setFiles(mapped);
 
           const paths = Object.keys(mapped);
@@ -736,7 +748,18 @@ function StudioBuilder() {
 
         setFiles(toStudioFileMap(result.files));
 
-        toast.success("summary" in result ? "Website updated." : "Website generated.");
+        const isNewWebsite = !("summary" in result);
+
+        if (isNewWebsite) {
+          trackWebsiteGenerated({
+            template: project.template,
+            source: "manual",
+          });
+
+          trackFirstWebsiteGenerated(user?.id);
+        }
+
+        toast.success(isNewWebsite ? "Website generated." : "Website updated.");
 
         void refetchMessages();
 

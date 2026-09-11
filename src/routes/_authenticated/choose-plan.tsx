@@ -12,6 +12,7 @@ import { PACKS, PLANS, formatNgn, getAnnualSavings, getPlanPrice, type BillingCy
 import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { Logo } from "@/components/landing/Logo";
 import { WelcomeEmailSync } from "@/components/auth/WelcomeEmailSync";
+import { PlanActivationEnrollmentSync } from "@/components/marketing/PlanActivationEnrollmentSync";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
   head: () => ({ meta: [{ title: "Choose your plan — Kodarai" }] }),
@@ -26,6 +27,8 @@ function ChoosePlanPage() {
   return (
     <div className="min-h-screen bg-[image:var(--gradient-hero)] px-4 py-10 sm:py-12">
       <WelcomeEmailSync />
+      <PlanActivationEnrollmentSync />
+
       <div className="mx-auto max-w-5xl">
         <div className="flex justify-center">
           <Logo />

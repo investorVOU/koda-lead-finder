@@ -24,6 +24,7 @@ export const updateMarketingEmailPreference = createServerFn({ method: "POST" })
       .update({
         marketing_email_opt_in: data.marketingOptIn,
         marketing_email_opted_in_at: data.marketingOptIn ? new Date().toISOString() : null,
+        marketing_email_unsubscribed_at: data.marketingOptIn ? null : new Date().toISOString(),
       })
       .eq("id", context.userId);
     if (error) return { error: error.message } as const;

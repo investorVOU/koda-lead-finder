@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, ImagePlus, Loader2, Send, Sparkles, X } from "lucide-react";
+import { CheckCircle2, ImagePlus, Loader2, Mail, MousePointerClick, RefreshCw, Send, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   generateMarketingPost,
+  getPlanActivationDashboard,
   pushToBuffer,
+  runPlanActivationEmails,
   uploadMarketingAsset,
   verifyMarketingAccess,
 } from "@/lib/internal-marketing.functions";
@@ -24,6 +27,12 @@ type Platform = "linkedin" | "x" | "facebook" | "threads" | "pinterest" | "insta
 type Draft = { id: string; text: string };
 type QueuedPost = { id: string; platform: Platform; text: string; imageUrl?: string; dueAt: string | null; status: string; createdAt: string };
 type UploadedImage = { name: string; previewUrl: string; publicUrl: string };
+type ActivationMetrics = {
+  enrolled: number;
+  unpaid: number;
+  metrics: { campaignKey: string; sent: number; clicked: number; converted: number; clickRate: number; conversionRate: number }[];
+  recent: { id: string; campaign_key: string; sent_at: string; clicked_at: string | null; name: string | null; email: string | null; converted: boolean }[];
+};
 
 const platforms: { value: Platform; label: string }[] = [
   { value: "linkedin", label: "LinkedIn" },
@@ -41,6 +50,84 @@ function fileToBase64(file: File) {
     reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
     reader.readAsDataURL(file);
   });
+}
+
+const activationLabels: Record<string, string> = {
+  "plan-activation-6h": "6 hours",
+  "plan-activation-24h": "24 hours",
+  "plan-activation-3d": "3 days",
+  "plan-activation-7d": "7 days",
+};
+
+function PlanActivationTab({ passcode }: { passcode: string }) {
+  const getDashboard = useServerFn(getPlanActivationDashboard);
+  const runEmails = useServerFn(runPlanActivationEmails);
+  const [data, setData] = useState<ActivationMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      setData(await getDashboard({ data: { passcode } }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load plan activation metrics.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  const runDueEmails = async () => {
+    setRunning(true);
+    try {
+      const result = await runEmails({ data: { passcode } });
+      const sent = Object.values(result).reduce((total, stage) => total + stage.sent, 0);
+      toast.success(sent ? `${sent} due activation email${sent === 1 ? "" : "s"} sent.` : "No due activation emails to send.");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not run plan activation emails.");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <h2 className="text-lg font-semibold">Plan activation emails</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Ad-acquired users are enrolled when they reach plan selection. The hourly schedule sends each stage once, stops after a paid conversion, and records CTA clicks.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading || running}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Refresh</Button>
+          <Button size="sm" onClick={() => void runDueEmails()} disabled={loading || running}><Mail className="size-4" /> {running ? "Sending…" : "Run due emails"}</Button>
+        </div>
+      </div>
+
+      {loading && !data ? <div className="flex min-h-48 items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div> : <>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-border p-4"><p className="text-sm text-muted-foreground">Ad leads enrolled</p><p className="mt-1 text-2xl font-bold">{data?.enrolled ?? 0}</p></div>
+          <div className="rounded-xl border border-border p-4"><p className="text-sm text-muted-foreground">Unpaid and still eligible</p><p className="mt-1 text-2xl font-bold">{data?.unpaid ?? 0}</p></div>
+        </div>
+
+        <div className="mt-6 grid gap-3 lg:grid-cols-4">
+          {data?.metrics.map((metric) => <article key={metric.campaignKey} className="rounded-xl border border-border p-4">
+            <p className="text-sm font-semibold">{activationLabels[metric.campaignKey] ?? metric.campaignKey}</p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs"><div><Mail className="mx-auto size-4 text-muted-foreground" /><p className="mt-1 font-semibold text-foreground">{metric.sent}</p><p className="text-muted-foreground">Sent</p></div><div><MousePointerClick className="mx-auto size-4 text-muted-foreground" /><p className="mt-1 font-semibold text-foreground">{metric.clicked}</p><p className="text-muted-foreground">{metric.clickRate}% clicked</p></div><div><CheckCircle2 className="mx-auto size-4 text-muted-foreground" /><p className="mt-1 font-semibold text-foreground">{metric.converted}</p><p className="text-muted-foreground">{metric.conversionRate}% paid</p></div></div>
+          </article>)}
+        </div>
+
+        <div className="mt-7">
+          <h3 className="text-sm font-semibold">Recent delivery activity</h3>
+          {data?.recent.length ? <div className="mt-3 divide-y rounded-xl border border-border">{data.recent.map((send) => <div key={send.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"><div><p className="font-medium">{send.name || send.email || "Unknown user"}</p><p className="text-xs text-muted-foreground">{activationLabels[send.campaign_key] ?? send.campaign_key} · {new Date(send.sent_at).toLocaleString()}</p></div><div className="flex gap-2 text-xs"><span className={send.clicked_at ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}>{send.clicked_at ? "Clicked" : "Not clicked"}</span><span className={send.converted ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}>{send.converted ? "Paid" : "Unpaid"}</span></div></div>)}</div> : <p className="mt-3 text-sm text-muted-foreground">No plan activation emails have been sent yet.</p>}
+        </div>
+      </>}
+    </section>
+  );
 }
 
 function InternalMarketingPage() {
@@ -170,6 +257,13 @@ function InternalMarketingPage() {
           <p className="mt-1 text-sm text-muted-foreground">Generate, refine, and queue KodarAI posts without leaving the dashboard.</p>
         </div>
 
+        <Tabs defaultValue="social">
+          <TabsList>
+            <TabsTrigger value="social">Social queue</TabsTrigger>
+            <TabsTrigger value="activation">Plan activation</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="social" className="mt-6">
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
@@ -227,6 +321,12 @@ function InternalMarketingPage() {
             </div>)}
           </div>
         </section>}
+          </TabsContent>
+
+          <TabsContent value="activation" className="mt-6">
+            <PlanActivationTab passcode={passcode} />
+          </TabsContent>
+        </Tabs>
       </main>
     </DashboardShell>
   );

@@ -1,0 +1,21 @@
+name: Plan activation marketing
+
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  send-plan-activation-emails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send due plan activation emails
+        env:
+          MARKETING_CRON_SECRET: ${{ secrets.MARKETING_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "https://kodarai.xyz/api/public/marketing/plan-activation" \
+            -H "Authorization: Bearer ${MARKETING_CRON_SECRET}"

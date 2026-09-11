@@ -18,7 +18,11 @@ async function unsubscribe(request: Request) {
   if (!parsed.success || !verifyMarketingUnsubscribeToken(parsed.data.user, parsed.data.token)) return false;
   const { error } = await supabaseAdmin
     .from("profiles")
-    .update({ marketing_email_opt_in: false, marketing_email_opted_in_at: null })
+    .update({
+      marketing_email_opt_in: false,
+      marketing_email_opted_in_at: null,
+      marketing_email_unsubscribed_at: new Date().toISOString(),
+    })
     .eq("id", parsed.data.user);
   return !error;
 }

@@ -31,6 +31,10 @@ import {
 import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 
 import { createCheckout } from "@/lib/billing.functions";
+import {
+  rememberCheckout,
+  trackCheckoutStarted,
+} from "@/lib/analytics";
 
 export function PlansDialog({
   children,
@@ -71,6 +75,21 @@ export function PlansDialog({
         toast.error("Could not start checkout.");
         setBusy(null);
         return;
+      }
+
+      const checkoutData = kind === "subscription"
+        ? (() => {
+            const plan = PLANS.find((item) => item.id === id);
+            return plan ? { plan: id, currency: "NGN", value: getPlanPrice(plan, cycle ?? "monthly") } : null;
+          })()
+        : (() => {
+            const pack = PACKS.find((item) => item.id === id);
+            return pack ? { plan: id, currency: "NGN", value: pack.ngn } : null;
+          })();
+
+      if (checkoutData) {
+        trackCheckoutStarted(checkoutData);
+        rememberCheckout(checkoutData);
       }
 
       window.location.href = res.url;

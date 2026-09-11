@@ -40,6 +40,13 @@ import {
   InstallPwaPrompt,
 } from "@/components/InstallPwaPrompt";
 
+import {
+  AnalyticsProvider,
+} from "@/components/analytics/AnalyticsProvider";
+
+import {
+  AttributionSync,
+} from "@/components/analytics/AttributionSync";
 
 function NotFoundComponent() {
   return (
@@ -453,6 +460,9 @@ function RootComponent() {
       <AuthProvider>
         <AuthInvalidator />
 
+        <AnalyticsProvider />
+
+        <AttributionSync />
 
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />

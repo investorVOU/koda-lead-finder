@@ -22,6 +22,16 @@ export type WelcomeAuthMethod =
   | "email"
   | "google";
 
+export const PLAN_ACTIVATION_CAMPAIGNS = [
+  "plan-activation-6h",
+  "plan-activation-24h",
+  "plan-activation-3d",
+  "plan-activation-7d",
+] as const;
+
+export type PlanActivationCampaignKey =
+  (typeof PLAN_ACTIVATION_CAMPAIGNS)[number];
+
 const WELCOME_EMAIL_SENT_KEY =
   "kodarai_welcome_email_sent_at";
 
@@ -240,6 +250,44 @@ export function verifyMarketingUnsubscribeToken(
   );
 }
 
+export function createMarketingCampaignToken(
+  userId: string,
+  campaignKey: PlanActivationCampaignKey,
+) {
+  const secret = unsubscribeSecret();
+
+  if (!secret) {
+    return null;
+  }
+
+  return createHmac(
+    "sha256",
+    secret,
+  )
+    .update(`campaign:${campaignKey}:${userId}`)
+    .digest("hex");
+}
+
+export function verifyMarketingCampaignToken(
+  userId: string,
+  campaignKey: PlanActivationCampaignKey,
+  token: string,
+) {
+  const expected = createMarketingCampaignToken(
+    userId,
+    campaignKey,
+  );
+
+  if (!expected || !token) {
+    return false;
+  }
+
+  const actual = Buffer.from(token);
+  const expectedBuffer = Buffer.from(expected);
+
+  return actual.length === expectedBuffer.length && timingSafeEqual(actual, expectedBuffer);
+}
+
 export async function sendMarketingEmail({
   userId,
   to,
@@ -329,6 +377,101 @@ export async function sendMarketingEmail({
       `You opted in to KodarAI lead ideas. ` +
       `<a href="${safeUnsubscribeUrl}" style="color:#52525b;">Unsubscribe from marketing emails</a>.` +
       `<br />KodarAI, ${safePostalAddress}`,
+  });
+}
+
+const planActivationCopy: Record<
+  PlanActivationCampaignKey,
+  {
+    subject: string;
+    title: string;
+    preview: string;
+    body: string;
+  }
+> = {
+  "plan-activation-6h": {
+    subject: "Find a business. Build a sample. Get paid.",
+    title: "Your next client could start with one search",
+    preview: "Find businesses with weak websites, build a sample, and start a client conversation.",
+    body:
+      "You joined KodarAI to find clients, not another tool to learn.\n\n" +
+      "Use Finder to spot businesses with weak or missing websites. Build them a sample in Studio. Then give the owner something real to react to.\n\n" +
+      "One good website client can be worth far more than the cost of getting started.",
+  },
+  "plan-activation-24h": {
+    subject: "Choose the route to your next paid client",
+    title: "A simple way to start pitching",
+    preview: "Pick the setup that matches how you want to find and win clients.",
+    body:
+      "You do not need a huge audience or more referrals to start.\n\n" +
+      "Choose a monthly plan for the full KodarAI workflow, or start with a lead pack when you only need businesses to pitch now.\n\n" +
+      "The goal is simple: find a business, show a better website, and turn the conversation into paid work.",
+  },
+  "plan-activation-3d": {
+    subject: "A 15-minute plan to find your next client",
+    title: "Find three businesses worth pitching",
+    preview: "A practical first move for turning your web skills into client opportunities.",
+    body:
+      "Here is a practical first session:\n\n" +
+      "1. Search one city and niche in Finder\n" +
+      "2. Save three businesses with weak websites\n" +
+      "3. Build one sample site in Studio\n" +
+      "4. Send the owner a short, specific pitch\n\n" +
+      "You are not waiting for work to appear. You are creating a reason for a business owner to talk to you.",
+  },
+  "plan-activation-7d": {
+    subject: "Still looking for your next website client?",
+    title: "Your plan is waiting when you are ready",
+    preview: "Turn local-business research into client conversations you can act on.",
+    body:
+      "KodarAI is ready when you are.\n\n" +
+      "Start with a focused search, find a business that needs a stronger web presence, and show them what better could look like. That is the first step toward a paid website project.",
+  },
+};
+
+export async function sendPlanActivationEmail({
+  userId,
+  to,
+  name,
+  campaignKey,
+}: {
+  userId: string;
+  to: string;
+  name?: string | null;
+  campaignKey: PlanActivationCampaignKey;
+}) {
+  const unsubscribeToken = createMarketingUnsubscribeToken(userId);
+  const campaignToken = createMarketingCampaignToken(userId, campaignKey);
+  const postalAddress = process.env.MARKETING_POSTAL_ADDRESS?.trim();
+
+  if (!unsubscribeToken || !campaignToken || !postalAddress) {
+    return {
+      sent: false,
+      reason: "Marketing email configuration is incomplete.",
+    } as const;
+  }
+
+  const unsubscribeUrl = `${getAppUrl()}/api/public/marketing/unsubscribe?user=${encodeURIComponent(userId)}&token=${encodeURIComponent(unsubscribeToken)}`;
+  const clickUrl = `${getAppUrl()}/api/public/marketing/click?user=${encodeURIComponent(userId)}&campaign=${encodeURIComponent(campaignKey)}&token=${encodeURIComponent(campaignToken)}`;
+  const firstName = name?.trim().split(/\s+/)[0] || "there";
+  const copy = planActivationCopy[campaignKey];
+
+  return sendTransactionalEmail({
+    to,
+    subject: copy.subject,
+    title: copy.title,
+    preview: copy.preview,
+    body: `Hi ${firstName},\n\n${copy.body}`,
+    ctaLabel: "Choose a plan",
+    ctaUrl: clickUrl,
+    headers: {
+      "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+    footerHtml:
+      `You are receiving this because you signed up for KodarAI and reached plan selection. ` +
+      `<a href="${escapeHtml(unsubscribeUrl)}" style="color:#52525b;">Unsubscribe from these emails</a>.` +
+      `<br />KodarAI, ${escapeHtml(postalAddress)}`,
   });
 }
 

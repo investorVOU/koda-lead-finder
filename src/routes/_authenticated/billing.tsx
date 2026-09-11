@@ -23,7 +23,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { CreditMeter } from "@/components/dashboard/CreditMeter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { useSubscription } from "@/lib/queries";
+import { usePaymentHistory, useSubscription } from "@/lib/queries";
 import {
   PLANS,
   PACKS,
@@ -38,6 +38,13 @@ import {
   createCheckout,
   cancelSubscription,
 } from "@/lib/billing.functions";
+import {
+  clearPendingCheckout,
+  readPendingCheckout,
+  rememberCheckout,
+  trackCheckoutStarted,
+  trackPurchase,
+} from "@/lib/analytics";
 
 export const Route = createFileRoute(
   "/_authenticated/billing",
@@ -57,6 +64,7 @@ type RenewalMode = "manual" | "auto";
 function BillingPage() {
   const { user } = useAuth();
   const { data: sub } = useSubscription(user?.id);
+  const { data: paymentHistory } = usePaymentHistory(user?.id);
   const queryClient = useQueryClient();
 
   const runCheckout = useServerFn(createCheckout);
@@ -67,6 +75,9 @@ function BillingPage() {
   );
   const [cycle, setCycle] =
     useState<BillingCycle>("monthly");
+
+  const [awaitingPaymentVerification, setAwaitingPaymentVerification] =
+    useState(false);
 
   useEffect(() => {
     if (window.location.hash === "#annually") {
@@ -82,6 +93,7 @@ function BillingPage() {
     const status = params.get("status");
 
     if (status === "success") {
+      setAwaitingPaymentVerification(true);
       toast.success(
         "Payment received — your leads will appear in a moment.",
       );
@@ -116,6 +128,27 @@ function BillingPage() {
     }
   }, [queryClient, user]);
 
+  useEffect(() => {
+    if (!awaitingPaymentVerification || !paymentHistory) return;
+    const pending = readPendingCheckout();
+    if (!pending) return;
+    const startedAt = new Date(pending.started_at).getTime();
+    const payment = paymentHistory.find((record) =>
+      record.status === "success" &&
+      record.plan_id === pending.plan &&
+      new Date(record.created_at).getTime() >= startedAt - 60_000,
+    );
+    if (!payment) return;
+
+    trackPurchase({
+      plan: pending.plan,
+      currency: pending.currency,
+      value: pending.value,
+    }, payment.id);
+    clearPendingCheckout();
+    setAwaitingPaymentVerification(false);
+  }, [awaitingPaymentVerification, paymentHistory]);
+
   const checkout = async (
     kind: "subscription" | "pack",
     id: string,
@@ -139,6 +172,21 @@ function BillingPage() {
       toast.error(res.message);
       setBusy(null);
       return;
+    }
+
+    const checkoutData = kind === "subscription"
+      ? (() => {
+          const plan = PLANS.find((item) => item.id === id);
+          return plan ? { plan: id, currency: "NGN", value: getPlanPrice(plan, selectedCycle ?? "monthly") } : null;
+        })()
+      : (() => {
+          const pack = PACKS.find((item) => item.id === id);
+          return pack ? { plan: id, currency: "NGN", value: pack.ngn } : null;
+        })();
+
+    if (checkoutData) {
+      trackCheckoutStarted(checkoutData);
+      rememberCheckout(checkoutData);
     }
 
     window.location.href = res.url!;

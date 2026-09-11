@@ -21,6 +21,10 @@ import { Button } from "@/components/ui/button";
 import { findLeads } from "@/lib/search.functions";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/lib/queries";
+import {
+  trackFinderSearch,
+  trackFirstFinderSearch,
+} from "@/lib/analytics";
 
 import type { LeadResult } from "@/lib/constants";
 
@@ -131,6 +135,19 @@ function DashboardPage() {
     }
 
     setResults(res.results);
+
+    const [city, state] = location
+      .split(",")
+      .map((part) => part.trim());
+
+    trackFinderSearch({
+      category,
+      state,
+      city,
+      website_filter: websiteFilter,
+    });
+
+    trackFirstFinderSearch(user?.id);
 
     setNewLeadIds(
       new Set(res.newPlaceIds),

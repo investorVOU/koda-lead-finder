@@ -4,6 +4,10 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateJsonWithConfiguredAi } from "@/lib/content.functions";
+import {
+  getPlanActivationMetrics,
+  sendPlanActivationCampaign,
+} from "@/lib/plan-activation.server";
 
 const platformSchema = z.enum(["linkedin", "x", "facebook", "threads", "pinterest", "instagram"]);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -132,6 +136,22 @@ export const verifyMarketingAccess = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireMarketingAccess(context.userId, data.passcode);
     return { authorized: true } as const;
+  });
+
+export const getPlanActivationDashboard = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => accessSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    return getPlanActivationMetrics();
+  });
+
+export const runPlanActivationEmails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => accessSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    return sendPlanActivationCampaign();
   });
 
 export const generateMarketingPost = createServerFn({ method: "POST" })
