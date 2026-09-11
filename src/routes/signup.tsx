@@ -3,25 +3,56 @@ import {
   Link,
   useNavigate,
 } from "@tanstack/react-router";
+
+import {
+  useServerFn,
+} from "@tanstack/react-start";
+
 import {
   useEffect,
   useState,
   type FormEvent,
 } from "react";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  toast,
+} from "sonner";
+
+import {
+  Loader2,
+} from "lucide-react";
+
+import {
+  Button,
+} from "@/components/ui/button";
+
+import {
+  Input,
+} from "@/components/ui/input";
+
+import {
+  Label,
+} from "@/components/ui/label";
+
 import {
   AuthShell,
   GoogleButton,
 } from "@/components/auth/AuthShell";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
 
-const FUNNEL_STORAGE_KEY = "kodarai_ad_funnel";
+import {
+  supabase,
+} from "@/integrations/supabase/client";
+
+import {
+  useAuth,
+} from "@/lib/auth";
+
+import {
+  sendEmailSignupWelcomeEmail,
+} from "@/lib/welcome-email.functions";
+
+const FUNNEL_STORAGE_KEY =
+  "kodarai_ad_funnel";
 
 type FunnelData = {
   source?: string;
@@ -41,57 +72,91 @@ type FunnelData = {
 
 declare global {
   interface Window {
-    fbq?: (...args: unknown[]) => void;
+    fbq?: (
+      ...args: unknown[]
+    ) => void;
 
     ttq?: {
       track?: (
         event: string,
-        properties?: Record<string, unknown>,
+        properties?: Record<
+          string,
+          unknown
+        >,
       ) => void;
     };
   }
 }
 
-export const Route = createFileRoute("/signup")({
-  head: () => ({
-    meta: [
-      {
-        title: "Create your account - Kodarai",
-      },
-    ],
-  }),
+export const Route =
+  createFileRoute(
+    "/signup",
+  )({
+    head: () => ({
+      meta: [
+        {
+          title:
+            "Create your account - Kodarai",
+        },
+      ],
+    }),
 
-  component: SignupPage,
-});
+    component:
+      SignupPage,
+  });
 
 function SignupPage() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const { user, loading } = useAuth();
+  const {
+    user,
+    loading,
+  } =
+    useAuth();
 
-  const [fullName, setFullName] =
+  const sendWelcomeEmail =
+    useServerFn(
+      sendEmailSignupWelcomeEmail,
+    );
+
+  const [
+    fullName,
+    setFullName,
+  ] =
     useState("");
 
-  const [email, setEmail] =
+  const [
+    email,
+    setEmail,
+  ] =
     useState("");
 
-  const [password, setPassword] =
+  const [
+    password,
+    setPassword,
+  ] =
     useState("");
 
-  const [busy, setBusy] =
+  const [
+    busy,
+    setBusy,
+  ] =
     useState(false);
 
   const [
     marketingOptIn,
     setMarketingOptIn,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     funnelData,
     setFunnelData,
-  ] = useState<FunnelData | null>(
-    null,
-  );
+  ] =
+    useState<FunnelData | null>(
+      null,
+    );
 
   useEffect(() => {
     const params =
@@ -99,13 +164,20 @@ function SignupPage() {
         window.location.search,
       );
 
-    const ref = params.get("ref");
+    const ref =
+      params.get(
+        "ref",
+      );
 
     if (ref) {
-      localStorage.setItem(
-        "kodarai_ref",
-        ref,
-      );
+      try {
+        localStorage.setItem(
+          "kodarai_ref",
+          ref,
+        );
+      } catch {
+        // Storage errors must not break signup.
+      }
     }
 
     try {
@@ -116,17 +188,26 @@ function SignupPage() {
 
       if (stored) {
         const parsed =
-          JSON.parse(stored) as FunnelData;
+          JSON.parse(
+            stored,
+          ) as FunnelData;
 
-        setFunnelData(parsed);
+        setFunnelData(
+          parsed,
+        );
       }
     } catch {
-      setFunnelData(null);
+      setFunnelData(
+        null,
+      );
     }
   }, []);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (
+      !loading &&
+      user
+    ) {
       navigate({
         to: "/dashboard",
       });
@@ -137,204 +218,253 @@ function SignupPage() {
     navigate,
   ]);
 
-  const trackRegistration = () => {
-    try {
-      window.fbq?.(
-        "track",
-        "CompleteRegistration",
-        {
-          content_name:
-            "Kodarai Signup",
-          source:
-            funnelData?.source ??
-            "direct",
-        },
-      );
+  const trackRegistration =
+    () => {
+      try {
+        window.fbq?.(
+          "track",
+          "CompleteRegistration",
+          {
+            content_name:
+              "Kodarai Signup",
 
-      window.ttq?.track?.(
-        "CompleteRegistration",
-        {
-          content_name:
-            "Kodarai Signup",
-          source:
-            funnelData?.source ??
-            "direct",
-        },
-      );
-    } catch {
-      // Tracking must never block signup.
-    }
-  };
+            source:
+              funnelData?.source ??
+              "direct",
+          },
+        );
 
-  const clearCompletedFunnel = () => {
-    try {
-      localStorage.removeItem(
-        FUNNEL_STORAGE_KEY,
-      );
-    } catch {
-      // Ignore localStorage errors.
-    }
-  };
+        window.ttq?.track?.(
+          "CompleteRegistration",
+          {
+            content_name:
+              "Kodarai Signup",
 
-  const handleSignup = async (
-    event: FormEvent,
-  ) => {
-    event.preventDefault();
-
-    if (
-      password.length < 6
-    ) {
-      toast.error(
-        "Password must be at least 6 characters",
-      );
-
-      return;
-    }
-
-    setBusy(true);
-
-    const metadata = {
-      full_name:
-        fullName,
-
-      marketing_email_opt_in:
-        marketingOptIn,
-
-      ...(funnelData?.source
-        ? {
-            acquisition_source:
-              funnelData.source,
-          }
-        : {}),
-
-      ...(funnelData?.experience
-        ? {
-            onboarding_experience:
-              funnelData.experience,
-          }
-        : {}),
-
-      ...(funnelData?.goal
-        ? {
-            onboarding_income_goal:
-              funnelData.goal,
-          }
-        : {}),
-
-      ...(funnelData?.situation
-        ? {
-            onboarding_situation:
-              funnelData.situation,
-          }
-        : {}),
-
-      ...(funnelData?.utm_source
-        ? {
-            utm_source:
-              funnelData.utm_source,
-          }
-        : {}),
-
-      ...(funnelData?.utm_medium
-        ? {
-            utm_medium:
-              funnelData.utm_medium,
-          }
-        : {}),
-
-      ...(funnelData?.utm_campaign
-        ? {
-            utm_campaign:
-              funnelData.utm_campaign,
-          }
-        : {}),
-
-      ...(funnelData?.utm_content
-        ? {
-            utm_content:
-              funnelData.utm_content,
-          }
-        : {}),
-
-      ...(funnelData?.utm_term
-        ? {
-            utm_term:
-              funnelData.utm_term,
-          }
-        : {}),
+            source:
+              funnelData?.source ??
+              "direct",
+          },
+        );
+      } catch {
+        // Tracking must never block signup.
+      }
     };
 
-    const {
-      data,
-      error,
-    } =
-      await supabase.auth.signUp(
-        {
-          email,
-          password,
+  const clearCompletedFunnel =
+    () => {
+      try {
+        localStorage.removeItem(
+          FUNNEL_STORAGE_KEY,
+        );
+      } catch {
+        // Ignore localStorage errors.
+      }
+    };
 
-          options: {
-            emailRedirectTo:
-              window.location
-                .origin +
-              "/dashboard",
+  const handleSignup =
+    async (
+      event:
+        FormEvent,
+    ) => {
+      event.preventDefault();
 
-            data: metadata,
+      if (
+        password.length <
+        6
+      ) {
+        toast.error(
+          "Password must be at least 6 characters",
+        );
+
+        return;
+      }
+
+      setBusy(true);
+
+      const metadata = {
+        full_name:
+          fullName,
+
+        marketing_email_opt_in:
+          marketingOptIn,
+
+        ...(funnelData?.source
+          ? {
+              acquisition_source:
+                funnelData.source,
+            }
+          : {}),
+
+        ...(funnelData?.experience
+          ? {
+              onboarding_experience:
+                funnelData.experience,
+            }
+          : {}),
+
+        ...(funnelData?.goal
+          ? {
+              onboarding_income_goal:
+                funnelData.goal,
+            }
+          : {}),
+
+        ...(funnelData?.situation
+          ? {
+              onboarding_situation:
+                funnelData.situation,
+            }
+          : {}),
+
+        ...(funnelData?.utm_source
+          ? {
+              utm_source:
+                funnelData.utm_source,
+            }
+          : {}),
+
+        ...(funnelData?.utm_medium
+          ? {
+              utm_medium:
+                funnelData.utm_medium,
+            }
+          : {}),
+
+        ...(funnelData?.utm_campaign
+          ? {
+              utm_campaign:
+                funnelData.utm_campaign,
+            }
+          : {}),
+
+        ...(funnelData?.utm_content
+          ? {
+              utm_content:
+                funnelData.utm_content,
+            }
+          : {}),
+
+        ...(funnelData?.utm_term
+          ? {
+              utm_term:
+                funnelData.utm_term,
+            }
+          : {}),
+      };
+
+      const {
+        data,
+        error,
+      } =
+        await supabase.auth.signUp(
+          {
+            email,
+            password,
+
+            options: {
+              emailRedirectTo:
+                window
+                  .location
+                  .origin +
+                "/dashboard",
+
+              data:
+                metadata,
+            },
           },
-        },
-      );
+        );
 
-    setBusy(false);
+      if (error) {
+        setBusy(
+          false,
+        );
 
-    if (error) {
-      toast.error(
-        error.message,
-      );
+        toast.error(
+          error.message,
+        );
 
-      return;
-    }
+        return;
+      }
 
-    trackRegistration();
+      /*
+       * Only a successfully-created Supabase user
+       * reaches this point.
+       */
+      if (
+        data.user?.id
+      ) {
+        try {
+          await sendWelcomeEmail(
+            {
+              data: {
+                userId:
+                  data
+                    .user
+                    .id,
+              },
+            },
+          );
+        } catch (error) {
+          /*
+           * Welcome email delivery must never
+           * turn a successful account creation
+           * into a failed registration.
+           */
+          console.error(
+            "Welcome email could not be sent:",
+            error,
+          );
+        }
+      }
 
-    if (data.session) {
-      clearCompletedFunnel();
+      trackRegistration();
+
+      setBusy(false);
+
+      if (
+        data.session
+      ) {
+        clearCompletedFunnel();
+
+        toast.success(
+          "Account created. Let's get started.",
+        );
+
+        navigate({
+          to: "/dashboard",
+        });
+
+        return;
+      }
 
       toast.success(
-        "Account created. Let's get started.",
+        "Account created. Check your email to confirm your account.",
       );
-
-      navigate({
-        to: "/dashboard",
-      });
-
-      return;
-    }
-
-    toast.success(
-      "Check your email to confirm your account.",
-    );
-  };
+    };
 
   const handleGoogle =
     async () => {
       setBusy(true);
 
       /*
-       * Keep the funnel data in localStorage.
+       * Keep funnel data in localStorage.
        *
-       * Google OAuth leaves the website and
-       * comes back later, so the dashboard/auth
-       * callback can still read this data after
-       * the user returns.
+       * Google OAuth leaves Kodarai and comes
+       * back later. The post-auth flow needs
+       * this attribution after the redirect.
        */
-      const { error } =
+      const {
+        error,
+      } =
         await supabase.auth.signInWithOAuth(
           {
-            provider: "google",
+            provider:
+              "google",
 
             options: {
               redirectTo:
-                window.location
+                window
+                  .location
                   .origin +
                 "/dashboard",
             },
@@ -342,7 +472,9 @@ function SignupPage() {
         );
 
       if (error) {
-        setBusy(false);
+        setBusy(
+          false,
+        );
 
         toast.error(
           "Google sign-up failed. Please try again.",
@@ -379,14 +511,17 @@ function SignupPage() {
       {fromAdFunnel && (
         <div className="mb-5 border-l-2 border-primary bg-primary/5 px-4 py-3">
           <p className="text-sm font-semibold">
-            Your plan is ready.
+            Your plan is
+            ready.
           </p>
 
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Create your account
-            and start finding
-            businesses you can
-            build for and sell to.
+            Create your
+            account and
+            start finding
+            businesses you
+            can build for
+            and sell to.
           </p>
         </div>
       )}
@@ -395,7 +530,9 @@ function SignupPage() {
         onClick={
           handleGoogle
         }
-        loading={busy}
+        loading={
+          busy
+        }
       />
 
       <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
@@ -426,7 +563,8 @@ function SignupPage() {
               event,
             ) =>
               setFullName(
-                event.target
+                event
+                  .target
                   .value,
               )
             }
@@ -443,12 +581,15 @@ function SignupPage() {
           <Input
             id="email"
             type="email"
-            value={email}
+            value={
+              email
+            }
             onChange={(
               event,
             ) =>
               setEmail(
-                event.target
+                event
+                  .target
                   .value,
               )
             }
@@ -472,12 +613,15 @@ function SignupPage() {
               event,
             ) =>
               setPassword(
-                event.target
+                event
+                  .target
                   .value,
               )
             }
             placeholder="At least 6 characters"
-            minLength={6}
+            minLength={
+              6
+            }
             required
           />
         </div>
@@ -492,7 +636,8 @@ function SignupPage() {
               event,
             ) =>
               setMarketingOptIn(
-                event.target
+                event
+                  .target
                   .checked,
               )
             }
@@ -507,10 +652,12 @@ function SignupPage() {
             </span>
 
             <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-              Optional. You can
-              unsubscribe at any
-              time from Settings
-              or an email link.
+              Optional. You
+              can unsubscribe
+              at any time
+              from Settings
+              or an email
+              link.
             </span>
           </span>
         </label>
@@ -520,7 +667,9 @@ function SignupPage() {
           variant="hero"
           size="lg"
           className="w-full"
-          disabled={busy}
+          disabled={
+            busy
+          }
         >
           {busy ? (
             <Loader2 className="size-4 animate-spin" />
