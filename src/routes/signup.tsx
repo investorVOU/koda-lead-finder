@@ -466,7 +466,7 @@ function SignupPage() {
                 window
                   .location
                   .origin +
-                "/dashboard",
+                "/choose-plan",
             },
           },
         );

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrialWelcomeRouteImport } from './routes/trial-welcome'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as StartRouteImport } from './routes/start'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -65,6 +66,11 @@ const TrialWelcomeRoute = TrialWelcomeRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StartRoute = StartRouteImport.update({
+  id: '/start',
+  path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -318,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
   '/billing': typeof AuthenticatedBillingRoute
@@ -366,6 +373,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
   '/billing': typeof AuthenticatedBillingRoute
@@ -415,6 +423,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
@@ -465,6 +474,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/start'
     | '/terms'
     | '/trial-welcome'
     | '/billing'
@@ -513,6 +523,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/start'
     | '/terms'
     | '/trial-welcome'
     | '/billing'
@@ -561,6 +572,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/start'
     | '/terms'
     | '/trial-welcome'
     | '/_authenticated/billing'
@@ -611,6 +623,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
   TrialWelcomeRoute: typeof TrialWelcomeRoute
   ApiPingRoute: typeof ApiPingRoute
@@ -641,6 +654,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/start': {
+      id: '/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -1040,6 +1060,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StartRoute: StartRoute,
   TermsRoute: TermsRoute,
   TrialWelcomeRoute: TrialWelcomeRoute,
   ApiPingRoute: ApiPingRoute,

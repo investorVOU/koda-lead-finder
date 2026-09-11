@@ -40,9 +40,6 @@ import {
   InstallPwaPrompt,
 } from "@/components/InstallPwaPrompt";
 
-import {
-  WelcomeEmailSync,
-} from "@/components/auth/WelcomeEmailSync";
 
 function NotFoundComponent() {
   return (
@@ -456,7 +453,6 @@ function RootComponent() {
       <AuthProvider>
         <AuthInvalidator />
 
-        <WelcomeEmailSync />
 
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
