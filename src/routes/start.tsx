@@ -20,6 +20,7 @@ import {
   Lightbulb,
   MessageCircle,
   Search,
+  Star,
   User,
   Users,
 } from "lucide-react";
@@ -260,6 +261,63 @@ const SITUATION_OPTIONS = [
 
     icon:
       BarChart3,
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    quote:
+      "I closed 3 local restaurants in my first week. The AI prompts let me ship demo sites the same day I called.",
+
+    name:
+      "Daniel O.",
+
+    role:
+      "Freelance Web Designer · Lagos",
+  },
+
+  {
+    quote:
+      "The no-website filter is gold. No more wasting hours checking if businesses already have a site.",
+
+    name:
+      "Sarah M.",
+
+    role:
+      "Agency Owner · Austin, TX",
+  },
+
+  {
+    quote:
+      "Cold-call scripts removed my anxiety. I sound prepared and the leads are actually relevant.",
+
+    name:
+      "James K.",
+
+    role:
+      "Developer · Manchester, UK",
+  },
+
+  {
+    quote:
+      "Went from 0 to 6 retainer clients in two months. Kodarai basically became my sales team.",
+
+    name:
+      "Amara N.",
+
+    role:
+      "Studio Founder · Abuja",
+  },
+
+  {
+    quote:
+      "Clean, fast, and the data is accurate. The pipeline keeps every prospect in one place.",
+
+    name:
+      "Marco V.",
+
+    role:
+      "Freelancer · Toronto",
   },
 ];
 
@@ -766,7 +824,7 @@ function Intro({
     (value: boolean) => void;
 }) {
   return (
-    <main className="flex min-h-[100dvh] flex-col px-5 pb-7 pt-6 sm:px-7">
+    <main className="flex min-h-[100dvh] flex-col px-5 pb-10 pt-6 sm:px-7">
       <Brand />
 
       <div className="mt-5 h-[3px] w-5 rounded-full bg-[#18a85d]" />
@@ -861,6 +919,8 @@ function Intro({
           }
         />
       </div>
+
+      <SocialProof />
     </main>
   );
 }
@@ -978,6 +1038,128 @@ function HeroPhoto({
         >
           Pexels
         </a>
+      </figcaption>
+    </figure>
+  );
+}
+
+function SocialProof() {
+  return (
+    <section className="mt-8">
+      <div className="flex items-center justify-between gap-4 border-y border-[#dfe4dd] py-4">
+        <div>
+          <div className="flex items-center gap-0.5 text-[#e8a317]">
+            {Array.from({
+              length: 5,
+            }).map(
+              (_, index) => (
+                <Star
+                  key={
+                    index
+                  }
+                  className="size-4 fill-current"
+                />
+              ),
+            )}
+          </div>
+
+          <p className="mt-1 text-[12px] font-semibold text-[#26342b]">
+            What Kodarai
+            users are
+            saying
+          </p>
+        </div>
+
+        <p className="max-w-[190px] text-right text-[11px] leading-4 text-[#6f7771]">
+          Freelancers and
+          agencies use
+          Kodarai to find
+          businesses and
+          build a stronger
+          sales pipeline.
+        </p>
+      </div>
+
+      <div className="-mx-5 mt-5 overflow-x-auto px-5 pb-2 sm:-mx-7 sm:px-7">
+        <div className="flex w-max gap-3">
+          {TESTIMONIALS.map(
+            (
+              testimonial,
+            ) => (
+              <TestimonialCard
+                key={
+                  testimonial.name
+                }
+                {...testimonial}
+              />
+            ),
+          )}
+        </div>
+      </div>
+
+      <p className="mt-3 text-center text-[10px] text-[#8a918c]">
+        Swipe to read more
+      </p>
+    </section>
+  );
+}
+
+function TestimonialCard({
+  quote,
+  name,
+  role,
+  compact = false,
+}: {
+  quote: string;
+  name: string;
+  role: string;
+  compact?: boolean;
+}) {
+  return (
+    <figure
+      className={
+        compact
+          ? "rounded-2xl border border-[#e0e5df] bg-white p-4"
+          : "w-[285px] shrink-0 rounded-2xl border border-[#e0e5df] bg-white p-5 shadow-[0_5px_18px_rgba(24,37,28,0.05)]"
+      }
+    >
+      <div className="flex items-center gap-0.5 text-[#e8a317]">
+        {Array.from({
+          length: 5,
+        }).map(
+          (_, index) => (
+            <Star
+              key={index}
+              className="size-3.5 fill-current"
+            />
+          ),
+        )}
+      </div>
+
+      <blockquote
+        className={`mt-3 text-[#27312b] ${
+          compact
+            ? "text-[12px] leading-[18px]"
+            : "text-[13px] leading-5"
+        }`}
+      >
+        “{quote}”
+      </blockquote>
+
+      <figcaption className="mt-4 flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e5f3e7] text-[12px] font-bold text-[#087542]">
+          {name.charAt(0)}
+        </span>
+
+        <span className="min-w-0">
+          <span className="block text-[12px] font-semibold text-[#172019]">
+            {name}
+          </span>
+
+          <span className="mt-0.5 block text-[10px] leading-4 text-[#7a827c]">
+            {role}
+          </span>
+        </span>
       </figcaption>
     </figure>
   );
@@ -1325,6 +1507,8 @@ function Result({
         />
       </div>
 
+      <ResultProof />
+
       <button
         type="button"
         onClick={
@@ -1337,6 +1521,12 @@ function Result({
 
         <ArrowRight className="size-4" />
       </button>
+
+      <p className="mt-3 text-center text-[11px] text-[#7b827d]">
+        Create your
+        account and
+        start free
+      </p>
 
       <p className="mt-4 text-[10px] leading-4 text-[#818982]">
         Earnings are not
@@ -1351,6 +1541,110 @@ function Result({
         customers.
       </p>
     </main>
+  );
+}
+
+function ResultProof() {
+  const selected =
+    TESTIMONIALS.filter(
+      (testimonial) =>
+        testimonial.name ===
+          "Daniel O." ||
+        testimonial.name ===
+          "Amara N.",
+    );
+
+  return (
+    <section className="mt-8 border-t border-[#dfe4dd] pt-7">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5 text-[#e8a317]">
+          {Array.from({
+            length: 5,
+          }).map(
+            (_, index) => (
+              <Star
+                key={
+                  index
+                }
+                className="size-3.5 fill-current"
+              />
+            ),
+          )}
+        </div>
+
+        <span className="text-[11px] font-semibold text-[#526057]">
+          From people
+          using Kodarai
+        </span>
+      </div>
+
+      <h2 className="mt-3 text-[19px] font-bold tracking-[-0.025em]">
+        Others are already
+        using this approach.
+      </h2>
+
+      <p className="mt-2 text-[12px] leading-5 text-[#68716b]">
+        Find businesses,
+        build something
+        useful, then have
+        a real reason to
+        start the
+        conversation.
+      </p>
+
+      <div className="mt-4 space-y-3">
+        {selected.map(
+          (
+            testimonial,
+          ) => (
+            <TestimonialCard
+              key={
+                testimonial.name
+              }
+              {...testimonial}
+              compact
+            />
+          ),
+        )}
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-[#dfe5df] bg-white">
+        <ProofStep
+          number="01"
+          label="Find"
+        />
+
+        <ProofStep
+          number="02"
+          label="Build"
+        />
+
+        <ProofStep
+          number="03"
+          label="Sell"
+        />
+      </div>
+    </section>
+  );
+}
+
+function ProofStep({
+  number,
+  label,
+}: {
+  number: string;
+  label: string;
+}) {
+  return (
+    <div className="border-r border-[#e5e9e4] px-2 py-4 text-center last:border-r-0">
+      <p className="text-[9px] font-bold tracking-[0.14em] text-[#179250]">
+        {number}
+      </p>
+
+      <p className="mt-1 text-[12px] font-semibold text-[#202923]">
+        {label}
+      </p>
+    </div>
   );
 }
 
