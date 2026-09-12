@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SocialProofManager } from "@/components/marketing/SocialProofManager";
 import {
   generateMarketingPost,
   getPlanActivationDashboard,
@@ -261,6 +262,7 @@ function InternalMarketingPage() {
           <TabsList>
             <TabsTrigger value="social">Social queue</TabsTrigger>
             <TabsTrigger value="activation">Plan activation</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
           </TabsList>
 
           <TabsContent value="social" className="mt-6">
@@ -325,6 +327,10 @@ function InternalMarketingPage() {
 
           <TabsContent value="activation" className="mt-6">
             <PlanActivationTab passcode={passcode} />
+          </TabsContent>
+
+          <TabsContent value="reviews" className="mt-6">
+            <SocialProofManager passcode={passcode} />
           </TabsContent>
         </Tabs>
       </main>

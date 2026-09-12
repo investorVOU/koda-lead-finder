@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -42,12 +41,22 @@ const draftResponseSchema = z.object({
   drafts: z.array(z.string().trim().min(1).max(3_000)).min(2).max(3),
 });
 
-function matchesPasscode(candidate: string) {
+async function matchesPasscode(candidate: string) {
   const expected = process.env.INTERNAL_MARKETING_PASSCODE;
   if (!expected) return false;
-  const expectedValue = Buffer.from(expected);
-  const candidateValue = Buffer.from(candidate);
-  return expectedValue.length === candidateValue.length && timingSafeEqual(expectedValue, candidateValue);
+  const encoder = new TextEncoder();
+  const expectedValue = encoder.encode(expected);
+  const candidateValue = encoder.encode(candidate);
+  if (expectedValue.length !== candidateValue.length) return false;
+  const [expectedHash, candidateHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", expectedValue),
+    crypto.subtle.digest("SHA-256", candidateValue),
+  ]);
+  const expectedBytes = new Uint8Array(expectedHash);
+  const candidateBytes = new Uint8Array(candidateHash);
+  let difference = 0;
+  for (let index = 0; index < expectedBytes.length; index += 1) difference |= expectedBytes[index] ^ candidateBytes[index];
+  return difference === 0;
 }
 
 async function isFounder(userId: string) {
@@ -61,9 +70,9 @@ async function isFounder(userId: string) {
   return data.user?.email?.trim().toLowerCase() === founderEmail;
 }
 
-async function requireMarketingAccess(userId: string, passcode: string) {
+export async function requireMarketingAccess(userId: string, passcode: string) {
   const [founder] = await Promise.all([isFounder(userId)]);
-  if (!founder || !matchesPasscode(passcode)) {
+  if (!founder || !(await matchesPasscode(passcode))) {
     console.warn("Denied internal marketing access.", { userId, founder });
     throw new Error("NOT_FOUND");
   }

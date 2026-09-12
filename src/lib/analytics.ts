@@ -285,6 +285,11 @@ function emitInternalEvent(eventName: string, properties: AnalyticsProperties) {
 
 export const trackFunnelViewed = () => trackEvent("funnel_viewed");
 export const trackFunnelStarted = () => trackEvent("funnel_started");
+export const trackStartReviewsViewed = () => trackEvent("start_reviews_viewed");
+export const trackStartReviewChanged = (review_position: number) => trackEvent("start_review_changed", { review_position });
+export const trackStartProofViewed = () => trackEvent("start_proof_viewed");
+export const trackStartProofChanged = (proof_position: number, result_type?: string) => trackEvent("start_proof_changed", { proof_position, result_type });
+export const trackStartProofCtaClicked = () => trackEvent("start_proof_cta_clicked");
 export const trackFunnelExperienceSelected = (experience: string) => trackEvent("funnel_experience_selected", { experience });
 export const trackFunnelGoalSelected = (goal: string) => trackEvent("funnel_goal_selected", { goal });
 export const trackFunnelSituationSelected = (situation: string) => trackEvent("funnel_situation_selected", { situation });

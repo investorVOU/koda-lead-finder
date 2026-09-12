@@ -32,10 +32,27 @@ import {
   type ReactNode,
 } from "react";
 
+import Autoplay from "embla-carousel-autoplay";
+
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+
 import {
   getStartHeroImage,
   type StartHeroImage,
 } from "@/lib/start-images.functions";
+
+import {
+  getPublishedSocialProof,
+  type PublicMarketingProof,
+  type PublicMarketingReview,
+} from "@/lib/social-proof.functions";
 
 import {
   saveFunnelAttribution,
@@ -46,6 +63,11 @@ import {
   trackFunnelStarted,
   trackFunnelViewed,
   trackSignupStarted,
+  trackStartProofChanged,
+  trackStartProofCtaClicked,
+  trackStartProofViewed,
+  trackStartReviewChanged,
+  trackStartReviewsViewed,
 } from "@/lib/analytics";
 
 export const Route =
@@ -264,6 +286,7 @@ const SITUATION_OPTIONS = [
   },
 ];
 
+/* Legacy draft copy retained only as non-executable historical context. Public social proof is admin-managed.
 const TESTIMONIALS = [
   {
     quote:
@@ -319,13 +342,15 @@ const TESTIMONIALS = [
     role:
       "Freelancer · Toronto",
   },
-];
+]; */
 
 function StartPage() {
   const runGetHeroImage =
     useServerFn(
       getStartHeroImage,
     );
+
+  const runGetSocialProof = useServerFn(getPublishedSocialProof);
 
   const [step, setStep] =
     useState(0);
@@ -365,6 +390,9 @@ function StartPage() {
     setHeroLoading,
   ] =
     useState(true);
+
+  const [reviews, setReviews] = useState<PublicMarketingReview[]>([]);
+  const [proofs, setProofs] = useState<PublicMarketingProof[]>([]);
 
   useEffect(() => {
     trackFunnelViewed();
@@ -437,6 +465,16 @@ function StartPage() {
       cancelled = true;
     };
   }, [runGetHeroImage]);
+
+  useEffect(() => {
+    let cancelled = false;
+    runGetSocialProof().then((result) => {
+      if (cancelled) return;
+      setReviews(result.reviews);
+      setProofs(result.proofs);
+    }).catch((error) => console.error("[KodarAI start] Could not load social proof:", error));
+    return () => { cancelled = true; };
+  }, [runGetSocialProof]);
 
   const saveAnswers = (
     nextAnswers:
@@ -555,7 +593,7 @@ function StartPage() {
 
   return (
     <div className="min-h-[100dvh] bg-[#f8f7f1] text-[#10140f]">
-      <div className="mx-auto w-full max-w-[520px]">
+      <div className="mx-auto w-full max-w-[1180px]">
         {step === 0 && (
           <Intro
             heroImage={
@@ -574,6 +612,8 @@ function StartPage() {
             setShowWhy={
               setShowWhy
             }
+            reviews={reviews}
+            proofs={proofs}
           />
         )}
 
@@ -779,6 +819,8 @@ function StartPage() {
             onStart={
               startSignup
             }
+            reviews={reviews}
+            proofs={proofs}
           />
         )}
       </div>
@@ -807,6 +849,8 @@ function Intro({
   onStart,
   showWhy,
   setShowWhy,
+  reviews,
+  proofs,
 }: {
   heroImage:
     StartHeroImage | null;
@@ -822,20 +866,23 @@ function Intro({
 
   setShowWhy:
     (value: boolean) => void;
+
+  reviews: PublicMarketingReview[];
+  proofs: PublicMarketingProof[];
 }) {
   return (
-    <main className="flex min-h-[100dvh] flex-col px-5 pb-10 pt-6 sm:px-7">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[1160px] flex-col px-5 pb-10 pt-6 sm:px-8 lg:px-10">
       <Brand />
 
       <div className="mt-5 h-[3px] w-5 rounded-full bg-[#18a85d]" />
 
-      <h1 className="mt-4 text-[43px] font-bold leading-[0.98] tracking-[-0.055em] sm:text-[50px]">
+      <h1 className="mt-4 max-w-[780px] text-[43px] font-bold leading-[0.98] tracking-[-0.055em] sm:text-[50px] lg:text-[64px]">
         Make money helping
         Nigerian businesses
         get online.
       </h1>
 
-      <p className="mt-4 max-w-[440px] text-[15px] leading-6 text-[#4f5953]">
+      <p className="mt-4 max-w-[560px] text-[15px] leading-6 text-[#4f5953] lg:text-[17px] lg:leading-7">
         You don't need to
         be a professional
         web designer.
@@ -847,7 +894,7 @@ function Intro({
         contact the owner.
       </p>
 
-      <div className="mt-5 rounded-2xl bg-[#e1f3df] p-4">
+      <div className="mt-5 max-w-[620px] rounded-2xl bg-[#e1f3df] p-4">
         <Benefit text="Find businesses that need websites" />
 
         <Benefit text="Make a website with Kodarai" />
@@ -860,7 +907,7 @@ function Intro({
         onClick={
           onStart
         }
-        className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-[#076b3a] px-5 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(6,83,48,0.16)] transition hover:bg-[#065f34] active:scale-[0.99]"
+        className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-[#076b3a] px-5 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(6,83,48,0.16)] transition hover:bg-[#065f34] active:scale-[0.99] lg:max-w-[360px]"
       >
         Show me how it works
 
@@ -909,7 +956,7 @@ function Intro({
         </div>
       )}
 
-      <div className="mt-7">
+      <div className="mt-7 lg:mt-10">
         <HeroPhoto
           image={
             heroImage
@@ -920,7 +967,7 @@ function Intro({
         />
       </div>
 
-      <SocialProof />
+      <SocialProof reviews={reviews} proofs={proofs} onStart={onStart} />
     </main>
   );
 }
@@ -970,7 +1017,7 @@ function HeroPhoto({
 
   return (
     <figure>
-      <div className="group relative h-[285px] overflow-hidden rounded-[28px] bg-[#dce8dc] shadow-[0_10px_30px_rgba(20,46,29,0.10)] sm:h-[315px]">
+      <div className="group relative h-[285px] overflow-hidden rounded-[28px] bg-[#dce8dc] shadow-[0_10px_30px_rgba(20,46,29,0.10)] sm:h-[315px] lg:h-[460px]">
         <picture>
           <source
             media="(max-width: 640px)"
@@ -1043,7 +1090,37 @@ function HeroPhoto({
   );
 }
 
-function SocialProof() {
+function SocialProof({
+  reviews,
+  proofs,
+  onStart,
+}: {
+  reviews: PublicMarketingReview[];
+  proofs: PublicMarketingProof[];
+  onStart: () => void;
+}) {
+  const [reviewApi, setReviewApi] = useState<CarouselApi>();
+  const [proofApi, setProofApi] = useState<CarouselApi>();
+  const [reviewPosition, setReviewPosition] = useState(0);
+  const [proofPosition, setProofPosition] = useState(0);
+  const rating = reviews.length ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length : null;
+
+  useEffect(() => { if (reviews.length) trackStartReviewsViewed(); }, [reviews.length]);
+  useEffect(() => { if (proofs.length) trackStartProofViewed(); }, [proofs.length]);
+  useEffect(() => {
+    if (!reviewApi) return;
+    const onSelect = () => { const index = reviewApi.selectedScrollSnap(); setReviewPosition(index); trackStartReviewChanged(index + 1); };
+    reviewApi.on("select", onSelect);
+    return () => { reviewApi.off("select", onSelect); };
+  }, [reviewApi]);
+  useEffect(() => {
+    if (!proofApi) return;
+    const onSelect = () => { const index = proofApi.selectedScrollSnap(); setProofPosition(index); trackStartProofChanged(index + 1, proofs[index]?.resultType); };
+    proofApi.on("select", onSelect);
+    return () => { proofApi.off("select", onSelect); };
+  }, [proofApi, proofs]);
+
+  if (!reviews.length && !proofs.length) return null;
   return (
     <section className="mt-8">
       <div className="flex items-center justify-between gap-4 border-y border-[#dfe4dd] py-4">
@@ -1064,57 +1141,51 @@ function SocialProof() {
           </div>
 
           <p className="mt-1 text-[12px] font-semibold text-[#26342b]">
-            What Kodarai
-            users are
-            saying
+            {rating && reviews.length >= 3
+              ? `${rating.toFixed(1)} out of 5 · Based on ${reviews.length} reviews`
+              : "What Kodarai users are saying"}
           </p>
         </div>
 
         <p className="max-w-[190px] text-right text-[11px] leading-4 text-[#6f7771]">
-          Freelancers and
-          agencies use
-          Kodarai to find
-          businesses and
-          build a stronger
-          sales pipeline.
+          See how people are finding businesses, making websites and getting paid.
         </p>
       </div>
 
-      <div className="-mx-5 mt-5 overflow-x-auto px-5 pb-2 sm:-mx-7 sm:px-7">
-        <div className="flex w-max gap-3">
-          {TESTIMONIALS.map(
-            (
-              testimonial,
-            ) => (
-              <TestimonialCard
-                key={
-                  testimonial.name
-                }
-                {...testimonial}
-              />
-            ),
-          )}
-        </div>
-      </div>
+      {reviews.length > 0 && <>
+        <Carousel
+          setApi={setReviewApi}
+          opts={{ align: "start", loop: reviews.length > 1 }}
+          plugins={reviews.length > 1 ? [Autoplay({ delay: 5000, stopOnInteraction: true, stopOnMouseEnter: true })] : []}
+          className="mt-5"
+        >
+          <CarouselContent className="-ml-3">
+            {reviews.map((review) => (
+              <CarouselItem key={review.id} className="basis-[88%] pl-3 sm:basis-1/2 lg:basis-1/3">
+                <TestimonialCard review={review} />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          {reviews.length > 1 && <div className="mt-4 hidden justify-end gap-2 lg:flex"><CarouselPrevious className="static translate-y-0" /><CarouselNext className="static translate-y-0" /></div>}
+        </Carousel>
+        {reviews.length > 1 && <CarouselDots count={reviews.length} current={reviewPosition} onClick={(index) => reviewApi?.scrollTo(index)} />}
+      </>}
 
-      <p className="mt-3 text-center text-[10px] text-[#8a918c]">
-        Swipe to read more
-      </p>
+      {proofs.length > 0 && <ProofGallery proofs={proofs} api={proofApi} setApi={setProofApi} current={proofPosition} onStart={onStart} />}
     </section>
   );
 }
 
 function TestimonialCard({
-  quote,
-  name,
-  role,
+  review,
   compact = false,
 }: {
-  quote: string;
-  name: string;
-  role: string;
+  review: PublicMarketingReview;
   compact?: boolean;
 }) {
+  const role = [review.role, review.location].filter(Boolean).join(" · ");
+  const quote = review.reviewText;
+  const name = review.name;
   return (
     <figure
       className={
@@ -1125,7 +1196,7 @@ function TestimonialCard({
     >
       <div className="flex items-center gap-0.5 text-[#e8a317]">
         {Array.from({
-          length: 5,
+          length: review.rating,
         }).map(
           (_, index) => (
             <Star
@@ -1147,23 +1218,33 @@ function TestimonialCard({
       </blockquote>
 
       <figcaption className="mt-4 flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e5f3e7] text-[12px] font-bold text-[#087542]">
-          {name.charAt(0)}
-        </span>
+        {review.photoUrl ? <img src={review.photoUrl} alt={review.name} loading="lazy" className="size-9 shrink-0 rounded-full object-cover" /> : <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e5f3e7] text-[12px] font-bold text-[#087542]">{name.charAt(0)}</span>}
 
         <span className="min-w-0">
           <span className="block text-[12px] font-semibold text-[#172019]">
-            {name}
+            {review.name}
           </span>
 
-          <span className="mt-0.5 block text-[10px] leading-4 text-[#7a827c]">
-            {role}
-          </span>
+          {role && <span className="mt-0.5 block text-[10px] leading-4 text-[#7a827c]">{role}</span>}
         </span>
       </figcaption>
     </figure>
   );
 }
+
+function CarouselDots({ count, current, onClick }: { count: number; current: number; onClick: (index: number) => void }) {
+  return <div className="mt-4 flex justify-center gap-2">{Array.from({ length: count }).map((_, index) => <button type="button" key={index} onClick={() => onClick(index)} aria-label={`Go to slide ${index + 1}`} className={`h-2 rounded-full transition-all ${index === current ? "w-5 bg-[#087542]" : "w-2 bg-[#aab5ac]"}`} />)}</div>;
+}
+
+function ProofGallery({ proofs, api, setApi, current, onStart }: { proofs: PublicMarketingProof[]; api: CarouselApi | undefined; setApi: (api: CarouselApi) => void; current: number; onStart: () => void }) {
+  return <section className="mt-9 rounded-[24px] bg-[#e8f2e7] p-4 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#13864d]">Real proof</p><h2 className="mt-1 text-[24px] font-bold tracking-[-0.045em]">See people getting results</h2><p className="mt-2 max-w-md text-[13px] leading-5 text-[#536158]">They found a business, made something to show the owner, and got a real result.</p></div><button type="button" onClick={() => { trackStartProofCtaClicked(); onStart(); }} className="hidden min-h-10 items-center gap-2 rounded-lg border border-[#c8dac9] bg-white px-3 text-[12px] font-semibold text-[#075936] sm:inline-flex">Start now <ArrowRight className="size-4" /></button></div><Carousel setApi={setApi} opts={{ align: "start", loop: proofs.length > 1 }} plugins={proofs.length > 1 ? [Autoplay({ delay: 5500, stopOnInteraction: true, stopOnMouseEnter: true })] : []} className="mt-5"><CarouselContent className="-ml-3">{proofs.map((proof) => <CarouselItem key={proof.id} className="basis-[92%] pl-3 sm:basis-[58%] lg:basis-1/3"><ProofCard proof={proof} /></CarouselItem>)}</CarouselContent>{proofs.length > 1 && <div className="mt-4 hidden justify-end gap-2 lg:flex"><CarouselPrevious className="static translate-y-0 bg-white" /><CarouselNext className="static translate-y-0 bg-white" /></div>}</Carousel>{proofs.length > 1 && <CarouselDots count={proofs.length} current={current} onClick={(index) => api?.scrollTo(index)} />}</section>;
+}
+
+function ProofCard({ proof }: { proof: PublicMarketingProof }) {
+  return <article className="h-full overflow-hidden rounded-2xl border border-[#d6e1d5] bg-white shadow-[0_5px_18px_rgba(24,37,28,0.06)]">{proof.proofImageUrl && <div className="aspect-[4/3] bg-[#f5f6f3]"><img src={proof.proofImageUrl} alt={proof.proofAlt || `${proof.name}'s proof of work`} loading="lazy" className="h-full w-full object-contain" /></div>}<div className="p-4"><p className="text-[12px] font-semibold text-[#526057]">{proof.name}{proof.location ? ` · ${proof.location}` : ""}</p><h3 className="mt-1 text-[16px] font-bold tracking-[-0.025em]">{proof.headline}</h3>{proof.description && <p className="mt-2 text-[12px] leading-5 text-[#68716b]">{proof.description}</p>}{proof.quote && <p className="mt-3 border-l-2 border-[#b6d8ba] pl-3 text-[12px] italic leading-5 text-[#526057]">“{proof.quote}”</p>}{proof.resultAmount != null && <p className="mt-3 inline-flex rounded-full bg-[#e5f3e7] px-2.5 py-1 text-[12px] font-bold text-[#087542]">{formatProofAmount(proof.resultAmount, proof.currency)}</p>}</div></article>;
+}
+
+function formatProofAmount(amount: number, currency: string | null) { try { return new Intl.NumberFormat("en-NG", { style: "currency", currency: currency || "NGN", maximumFractionDigits: 0 }).format(amount); } catch { return `${currency ?? ""} ${amount.toLocaleString()}`.trim(); } }
 
 function Benefit({
   text,
@@ -1204,7 +1285,7 @@ function QuestionShell({
     ReactNode;
 }) {
   return (
-    <main className="min-h-[100dvh] px-5 pb-10 pt-5 sm:px-7">
+    <main className="mx-auto min-h-[100dvh] w-full max-w-[720px] px-5 pb-10 pt-5 sm:px-7">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -1354,6 +1435,8 @@ function Result({
   answers,
   onBack,
   onStart,
+  reviews,
+  proofs,
 }: {
   answers:
     FunnelAnswers;
@@ -1363,6 +1446,9 @@ function Result({
 
   onStart:
     () => void;
+
+  reviews: PublicMarketingReview[];
+  proofs: PublicMarketingProof[];
 }) {
   const goal =
     Number(
@@ -1415,7 +1501,7 @@ function Result({
     }, [goal]);
 
   return (
-    <main className="min-h-[100dvh] px-5 pb-10 pt-5 sm:px-7">
+    <main className="mx-auto min-h-[100dvh] w-full max-w-[760px] px-5 pb-10 pt-5 sm:px-7">
       <button
         type="button"
         onClick={
@@ -1507,7 +1593,7 @@ function Result({
         />
       </div>
 
-      <ResultProof />
+      <ResultProof reviews={reviews} proofs={proofs} />
 
       <button
         type="button"
@@ -1544,15 +1630,10 @@ function Result({
   );
 }
 
-function ResultProof() {
-  const selected =
-    TESTIMONIALS.filter(
-      (testimonial) =>
-        testimonial.name ===
-          "Daniel O." ||
-        testimonial.name ===
-          "Amara N.",
-    );
+function ResultProof({ reviews, proofs }: { reviews: PublicMarketingReview[]; proofs: PublicMarketingProof[] }) {
+  const selected = reviews.slice(0, 1);
+  const proof = proofs[0];
+  if (!selected.length && !proof) return null;
 
   return (
     <section className="mt-8 border-t border-[#dfe4dd] pt-7">
@@ -1593,19 +1674,8 @@ function ResultProof() {
       </p>
 
       <div className="mt-4 space-y-3">
-        {selected.map(
-          (
-            testimonial,
-          ) => (
-            <TestimonialCard
-              key={
-                testimonial.name
-              }
-              {...testimonial}
-              compact
-            />
-          ),
-        )}
+        {selected.map((review) => <TestimonialCard key={review.id} review={review} compact />)}
+        {proof && <div className="overflow-hidden rounded-2xl border border-[#e0e5df] bg-white"><div className="flex items-center gap-3 p-3">{proof.proofImageUrl && <img src={proof.proofImageUrl} alt={proof.proofAlt || `${proof.name}'s proof of work`} loading="lazy" className="size-16 rounded-lg border bg-[#f5f6f3] object-contain" />}<div><p className="text-[12px] font-semibold">{proof.headline}</p><p className="mt-1 text-[11px] leading-4 text-[#68716b]">{proof.name}{proof.location ? ` · ${proof.location}` : ""}</p>{proof.resultAmount != null && <p className="mt-1 text-[11px] font-bold text-[#087542]">{formatProofAmount(proof.resultAmount, proof.currency)}</p>}</div></div></div>}
       </div>
 
       <div className="mt-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-[#dfe5df] bg-white">
