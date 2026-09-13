@@ -1,23 +1,16 @@
-import {
-  createFileRoute,
-} from "@tanstack/react-router";
-
-import {
-  useServerFn,
-} from "@tanstack/react-start";
+import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 
 import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
   Check,
-  ChevronDown,
   ChevronRight,
   CircleDollarSign,
   GraduationCap,
   ImageIcon,
   Laptop,
-  Lightbulb,
   MessageCircle,
   Search,
   Star,
@@ -28,6 +21,7 @@ import {
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -70,34 +64,25 @@ import {
   trackStartReviewsViewed,
 } from "@/lib/analytics";
 
-export const Route =
-  createFileRoute(
-    "/start",
-  )({
-    head: () => ({
-      meta: [
-        {
-          title:
-            "Make Money Helping Businesses Get Online — Kodarai",
-        },
-
-        {
-          name: "description",
-
-          content:
-            "Find businesses that need websites, create something to show them, sell it and get paid with Kodarai.",
-        },
-
-        {
-          name: "robots",
-          content:
-            "noindex,follow",
-        },
-      ],
-    }),
-
-    component: StartPage,
-  });
+export const Route = createFileRoute("/start")({
+  head: () => ({
+    meta: [
+      {
+        title: "Find Businesses. Make Websites. Get Paid — Kodarai",
+      },
+      {
+        name: "description",
+        content:
+          "KodarAI helps you find businesses that need websites, make something to show them and turn that opportunity into paid work.",
+      },
+      {
+        name: "robots",
+        content: "noindex,follow",
+      },
+    ],
+  }),
+  component: StartPage,
+});
 
 type Experience =
   | "builder"
@@ -126,231 +111,101 @@ type FunnelAnswers = {
 type FunnelData =
   FunnelAnswers & {
     source: "ads";
-
     utm_source?: string;
     utm_medium?: string;
     utm_campaign?: string;
     utm_content?: string;
     utm_term?: string;
-
     created_at: string;
   };
 
 const EXPERIENCE_OPTIONS = [
   {
-    value:
-      "beginner" as const,
-
-    title:
-      "I don't know how to build websites",
-
+    value: "beginner" as const,
+    title: "I don't know how to build websites",
     description:
-      "I just want a simple way to start making money online.",
-
-    icon:
-      GraduationCap,
+      "I just want a simple way to start and learn as I go.",
+    icon: GraduationCap,
   },
-
   {
-    value:
-      "learning" as const,
-
-    title:
-      "I'm still learning",
-
+    value: "learning" as const,
+    title: "I'm still learning",
     description:
       "I know a little, but I haven't really made money from it.",
-
-    icon:
-      User,
+    icon: User,
   },
-
   {
-    value:
-      "builder" as const,
-
-    title:
-      "I already build websites",
-
+    value: "builder" as const,
+    title: "I already build websites",
     description:
       "I know how to build. I need businesses to sell to.",
-
-    icon:
-      Laptop,
+    icon: Laptop,
   },
-
   {
-    value:
-      "agency" as const,
-
-    title:
-      "I run a web design business",
-
+    value: "agency" as const,
+    title: "I run a web design business",
     description:
-      "I want more customers.",
-
-    icon:
-      Users,
+      "I want more businesses to contact and more chances to close deals.",
+    icon: Users,
   },
 ];
 
 const GOAL_OPTIONS = [
   {
-    value:
-      "100000" as const,
-
-    title:
-      "₦100,000",
+    value: "100000" as const,
+    title: "₦100,000",
   },
-
   {
-    value:
-      "250000" as const,
-
-    title:
-      "₦250,000",
+    value: "250000" as const,
+    title: "₦250,000",
   },
-
   {
-    value:
-      "500000" as const,
-
-    title:
-      "₦500,000",
+    value: "500000" as const,
+    title: "₦500,000",
   },
-
   {
-    value:
-      "1000000" as const,
-
-    title:
-      "₦1,000,000+",
+    value: "1000000" as const,
+    title: "₦1,000,000+",
   },
 ];
 
 const SITUATION_OPTIONS = [
   {
-    value:
-      "no_idea" as const,
-
-    title:
-      "I don't know where to start",
-
+    value: "no_idea" as const,
+    title: "I don't know where to start",
     description:
-      "I need someone to show me the steps.",
-
-    icon:
-      Search,
+      "I need the steps broken down for me.",
+    icon: Search,
   },
-
   {
-    value:
-      "finding_people" as const,
-
-    title:
-      "I don't know who to sell to",
-
+    value: "finding_people" as const,
+    title: "I don't know who to sell to",
     description:
-      "Finding businesses that might pay me is the problem.",
-
-    icon:
-      Users,
+      "Finding businesses that might need a website is the hard part.",
+    icon: Users,
   },
-
   {
-    value:
-      "no_sales" as const,
-
-    title:
-      "People don't reply to me",
-
+    value: "no_sales" as const,
+    title: "People don't reply to me",
     description:
-      "I need a better way to show them what I can do.",
-
-    icon:
-      MessageCircle,
+      "I need a better way to show businesses what I can do.",
+    icon: MessageCircle,
   },
-
   {
-    value:
-      "need_more" as const,
-
-    title:
-      "I just need more customers",
-
+    value: "need_more" as const,
+    title: "I just need more customers",
     description:
-      "I already understand the business. I need more opportunities.",
-
-    icon:
-      BarChart3,
+      "I understand the business already. I need more opportunities.",
+    icon: BarChart3,
   },
 ];
 
-/* Legacy draft copy retained only as non-executable historical context. Public social proof is admin-managed.
-const TESTIMONIALS = [
-  {
-    quote:
-      "I closed 3 local restaurants in my first week. The AI prompts let me ship demo sites the same day I called.",
-
-    name:
-      "Daniel O.",
-
-    role:
-      "Freelance Web Designer · Lagos",
-  },
-
-  {
-    quote:
-      "The no-website filter is gold. No more wasting hours checking if businesses already have a site.",
-
-    name:
-      "Sarah M.",
-
-    role:
-      "Agency Owner · Austin, TX",
-  },
-
-  {
-    quote:
-      "Cold-call scripts removed my anxiety. I sound prepared and the leads are actually relevant.",
-
-    name:
-      "James K.",
-
-    role:
-      "Developer · Manchester, UK",
-  },
-
-  {
-    quote:
-      "Went from 0 to 6 retainer clients in two months. Kodarai basically became my sales team.",
-
-    name:
-      "Amara N.",
-
-    role:
-      "Studio Founder · Abuja",
-  },
-
-  {
-    quote:
-      "Clean, fast, and the data is accurate. The pipeline keeps every prospect in one place.",
-
-    name:
-      "Marco V.",
-
-    role:
-      "Freelancer · Toronto",
-  },
-]; */
-
 function StartPage() {
   const runGetHeroImage =
-    useServerFn(
-      getStartHeroImage,
-    );
+    useServerFn(getStartHeroImage);
 
-  const runGetSocialProof = useServerFn(getPublishedSocialProof);
+  const runGetSocialProof =
+    useServerFn(getPublishedSocialProof);
 
   const [step, setStep] =
     useState(0);
@@ -359,9 +214,7 @@ function StartPage() {
     answers,
     setAnswers,
   ] =
-    useState<FunnelAnswers>(
-      {},
-    );
+    useState<FunnelAnswers>({});
 
   const [
     attribution,
@@ -370,12 +223,6 @@ function StartPage() {
     useState<
       Record<string, string>
     >({});
-
-  const [
-    showWhy,
-    setShowWhy,
-  ] =
-    useState(false);
 
   const [
     heroImage,
@@ -391,8 +238,21 @@ function StartPage() {
   ] =
     useState(true);
 
-  const [reviews, setReviews] = useState<PublicMarketingReview[]>([]);
-  const [proofs, setProofs] = useState<PublicMarketingProof[]>([]);
+  const [
+    reviews,
+    setReviews,
+  ] =
+    useState<
+      PublicMarketingReview[]
+    >([]);
+
+  const [
+    proofs,
+    setProofs,
+  ] =
+    useState<
+      PublicMarketingProof[]
+    >([]);
 
   useEffect(() => {
     trackFunnelViewed();
@@ -423,9 +283,7 @@ function StartPage() {
       }
     });
 
-    setAttribution(
-      values,
-    );
+    setAttribution(values);
   }, []);
 
   useEffect(() => {
@@ -467,13 +325,33 @@ function StartPage() {
   }, [runGetHeroImage]);
 
   useEffect(() => {
-    let cancelled = false;
-    runGetSocialProof().then((result) => {
-      if (cancelled) return;
-      setReviews(result.reviews);
-      setProofs(result.proofs);
-    }).catch((error) => console.error("[KodarAI start] Could not load social proof:", error));
-    return () => { cancelled = true; };
+    let cancelled =
+      false;
+
+    runGetSocialProof()
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+
+        setReviews(
+          result.reviews,
+        );
+
+        setProofs(
+          result.proofs,
+        );
+      })
+      .catch((error) => {
+        console.error(
+          "[KodarAI start] Could not load social proof:",
+          error,
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [runGetSocialProof]);
 
   const saveAnswers = (
@@ -483,39 +361,53 @@ function StartPage() {
     const payload:
       FunnelData = {
       ...nextAnswers,
-
       source: "ads",
-
       ...attribution,
-
       created_at:
         new Date().toISOString(),
     };
 
-    saveFunnelAttribution(payload);
+    saveFunnelAttribution(
+      payload,
+    );
   };
+
+  const beginQuestions =
+    () => {
+      trackFunnelStarted();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+
+      setStep(1);
+    };
 
   const chooseExperience = (
     value: Experience,
   ) => {
     const next = {
       ...answers,
-
-      experience:
-        value,
+      experience: value,
     };
 
     setAnswers(next);
-
     saveAnswers(next);
 
-    trackFunnelExperienceSelected(value);
+    trackFunnelExperienceSelected(
+      value,
+    );
 
     window.setTimeout(
       () => {
         setStep(2);
-      },
 
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      },
       140,
     );
   };
@@ -525,21 +417,25 @@ function StartPage() {
   ) => {
     const next = {
       ...answers,
-
       goal: value,
     };
 
     setAnswers(next);
-
     saveAnswers(next);
 
-    trackFunnelGoalSelected(value);
+    trackFunnelGoalSelected(
+      value,
+    );
 
     window.setTimeout(
       () => {
         setStep(3);
-      },
 
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      },
       140,
     );
   };
@@ -549,16 +445,15 @@ function StartPage() {
   ) => {
     const next = {
       ...answers,
-
-      situation:
-        value,
+      situation: value,
     };
 
     setAnswers(next);
-
     saveAnswers(next);
 
-    trackFunnelSituationSelected(value);
+    trackFunnelSituationSelected(
+      value,
+    );
 
     trackFunnelCompleted({
       ...next,
@@ -569,8 +464,12 @@ function StartPage() {
     window.setTimeout(
       () => {
         setStep(4);
-      },
 
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      },
       140,
     );
   };
@@ -593,264 +492,204 @@ function StartPage() {
 
   return (
     <div className="min-h-[100dvh] bg-[#f8f7f1] text-[#10140f]">
-      <div className="mx-auto w-full max-w-[1180px]">
-        {step === 0 && (
-          <Intro
-            heroImage={
-              heroImage
-            }
-            heroLoading={
-              heroLoading
-            }
-            onStart={() => {
-              trackFunnelStarted();
-              setStep(1);
-            }}
-            showWhy={
-              showWhy
-            }
-            setShowWhy={
-              setShowWhy
-            }
-            reviews={reviews}
-            proofs={proofs}
-          />
-        )}
+      {step === 0 && (
+        <IntroPage
+          heroImage={
+            heroImage
+          }
+          heroLoading={
+            heroLoading
+          }
+          reviews={
+            reviews
+          }
+          proofs={
+            proofs
+          }
+          onStart={
+            beginQuestions
+          }
+        />
+      )}
 
-        {step === 1 && (
-          <QuestionShell
-            step={1}
-            title="Which one sounds like you?"
-            subtitle="Pick the closest answer. You don't need any experience to start."
-            onBack={() =>
-              setStep(0)
-            }
-          >
-            <div className="space-y-3">
-              {EXPERIENCE_OPTIONS.map(
-                (option) => (
-                  <ChoiceCard
-                    key={
-                      option.value
-                    }
-                    title={
-                      option.title
-                    }
-                    description={
-                      option.description
-                    }
-                    icon={
-                      option.icon
-                    }
-                    selected={
-                      answers.experience ===
-                      option.value
-                    }
-                    onClick={() =>
-                      chooseExperience(
-                        option.value,
-                      )
-                    }
-                  />
-                ),
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setShowWhy(
-                  (current) =>
-                    !current,
-                )
-              }
-              className="mx-auto mt-8 flex items-center gap-1 text-sm font-medium text-[#26352d] underline decoration-black/25 underline-offset-4"
-            >
-              Why websites?
-
-              <ChevronDown
-                className={`size-4 transition ${
-                  showWhy
-                    ? "rotate-180"
-                    : ""
-                }`}
-              />
-            </button>
-
-            {showWhy && (
-              <div className="mt-4 rounded-2xl border border-[#dfe6dd] bg-white p-4 text-sm leading-6 text-[#5b655f] shadow-sm">
-                Many
-                businesses
-                still need a
-                better
-                website. You
-                can find one,
-                create
-                something
-                useful for
-                them, show
-                the owner and
-                agree on a
-                price if they
-                want it.
-              </div>
+      {step === 1 && (
+        <QuestionShell
+          step={1}
+          title="Which one sounds like you?"
+          subtitle="Pick the closest answer. You don't need any experience to start."
+          onBack={() =>
+            setStep(0)
+          }
+        >
+          <div className="space-y-3">
+            {EXPERIENCE_OPTIONS.map(
+              (option) => (
+                <ChoiceCard
+                  key={
+                    option.value
+                  }
+                  title={
+                    option.title
+                  }
+                  description={
+                    option.description
+                  }
+                  icon={
+                    option.icon
+                  }
+                  selected={
+                    answers.experience ===
+                    option.value
+                  }
+                  onClick={() =>
+                    chooseExperience(
+                      option.value,
+                    )
+                  }
+                />
+              ),
             )}
-          </QuestionShell>
-        )}
+          </div>
+        </QuestionShell>
+      )}
 
-        {step === 2 && (
-          <QuestionShell
-            step={2}
-            title="How much would you like to make each month?"
-            subtitle="Not a promise — just the income you're working towards."
-            onBack={() =>
-              setStep(1)
+      {step === 2 && (
+        <QuestionShell
+          step={2}
+          title="How much would you like to make each month?"
+          subtitle="This is only a target — not a promise or guarantee."
+          onBack={() =>
+            setStep(1)
+          }
+        >
+          <div className="space-y-3">
+            {GOAL_OPTIONS.map(
+              (option) => (
+                <MoneyCard
+                  key={
+                    option.value
+                  }
+                  amount={
+                    option.title
+                  }
+                  selected={
+                    answers.goal ===
+                    option.value
+                  }
+                  onClick={() =>
+                    chooseGoal(
+                      option.value,
+                    )
+                  }
+                />
+              ),
+            )}
+          </div>
+
+          <div className="mt-6 flex gap-3 rounded-2xl bg-[#e6f5e8] p-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-[#16924f]">
+              <CircleDollarSign className="size-5" />
+            </div>
+
+            <p className="text-[13px] leading-5 text-[#385344]">
+              You don't
+              need hundreds
+              of customers.
+              A few website
+              jobs can add
+              up depending
+              on what you
+              charge and
+              the deals you
+              close.
+            </p>
+          </div>
+        </QuestionShell>
+      )}
+
+      {step === 3 && (
+        <QuestionShell
+          step={3}
+          title="What's stopping you right now?"
+          subtitle="This helps us show you the easiest place to begin."
+          onBack={() =>
+            setStep(2)
+          }
+        >
+          <div className="space-y-3">
+            {SITUATION_OPTIONS.map(
+              (option) => (
+                <ChoiceCard
+                  key={
+                    option.value
+                  }
+                  title={
+                    option.title
+                  }
+                  description={
+                    option.description
+                  }
+                  icon={
+                    option.icon
+                  }
+                  selected={
+                    answers.situation ===
+                    option.value
+                  }
+                  onClick={() =>
+                    chooseSituation(
+                      option.value,
+                    )
+                  }
+                />
+              ),
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              chooseSituation(
+                answers.situation ??
+                  "no_idea",
+              )
             }
+            className="mx-auto mt-8 block text-sm text-[#334339] underline decoration-black/25 underline-offset-4"
           >
-            <div className="space-y-3">
-              {GOAL_OPTIONS.map(
-                (option) => (
-                  <MoneyCard
-                    key={
-                      option.value
-                    }
-                    amount={
-                      option.title
-                    }
-                    selected={
-                      answers.goal ===
-                      option.value
-                    }
-                    onClick={() =>
-                      chooseGoal(
-                        option.value,
-                      )
-                    }
-                  />
-                ),
-              )}
-            </div>
+            Skip this question
+          </button>
+        </QuestionShell>
+      )}
 
-            <div className="mt-6 flex gap-3 rounded-2xl bg-[#e6f5e8] p-4">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-[#16924f]">
-                <Lightbulb className="size-5" />
-              </div>
-
-              <p className="text-[13px] leading-5 text-[#385344]">
-                You don't
-                need many
-                customers.
-                A few
-                website
-                sales can
-                add up
-                quickly
-                depending
-                on what
-                you charge.
-              </p>
-            </div>
-          </QuestionShell>
-        )}
-
-        {step === 3 && (
-          <QuestionShell
-            step={3}
-            title="What's the biggest problem right now?"
-            subtitle="This helps us show you the easiest place to begin."
-            onBack={() =>
-              setStep(2)
-            }
-          >
-            <div className="space-y-3">
-              {SITUATION_OPTIONS.map(
-                (option) => (
-                  <ChoiceCard
-                    key={
-                      option.value
-                    }
-                    title={
-                      option.title
-                    }
-                    description={
-                      option.description
-                    }
-                    icon={
-                      option.icon
-                    }
-                    selected={
-                      answers.situation ===
-                      option.value
-                    }
-                    onClick={() =>
-                      chooseSituation(
-                        option.value,
-                      )
-                    }
-                  />
-                ),
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                chooseSituation(
-                  answers.situation ??
-                    "no_idea",
-                )
-              }
-              className="mx-auto mt-8 block text-sm text-[#334339] underline decoration-black/25 underline-offset-4"
-            >
-              Skip this
-              question
-            </button>
-          </QuestionShell>
-        )}
-
-        {step === 4 && (
-          <Result
-            answers={
-              answers
-            }
-            onBack={() =>
-              setStep(3)
-            }
-            onStart={
-              startSignup
-            }
-            reviews={reviews}
-            proofs={proofs}
-          />
-        )}
-      </div>
+      {step === 4 && (
+        <Result
+          answers={
+            answers
+          }
+          reviews={
+            reviews
+          }
+          proofs={
+            proofs
+          }
+          onBack={() =>
+            setStep(3)
+          }
+          onStart={
+            startSignup
+          }
+        />
+      )}
     </div>
   );
 }
 
-function Brand() {
-  return (
-    <a
-      href="/"
-      className="inline-flex items-center text-[23px] font-bold tracking-[-0.05em] text-[#111611]"
-    >
-      Kodar
-
-      <span className="text-[#11a55b]">
-        AI
-      </span>
-    </a>
-  );
-}
-
-function Intro({
+function IntroPage({
   heroImage,
   heroLoading,
-  onStart,
-  showWhy,
-  setShowWhy,
   reviews,
   proofs,
+  onStart,
 }: {
   heroImage:
     StartHeroImage | null;
@@ -858,117 +697,167 @@ function Intro({
   heroLoading:
     boolean;
 
+  reviews:
+    PublicMarketingReview[];
+
+  proofs:
+    PublicMarketingProof[];
+
   onStart:
     () => void;
-
-  showWhy:
-    boolean;
-
-  setShowWhy:
-    (value: boolean) => void;
-
-  reviews: PublicMarketingReview[];
-  proofs: PublicMarketingProof[];
 }) {
+  const howRef =
+    useRef<HTMLDivElement | null>(
+      null,
+    );
+
+  const scrollToHow =
+    () => {
+      howRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[1160px] flex-col px-5 pb-10 pt-6 sm:px-8 lg:px-10">
-      <Brand />
+    <main className="overflow-hidden">
+      <section className="mx-auto w-full max-w-[1180px] px-5 pb-12 pt-6 sm:px-8 lg:px-10 lg:pb-20 lg:pt-8">
+        <Brand />
 
-      <div className="mt-5 h-[3px] w-5 rounded-full bg-[#18a85d]" />
+        <div className="mt-8 lg:grid lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-14">
+          <div>
+            <Pill>
+              Real businesses.
+              Real opportunity.
+            </Pill>
 
-      <h1 className="mt-4 max-w-[780px] text-[43px] font-bold leading-[0.98] tracking-[-0.055em] sm:text-[50px] lg:text-[64px]">
-        Make money helping
-        Nigerian businesses
-        get online.
-      </h1>
+            <h1 className="mt-4 max-w-[680px] text-[44px] font-bold leading-[0.96] tracking-[-0.06em] text-[#111611] sm:text-[58px] lg:text-[72px]">
+              Find businesses.
+              <br />
+              Make them a
+              website.
+              <br />
+              <span className="text-[#079653]">
+                Get paid.
+              </span>
+            </h1>
 
-      <p className="mt-4 max-w-[560px] text-[15px] leading-6 text-[#4f5953] lg:text-[17px] lg:leading-7">
-        You don't need to
-        be a professional
-        web designer.
-        Kodarai helps you
-        find businesses
-        that need a
-        website, create
-        one for them, and
-        contact the owner.
-      </p>
+            <p className="mt-5 max-w-[560px] text-[15px] leading-6 text-[#536059] sm:text-[17px] sm:leading-7">
+              Kodarai shows
+              you businesses
+              that need
+              websites. You
+              can make a
+              website for
+              them, show it
+              to the owner
+              and sell it.
+            </p>
 
-      <div className="mt-5 max-w-[620px] rounded-2xl bg-[#e1f3df] p-4">
-        <Benefit text="Find businesses that need websites" />
+            <p className="mt-3 text-[14px] font-semibold text-[#25342b]">
+              You don't need
+              to know how to
+              code.
+            </p>
 
-        <Benefit text="Make a website with Kodarai" />
+            <button
+              type="button"
+              onClick={
+                scrollToHow
+              }
+              className="mt-6 flex min-h-[58px] w-full max-w-[420px] items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white shadow-[0_10px_24px_rgba(7,150,83,0.17)] transition hover:bg-[#078549] active:scale-[0.99]"
+            >
+              Show me how it works
 
-        <Benefit text="Sell it and get paid" />
+              <ArrowRight className="size-4" />
+            </button>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-[#727d75]">
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-[#0a9451]" />
+                Free to get started
+              </span>
+
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-[#0a9451]" />
+                Takes about 30 seconds
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-8 lg:mt-0">
+            <HeroPhoto
+              image={
+                heroImage
+              }
+              loading={
+                heroLoading
+              }
+            />
+          </div>
+        </div>
+      </section>
+
+      <div
+        ref={
+          howRef
+        }
+      >
+        <HowItWorks />
       </div>
 
-      <button
-        type="button"
-        onClick={
+      <ReviewsSection
+        reviews={
+          reviews
+        }
+      />
+
+      <ProofGallerySection
+        proofs={
+          proofs
+        }
+        onStart={
           onStart
         }
-        className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-[#076b3a] px-5 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(6,83,48,0.16)] transition hover:bg-[#065f34] active:scale-[0.99] lg:max-w-[360px]"
-      >
-        Show me how it works
+      />
 
-        <ArrowRight className="size-4" />
-      </button>
-
-      <p className="mt-3 text-center text-[11px] text-[#7b827d]">
-        Free to get
-        started · Takes
-        30 seconds
-      </p>
-
-      <button
-        type="button"
-        onClick={() =>
-          setShowWhy(
-            !showWhy,
-          )
+      <FinalIntroCta
+        reviews={
+          reviews
         }
-        className="mt-5 flex items-center justify-center gap-1 text-xs font-medium text-[#4b5c51]"
-      >
-        Why this works
-
-        <ChevronDown
-          className={`size-4 transition ${
-            showWhy
-              ? "rotate-180"
-              : ""
-          }`}
-        />
-      </button>
-
-      {showWhy && (
-        <div className="mt-3 rounded-2xl border border-[#dfe4dd] bg-white p-4 text-sm leading-6 text-[#5a645e] shadow-sm">
-          The model is
-          simple: find a
-          business that
-          needs a better
-          website, make
-          something useful
-          to show them,
-          contact the owner,
-          then agree on a
-          price if they want
-          to work with you.
-        </div>
-      )}
-
-      <div className="mt-7 lg:mt-10">
-        <HeroPhoto
-          image={
-            heroImage
-          }
-          loading={
-            heroLoading
-          }
-        />
-      </div>
-
-      <SocialProof reviews={reviews} proofs={proofs} onStart={onStart} />
+        onStart={
+          onStart
+        }
+      />
     </main>
+  );
+}
+
+function Brand() {
+  return (
+    <a
+      href="/"
+      className="inline-flex items-center text-[24px] font-bold tracking-[-0.055em] text-[#111611]"
+    >
+      Kodar
+
+      <span className="text-[#0aa45a]">
+        AI
+      </span>
+    </a>
+  );
+}
+
+function Pill({
+  children,
+}: {
+  children:
+    ReactNode;
+}) {
+  return (
+    <span className="inline-flex rounded-full bg-[#e4f4e6] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#15854d]">
+      {children}
+    </span>
   );
 }
 
@@ -982,29 +871,19 @@ function HeroPhoto({
   loading:
     boolean;
 }) {
-  if (
-    loading
-  ) {
+  if (loading) {
     return (
-      <div className="relative h-[285px] overflow-hidden rounded-[28px] bg-[#dce8dc]">
+      <div className="relative h-[360px] overflow-hidden rounded-[28px] bg-[#dce8dc] sm:h-[430px] lg:h-[560px]">
         <div className="absolute inset-0 animate-pulse bg-[#dce8dc]" />
-
-        <div className="absolute inset-x-5 bottom-5">
-          <div className="h-4 w-32 rounded bg-white/40" />
-
-          <div className="mt-2 h-4 w-24 rounded bg-white/30" />
-        </div>
       </div>
     );
   }
 
-  if (
-    !image
-  ) {
+  if (!image) {
     return (
-      <div className="relative flex h-[260px] items-center justify-center overflow-hidden rounded-[28px] bg-[#dce8dc]">
+      <div className="flex h-[360px] items-center justify-center rounded-[28px] bg-[#dce8dc] sm:h-[430px] lg:h-[560px]">
         <div className="text-center text-[#486050]">
-          <ImageIcon className="mx-auto size-7" />
+          <ImageIcon className="mx-auto size-8" />
 
           <p className="mt-3 text-sm font-semibold">
             Find. Build.
@@ -1017,7 +896,7 @@ function HeroPhoto({
 
   return (
     <figure>
-      <div className="group relative h-[285px] overflow-hidden rounded-[28px] bg-[#dce8dc] shadow-[0_10px_30px_rgba(20,46,29,0.10)] sm:h-[315px] lg:h-[460px]">
+      <div className="group relative h-[360px] overflow-hidden rounded-[28px] bg-[#dce8dc] shadow-[0_18px_45px_rgba(20,46,29,0.12)] sm:h-[430px] lg:h-[560px]">
         <picture>
           <source
             media="(max-width: 640px)"
@@ -1035,29 +914,24 @@ function HeroPhoto({
             }
             loading="eager"
             fetchPriority="high"
-            className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.02]"
+            className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.015]"
           />
         </picture>
 
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent px-5 pb-5 pt-24">
-          <p className="text-[16px] font-semibold leading-[1.35] text-white">
-            Real skills.
-            <br />
-            Real businesses.
-            <br />
-            Real opportunity.
-          </p>
-
-          <div className="mt-3 flex items-center gap-2 text-[12px] font-medium text-white/90">
-            <CircleDollarSign className="size-4" />
-
-            Start with
-            what you know
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent px-5 pb-5 pt-28">
+          <div className="ml-auto max-w-[220px] rounded-2xl bg-white/95 p-4 shadow-xl backdrop-blur-sm">
+            <p className="text-[18px] font-bold leading-[1.15] tracking-[-0.035em] text-[#172019]">
+              More businesses.
+              <br />
+              More chances.
+              <br />
+              More income.
+            </p>
           </div>
         </div>
       </div>
 
-      <figcaption className="mt-2 px-1 text-[10px] leading-4 text-black/35">
+      <figcaption className="mt-2 px-1 text-[10px] text-black/35">
         Photo by{" "}
 
         <a
@@ -1068,9 +942,7 @@ function HeroPhoto({
           rel="noopener noreferrer"
           className="underline underline-offset-2"
         >
-          {
-            image.photographer
-          }
+          {image.photographer}
         </a>{" "}
 
         on{" "}
@@ -1090,88 +962,343 @@ function HeroPhoto({
   );
 }
 
-function SocialProof({
-  reviews,
-  proofs,
-  onStart,
-}: {
-  reviews: PublicMarketingReview[];
-  proofs: PublicMarketingProof[];
-  onStart: () => void;
-}) {
-  const [reviewApi, setReviewApi] = useState<CarouselApi>();
-  const [proofApi, setProofApi] = useState<CarouselApi>();
-  const [reviewPosition, setReviewPosition] = useState(0);
-  const [proofPosition, setProofPosition] = useState(0);
-  const rating = reviews.length ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length : null;
+function HowItWorks() {
+  const steps = [
+    {
+      number: 1,
+      icon: Search,
+      title:
+        "Find a business",
+      text:
+        "We show you businesses in your area that may need a website.",
+    },
+    {
+      number: 2,
+      icon: Laptop,
+      title:
+        "Make them a website",
+      text:
+        "Use Kodarai to make something useful to show the business owner.",
+    },
+    {
+      number: 3,
+      icon: MessageCircle,
+      title:
+        "Show the owner",
+      text:
+        "Contact the business and show them what you made.",
+    },
+    {
+      number: 4,
+      icon: CircleDollarSign,
+      title:
+        "Get paid",
+      text:
+        "If they like it, agree on a price and sell the website.",
+    },
+  ];
 
-  useEffect(() => { if (reviews.length) trackStartReviewsViewed(); }, [reviews.length]);
-  useEffect(() => { if (proofs.length) trackStartProofViewed(); }, [proofs.length]);
-  useEffect(() => {
-    if (!reviewApi) return;
-    const onSelect = () => { const index = reviewApi.selectedScrollSnap(); setReviewPosition(index); trackStartReviewChanged(index + 1); };
-    reviewApi.on("select", onSelect);
-    return () => { reviewApi.off("select", onSelect); };
-  }, [reviewApi]);
-  useEffect(() => {
-    if (!proofApi) return;
-    const onSelect = () => { const index = proofApi.selectedScrollSnap(); setProofPosition(index); trackStartProofChanged(index + 1, proofs[index]?.resultType); };
-    proofApi.on("select", onSelect);
-    return () => { proofApi.off("select", onSelect); };
-  }, [proofApi, proofs]);
-
-  if (!reviews.length && !proofs.length) return null;
   return (
-    <section className="mt-8">
-      <div className="flex items-center justify-between gap-4 border-y border-[#dfe4dd] py-4">
-        <div>
-          <div className="flex items-center gap-0.5 text-[#e8a317]">
-            {Array.from({
-              length: 5,
-            }).map(
-              (_, index) => (
-                <Star
-                  key={
-                    index
-                  }
-                  className="size-4 fill-current"
-                />
-              ),
-            )}
-          </div>
+    <section className="border-y border-[#e5e6df] bg-white">
+      <div className="mx-auto w-full max-w-[960px] px-5 py-14 sm:px-8 sm:py-20">
+        <div className="text-center">
+          <Pill>
+            It's simple
+          </Pill>
 
-          <p className="mt-1 text-[12px] font-semibold text-[#26342b]">
-            {rating && reviews.length >= 3
-              ? `${rating.toFixed(1)} out of 5 · Based on ${reviews.length} reviews`
-              : "What Kodarai users are saying"}
+          <h2 className="mx-auto mt-4 max-w-[600px] text-[34px] font-bold leading-[1] tracking-[-0.05em] sm:text-[46px]">
+            Here's how it works.
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-[520px] text-[14px] leading-6 text-[#687169]">
+            You don't need
+            to be a
+            professional
+            web designer.
+            Just follow the
+            steps.
           </p>
         </div>
 
-        <p className="max-w-[190px] text-right text-[11px] leading-4 text-[#6f7771]">
-          See how people are finding businesses, making websites and getting paid.
-        </p>
-      </div>
+        <div className="mx-auto mt-9 max-w-[650px]">
+          {steps.map(
+            (
+              item,
+              index,
+            ) => {
+              const Icon =
+                item.icon;
 
-      {reviews.length > 0 && <>
+              return (
+                <div
+                  key={
+                    item.number
+                  }
+                  className="relative flex gap-4 pb-8 last:pb-0"
+                >
+                  {index <
+                    steps.length -
+                      1 && (
+                    <div className="absolute bottom-0 left-[19px] top-[40px] w-px bg-[#dbe5dc]" />
+                  )}
+
+                  <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full bg-[#079653] text-[14px] font-bold text-white">
+                    {
+                      item.number
+                    }
+                  </span>
+
+                  <div className="flex min-w-0 flex-1 items-start justify-between gap-4 rounded-2xl border border-[#e7e9e5] bg-[#fcfcf9] p-4 shadow-[0_4px_15px_rgba(26,39,30,0.035)]">
+                    <div>
+                      <h3 className="text-[15px] font-bold text-[#172019]">
+                        {
+                          item.title
+                        }
+                      </h3>
+
+                      <p className="mt-1.5 max-w-[430px] text-[12px] leading-[19px] text-[#657067]">
+                        {
+                          item.text
+                        }
+                      </p>
+                    </div>
+
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf6ec] text-[#087a45]">
+                      <Icon className="size-5" />
+                    </span>
+                  </div>
+                </div>
+              );
+            },
+          )}
+        </div>
+
+        <div className="mx-auto mt-10 max-w-[650px] rounded-2xl bg-[#e6f5e8] p-4">
+          <p className="text-center text-[13px] font-semibold leading-5 text-[#31523c]">
+            You don't need
+            to wait for
+            somebody to
+            come looking
+            for you.
+            Kodarai helps
+            you find the
+            businesses
+            yourself.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReviewsSection({
+  reviews,
+}: {
+  reviews:
+    PublicMarketingReview[];
+}) {
+  const [
+    api,
+    setApi,
+  ] =
+    useState<CarouselApi>();
+
+  const [
+    current,
+    setCurrent,
+  ] =
+    useState(0);
+
+  const rating =
+    reviews.length > 0
+      ? reviews.reduce(
+          (
+            total,
+            review,
+          ) =>
+            total +
+            review.rating,
+          0,
+        ) /
+        reviews.length
+      : null;
+
+  useEffect(() => {
+    if (
+      reviews.length
+    ) {
+      trackStartReviewsViewed();
+    }
+  }, [reviews.length]);
+
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+
+    const update =
+      () => {
+        const index =
+          api.selectedScrollSnap();
+
+        setCurrent(
+          index,
+        );
+
+        trackStartReviewChanged(
+          index + 1,
+        );
+      };
+
+    update();
+
+    api.on(
+      "select",
+      update,
+    );
+
+    return () => {
+      api.off(
+        "select",
+        update,
+      );
+    };
+  }, [api]);
+
+  if (!reviews.length) {
+    return null;
+  }
+
+  return (
+    <section className="bg-[#f8f7f1]">
+      <div className="mx-auto w-full max-w-[1100px] px-5 py-14 sm:px-8 sm:py-20">
+        <div className="mx-auto max-w-[650px] text-center">
+          <Pill>
+            Trusted by
+            people like you
+          </Pill>
+
+          <h2 className="mt-4 text-[34px] font-bold leading-[1] tracking-[-0.05em] sm:text-[46px]">
+            People are
+            already using
+            Kodarai to get
+            clients.
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-[520px] text-[14px] leading-6 text-[#687169]">
+            Here's what
+            people using
+            Kodarai have
+            to say.
+          </p>
+        </div>
+
         <Carousel
-          setApi={setReviewApi}
-          opts={{ align: "start", loop: reviews.length > 1 }}
-          plugins={reviews.length > 1 ? [Autoplay({ delay: 5000, stopOnInteraction: true, stopOnMouseEnter: true })] : []}
-          className="mt-5"
+          setApi={
+            setApi
+          }
+          opts={{
+            align: "start",
+            loop:
+              reviews.length >
+              1,
+          }}
+          plugins={
+            reviews.length >
+            1
+              ? [
+                  Autoplay({
+                    delay:
+                      5000,
+                    stopOnInteraction:
+                      true,
+                    stopOnMouseEnter:
+                      true,
+                  }),
+                ]
+              : []
+          }
+          className="mx-auto mt-9 max-w-[1000px]"
         >
           <CarouselContent className="-ml-3">
-            {reviews.map((review) => (
-              <CarouselItem key={review.id} className="basis-[88%] pl-3 sm:basis-1/2 lg:basis-1/3">
-                <TestimonialCard review={review} />
-              </CarouselItem>
-            ))}
+            {reviews.map(
+              (review) => (
+                <CarouselItem
+                  key={
+                    review.id
+                  }
+                  className="basis-[88%] pl-3 sm:basis-[56%] lg:basis-1/3"
+                >
+                  <TestimonialCard
+                    review={
+                      review
+                    }
+                  />
+                </CarouselItem>
+              ),
+            )}
           </CarouselContent>
-          {reviews.length > 1 && <div className="mt-4 hidden justify-end gap-2 lg:flex"><CarouselPrevious className="static translate-y-0" /><CarouselNext className="static translate-y-0" /></div>}
-        </Carousel>
-        {reviews.length > 1 && <CarouselDots count={reviews.length} current={reviewPosition} onClick={(index) => reviewApi?.scrollTo(index)} />}
-      </>}
 
-      {proofs.length > 0 && <ProofGallery proofs={proofs} api={proofApi} setApi={setProofApi} current={proofPosition} onStart={onStart} />}
+          {reviews.length >
+            1 && (
+            <div className="mt-5 hidden justify-end gap-2 sm:flex">
+              <CarouselPrevious className="static translate-y-0 border-[#d9dfd8] bg-white" />
+
+              <CarouselNext className="static translate-y-0 border-[#d9dfd8] bg-white" />
+            </div>
+          )}
+        </Carousel>
+
+        {reviews.length >
+          1 && (
+          <CarouselDots
+            count={
+              reviews.length
+            }
+            current={
+              current
+            }
+            onClick={(
+              index,
+            ) =>
+              api?.scrollTo(
+                index,
+              )
+            }
+          />
+        )}
+
+        {rating !==
+          null && (
+          <div className="mx-auto mt-9 flex max-w-[420px] flex-col items-center rounded-2xl border border-[#e2e5df] bg-white p-5 text-center shadow-[0_5px_18px_rgba(24,37,28,0.04)]">
+            <StarRow
+              rating={
+                5
+              }
+              size="large"
+            />
+
+            <p className="mt-2 text-[27px] font-bold tracking-[-0.045em]">
+              {rating.toFixed(
+                1,
+              )}{" "}
+              out of 5
+            </p>
+
+            <p className="mt-1 text-[11px] text-[#7b837d]">
+              Based on{" "}
+              {
+                reviews.length
+              }{" "}
+              published{" "}
+              {reviews.length ===
+              1
+                ? "review"
+                : "reviews"}
+            </p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -1180,89 +1307,664 @@ function TestimonialCard({
   review,
   compact = false,
 }: {
-  review: PublicMarketingReview;
+  review:
+    PublicMarketingReview;
+
   compact?: boolean;
 }) {
-  const role = [review.role, review.location].filter(Boolean).join(" · ");
-  const quote = review.reviewText;
-  const name = review.name;
+  const subtitle = [
+    review.role,
+    review.location,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <figure
       className={
         compact
           ? "rounded-2xl border border-[#e0e5df] bg-white p-4"
-          : "w-[285px] shrink-0 rounded-2xl border border-[#e0e5df] bg-white p-5 shadow-[0_5px_18px_rgba(24,37,28,0.05)]"
+          : "flex h-full min-h-[245px] flex-col rounded-[22px] border border-[#e0e5df] bg-white p-5 shadow-[0_7px_22px_rgba(24,37,28,0.055)]"
       }
     >
-      <div className="flex items-center gap-0.5 text-[#e8a317]">
-        {Array.from({
-          length: review.rating,
-        }).map(
-          (_, index) => (
-            <Star
-              key={index}
-              className="size-3.5 fill-current"
-            />
-          ),
-        )}
-      </div>
+      <StarRow
+        rating={
+          review.rating
+        }
+      />
 
       <blockquote
-        className={`mt-3 text-[#27312b] ${
+        className={`mt-4 flex-1 text-[#27312b] ${
           compact
-            ? "text-[12px] leading-[18px]"
-            : "text-[13px] leading-5"
+            ? "text-[12px] leading-[19px]"
+            : "text-[14px] leading-6"
         }`}
       >
-        “{quote}”
+        “
+        {
+          review.reviewText
+        }
+        ”
       </blockquote>
 
-      <figcaption className="mt-4 flex items-center gap-3">
-        {review.photoUrl ? <img src={review.photoUrl} alt={review.name} loading="lazy" className="size-9 shrink-0 rounded-full object-cover" /> : <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e5f3e7] text-[12px] font-bold text-[#087542]">{name.charAt(0)}</span>}
+      <figcaption className="mt-5 flex items-center gap-3">
+        {review.photoUrl ? (
+          <img
+            src={
+              review.photoUrl
+            }
+            alt={
+              review.name
+            }
+            loading="lazy"
+            className="size-10 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e5f3e7] text-[13px] font-bold text-[#087542]">
+            {review.name.charAt(
+              0,
+            )}
+          </span>
+        )}
 
         <span className="min-w-0">
-          <span className="block text-[12px] font-semibold text-[#172019]">
-            {review.name}
+          <span className="block text-[13px] font-bold text-[#172019]">
+            {
+              review.name
+            }
           </span>
 
-          {role && <span className="mt-0.5 block text-[10px] leading-4 text-[#7a827c]">{role}</span>}
+          {subtitle && (
+            <span className="mt-0.5 block text-[10px] leading-4 text-[#7a827c]">
+              {
+                subtitle
+              }
+            </span>
+          )}
         </span>
       </figcaption>
     </figure>
   );
 }
 
-function CarouselDots({ count, current, onClick }: { count: number; current: number; onClick: (index: number) => void }) {
-  return <div className="mt-4 flex justify-center gap-2">{Array.from({ length: count }).map((_, index) => <button type="button" key={index} onClick={() => onClick(index)} aria-label={`Go to slide ${index + 1}`} className={`h-2 rounded-full transition-all ${index === current ? "w-5 bg-[#087542]" : "w-2 bg-[#aab5ac]"}`} />)}</div>;
-}
-
-function ProofGallery({ proofs, api, setApi, current, onStart }: { proofs: PublicMarketingProof[]; api: CarouselApi | undefined; setApi: (api: CarouselApi) => void; current: number; onStart: () => void }) {
-  return <section className="mt-9 rounded-[24px] bg-[#e8f2e7] p-4 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#13864d]">Real proof</p><h2 className="mt-1 text-[24px] font-bold tracking-[-0.045em]">See people getting results</h2><p className="mt-2 max-w-md text-[13px] leading-5 text-[#536158]">They found a business, made something to show the owner, and got a real result.</p></div><button type="button" onClick={() => { trackStartProofCtaClicked(); onStart(); }} className="hidden min-h-10 items-center gap-2 rounded-lg border border-[#c8dac9] bg-white px-3 text-[12px] font-semibold text-[#075936] sm:inline-flex">Start now <ArrowRight className="size-4" /></button></div><Carousel setApi={setApi} opts={{ align: "start", loop: proofs.length > 1 }} plugins={proofs.length > 1 ? [Autoplay({ delay: 5500, stopOnInteraction: true, stopOnMouseEnter: true })] : []} className="mt-5"><CarouselContent className="-ml-3">{proofs.map((proof) => <CarouselItem key={proof.id} className="basis-[92%] pl-3 sm:basis-[58%] lg:basis-1/3"><ProofCard proof={proof} /></CarouselItem>)}</CarouselContent>{proofs.length > 1 && <div className="mt-4 hidden justify-end gap-2 lg:flex"><CarouselPrevious className="static translate-y-0 bg-white" /><CarouselNext className="static translate-y-0 bg-white" /></div>}</Carousel>{proofs.length > 1 && <CarouselDots count={proofs.length} current={current} onClick={(index) => api?.scrollTo(index)} />}</section>;
-}
-
-function ProofCard({ proof }: { proof: PublicMarketingProof }) {
-  return <article className="h-full overflow-hidden rounded-2xl border border-[#d6e1d5] bg-white shadow-[0_5px_18px_rgba(24,37,28,0.06)]">{proof.proofImageUrl && <div className="aspect-[4/3] bg-[#f5f6f3]"><img src={proof.proofImageUrl} alt={proof.proofAlt || `${proof.name}'s proof of work`} loading="lazy" className="h-full w-full object-contain" /></div>}<div className="p-4"><p className="text-[12px] font-semibold text-[#526057]">{proof.name}{proof.location ? ` · ${proof.location}` : ""}</p><h3 className="mt-1 text-[16px] font-bold tracking-[-0.025em]">{proof.headline}</h3>{proof.description && <p className="mt-2 text-[12px] leading-5 text-[#68716b]">{proof.description}</p>}{proof.quote && <p className="mt-3 border-l-2 border-[#b6d8ba] pl-3 text-[12px] italic leading-5 text-[#526057]">“{proof.quote}”</p>}{proof.resultAmount != null && <p className="mt-3 inline-flex rounded-full bg-[#e5f3e7] px-2.5 py-1 text-[12px] font-bold text-[#087542]">{formatProofAmount(proof.resultAmount, proof.currency)}</p>}</div></article>;
-}
-
-function formatProofAmount(amount: number, currency: string | null) { try { return new Intl.NumberFormat("en-NG", { style: "currency", currency: currency || "NGN", maximumFractionDigits: 0 }).format(amount); } catch { return `${currency ?? ""} ${amount.toLocaleString()}`.trim(); } }
-
-function Benefit({
-  text,
+function StarRow({
+  rating,
+  size = "small",
 }: {
-  text: string;
+  rating: number;
+  size?:
+    | "small"
+    | "large";
 }) {
   return (
-    <div className="flex items-center gap-2.5 py-1">
-      <span className="flex size-5 items-center justify-center rounded-full bg-[#13a95c] text-white">
-        <Check
-          className="size-3"
-          strokeWidth={3}
-        />
+    <div className="flex items-center gap-0.5 text-[#efa91b]">
+      {Array.from({
+        length: 5,
+      }).map(
+        (
+          _,
+          index,
+        ) => (
+          <Star
+            key={
+              index
+            }
+            className={
+              size ===
+              "large"
+                ? `size-5 ${
+                    index <
+                    rating
+                      ? "fill-current"
+                      : ""
+                  }`
+                : `size-4 ${
+                    index <
+                    rating
+                      ? "fill-current"
+                      : ""
+                  }`
+            }
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+function ProofGallerySection({
+  proofs,
+  onStart,
+}: {
+  proofs:
+    PublicMarketingProof[];
+
+  onStart:
+    () => void;
+}) {
+  const [
+    api,
+    setApi,
+  ] =
+    useState<CarouselApi>();
+
+  const [
+    current,
+    setCurrent,
+  ] =
+    useState(0);
+
+  useEffect(() => {
+    if (
+      proofs.length
+    ) {
+      trackStartProofViewed();
+    }
+  }, [proofs.length]);
+
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+
+    const update =
+      () => {
+        const index =
+          api.selectedScrollSnap();
+
+        setCurrent(
+          index,
+        );
+
+        trackStartProofChanged(
+          index + 1,
+          proofs[index]
+            ?.resultType,
+        );
+      };
+
+    update();
+
+    api.on(
+      "select",
+      update,
+    );
+
+    return () => {
+      api.off(
+        "select",
+        update,
+      );
+    };
+  }, [api, proofs]);
+
+  if (!proofs.length) {
+    return null;
+  }
+
+  return (
+    <section className="bg-[#e8f3e8]">
+      <div className="mx-auto w-full max-w-[1100px] px-5 py-14 sm:px-8 sm:py-20">
+        <div className="mx-auto max-w-[670px] text-center">
+          <Pill>
+            Real results
+          </Pill>
+
+          <h2 className="mt-4 text-[34px] font-bold leading-[1] tracking-[-0.05em] sm:text-[46px]">
+            See people
+            getting results
+            with Kodarai.
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-[550px] text-[14px] leading-6 text-[#59675d]">
+            See what
+            happened when
+            people found a
+            business, made
+            something to
+            show the owner
+            and went after
+            the deal.
+          </p>
+        </div>
+
+        <Carousel
+          setApi={
+            setApi
+          }
+          opts={{
+            align: "start",
+            loop:
+              proofs.length >
+              1,
+          }}
+          plugins={
+            proofs.length >
+            1
+              ? [
+                  Autoplay({
+                    delay:
+                      5600,
+                    stopOnInteraction:
+                      true,
+                    stopOnMouseEnter:
+                      true,
+                  }),
+                ]
+              : []
+          }
+          className="mx-auto mt-9 max-w-[1000px]"
+        >
+          <CarouselContent className="-ml-3">
+            {proofs.map(
+              (proof) => (
+                <CarouselItem
+                  key={
+                    proof.id
+                  }
+                  className="basis-[92%] pl-3 sm:basis-[62%] lg:basis-1/3"
+                >
+                  <ProofCard
+                    proof={
+                      proof
+                    }
+                  />
+                </CarouselItem>
+              ),
+            )}
+          </CarouselContent>
+
+          {proofs.length >
+            1 && (
+            <div className="mt-5 hidden justify-end gap-2 sm:flex">
+              <CarouselPrevious className="static translate-y-0 border-[#ccdbcd] bg-white" />
+
+              <CarouselNext className="static translate-y-0 border-[#ccdbcd] bg-white" />
+            </div>
+          )}
+        </Carousel>
+
+        {proofs.length >
+          1 && (
+          <CarouselDots
+            count={
+              proofs.length
+            }
+            current={
+              current
+            }
+            onClick={(
+              index,
+            ) =>
+              api?.scrollTo(
+                index,
+              )
+            }
+          />
+        )}
+
+        <div className="mx-auto mt-9 max-w-[500px]">
+          <button
+            type="button"
+            onClick={() => {
+              trackStartProofCtaClicked();
+              onStart();
+            }}
+            className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(6,83,48,0.16)] transition hover:bg-[#078549] active:scale-[0.99]"
+          >
+            I want to try this
+
+            <ArrowRight className="size-4" />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProofCard({
+  proof,
+}: {
+  proof:
+    PublicMarketingProof;
+}) {
+  const label =
+    getResultLabel(
+      proof.resultType,
+    );
+
+  return (
+    <article className="h-full overflow-hidden rounded-[22px] border border-[#d5dfd4] bg-white shadow-[0_8px_25px_rgba(24,37,28,0.07)]">
+      {proof.proofImageUrl && (
+        <div className="relative aspect-[4/4.25] overflow-hidden bg-[#eef1ec]">
+          <img
+            src={
+              proof.proofImageUrl
+            }
+            alt={
+              proof.proofAlt ||
+              `${proof.name}'s result`
+            }
+            loading="lazy"
+            className="h-full w-full object-contain"
+          />
+
+          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#087542] shadow-sm">
+            {label}
+          </span>
+        </div>
+      )}
+
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {proof.avatarUrl ? (
+              <img
+                src={
+                  proof.avatarUrl
+                }
+                alt={
+                  proof.name
+                }
+                loading="lazy"
+                className="size-9 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e5f3e7] text-[12px] font-bold text-[#087542]">
+                {proof.name.charAt(
+                  0,
+                )}
+              </span>
+            )}
+
+            <div className="min-w-0">
+              <p className="truncate text-[12px] font-bold text-[#172019]">
+                {
+                  proof.name
+                }
+              </p>
+
+              {proof.location && (
+                <p className="text-[10px] text-[#778079]">
+                  {
+                    proof.location
+                  }
+                </p>
+              )}
+            </div>
+          </div>
+
+          {proof.resultAmount !=
+            null && (
+            <span className="shrink-0 rounded-full bg-[#e6f5e8] px-2.5 py-1.5 text-[11px] font-bold text-[#087542]">
+              {formatProofAmount(
+                proof.resultAmount,
+                proof.currency,
+              )}
+            </span>
+          )}
+        </div>
+
+        <h3 className="mt-4 text-[18px] font-bold leading-[1.15] tracking-[-0.035em] text-[#172019]">
+          {
+            proof.headline
+          }
+        </h3>
+
+        {proof.description && (
+          <p className="mt-2 text-[12px] leading-5 text-[#657067]">
+            {
+              proof.description
+            }
+          </p>
+        )}
+
+        {proof.quote && (
+          <div className="mt-4 rounded-xl bg-[#edf7ee] p-3">
+            <p className="text-[11px] leading-[18px] text-[#3d5444]">
+              “
+              {
+                proof.quote
+              }
+              ”
+            </p>
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-between gap-2 text-[10px] font-semibold text-[#57705f]">
+          <span>
+            Found business
+          </span>
+
+          <ArrowRight className="size-3" />
+
+          <span>
+            Made website
+          </span>
+
+          <ArrowRight className="size-3" />
+
+          <span>
+            Got result
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function getResultLabel(
+  type:
+    PublicMarketingProof["resultType"],
+) {
+  switch (type) {
+    case "client_won":
+      return "Client won";
+
+    case "payment_received":
+      return "Payment received";
+
+    case "website_sold":
+      return "Website sold";
+
+    case "positive_reply":
+      return "Owner replied";
+
+    case "recurring_client":
+      return "Recurring client";
+
+    default:
+      return "Real result";
+  }
+}
+
+function formatProofAmount(
+  amount: number,
+  currency:
+    string | null,
+) {
+  try {
+    return new Intl.NumberFormat(
+      "en-NG",
+      {
+        style: "currency",
+        currency:
+          currency ||
+          "NGN",
+        maximumFractionDigits:
+          0,
+      },
+    ).format(amount);
+  } catch {
+    return `${currency ?? ""} ${amount.toLocaleString()}`.trim();
+  }
+}
+
+function CarouselDots({
+  count,
+  current,
+  onClick,
+}: {
+  count: number;
+  current: number;
+  onClick:
+    (index: number) => void;
+}) {
+  const visibleCount =
+    Math.min(
+      count,
+      8,
+    );
+
+  return (
+    <div className="mt-5 flex justify-center gap-2">
+      {Array.from({
+        length:
+          visibleCount,
+      }).map(
+        (
+          _,
+          index,
+        ) => (
+          <button
+            key={
+              index
+            }
+            type="button"
+            onClick={() =>
+              onClick(
+                index,
+              )
+            }
+            aria-label={`Go to slide ${
+              index + 1
+            }`}
+            className={`h-2 rounded-full transition-all ${
+              index ===
+              current
+                ? "w-5 bg-[#087542]"
+                : "w-2 bg-[#abb7ae]"
+            }`}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+function FinalIntroCta({
+  reviews,
+  onStart,
+}: {
+  reviews:
+    PublicMarketingReview[];
+
+  onStart:
+    () => void;
+}) {
+  return (
+    <section className="bg-[#f8f7f1]">
+      <div className="mx-auto w-full max-w-[760px] px-5 py-14 text-center sm:px-8 sm:py-20">
+        <Pill>
+          Ready to try?
+        </Pill>
+
+        <h2 className="mt-4 text-[35px] font-bold leading-[1] tracking-[-0.05em] sm:text-[48px]">
+          Your next client
+          could start with
+          one search.
+        </h2>
+
+        <p className="mx-auto mt-4 max-w-[520px] text-[14px] leading-6 text-[#657067]">
+          Join Kodarai,
+          find businesses
+          that need
+          websites and
+          start showing
+          owners what you
+          can build.
+        </p>
+
+        <div className="mx-auto mt-8 grid max-w-[520px] grid-cols-3 gap-3">
+          <MiniStep
+            icon={
+              Search
+            }
+            label="Find businesses"
+          />
+
+          <MiniStep
+            icon={
+              Laptop
+            }
+            label="Make websites"
+          />
+
+          <MiniStep
+            icon={
+              CircleDollarSign
+            }
+            label="Get paid"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            onStart
+          }
+          className="mx-auto mt-8 flex min-h-[58px] w-full max-w-[500px] items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white shadow-[0_10px_24px_rgba(7,150,83,0.17)] transition hover:bg-[#078549] active:scale-[0.99]"
+        >
+          Show me my plan
+
+          <ArrowRight className="size-4" />
+        </button>
+
+        <p className="mt-3 text-[11px] text-[#7a847c]">
+          Free to get
+          started · No
+          credit card
+          required
+        </p>
+
+        {reviews.length >
+          0 && (
+          <p className="mt-6 text-[11px] font-medium text-[#506057]">
+            {
+              reviews.length
+            }{" "}
+            published{" "}
+            {reviews.length ===
+            1
+              ? "review"
+              : "reviews"}{" "}
+            from people
+            using Kodarai
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MiniStep({
+  icon: Icon,
+  label,
+}: {
+  icon:
+    typeof Search;
+
+  label: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#e1e5df] bg-white px-2 py-4">
+      <span className="mx-auto flex size-9 items-center justify-center rounded-xl bg-[#e8f5ea] text-[#07804a]">
+        <Icon className="size-4.5" />
       </span>
 
-      <span className="text-[13px] font-medium text-[#2a4131]">
-        {text}
-      </span>
+      <p className="mt-2 text-[10px] font-semibold leading-4 text-[#36473d]">
+        {label}
+      </p>
     </div>
   );
 }
@@ -1277,16 +1979,16 @@ function QuestionShell({
   step: number;
   title: string;
   subtitle: string;
-
   onBack:
     () => void;
-
   children:
     ReactNode;
 }) {
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-[720px] px-5 pb-10 pt-5 sm:px-7">
-      <div className="flex items-center gap-4">
+    <main className="mx-auto min-h-[100dvh] w-full max-w-[560px] px-5 pb-10 pt-5 sm:px-7">
+      <Brand />
+
+      <div className="mt-6 flex items-center gap-4">
         <button
           type="button"
           onClick={
@@ -1300,28 +2002,31 @@ function QuestionShell({
 
         <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-[#e2e5df]">
           <div
-            className="h-full rounded-full bg-[#14aa5d] transition-all duration-300"
+            className="h-full rounded-full bg-[#0da357] transition-all duration-300"
             style={{
-              width:
-                `${(step / 3) * 100}%`,
+              width: `${
+                (step /
+                  3) *
+                100
+              }%`,
             }}
           />
         </div>
 
-        <span className="shrink-0 text-xs font-medium text-[#444e48]">
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5a665e]">
           {step} of 3
         </span>
       </div>
 
-      <h1 className="mt-7 text-[32px] font-bold leading-[1.02] tracking-[-0.045em] sm:text-[38px]">
+      <h1 className="mt-8 text-[34px] font-bold leading-[1] tracking-[-0.05em] sm:text-[40px]">
         {title}
       </h1>
 
-      <p className="mt-3 text-[14px] leading-5 text-[#5f6862]">
+      <p className="mt-3 text-[14px] leading-5 text-[#626c66]">
         {subtitle}
       </p>
 
-      <div className="mt-7">
+      <div className="mt-8">
         {children}
       </div>
     </main>
@@ -1337,13 +2042,10 @@ function ChoiceCard({
 }: {
   title: string;
   description: string;
-
   icon:
     typeof User;
-
   selected:
     boolean;
-
   onClick:
     () => void;
 }) {
@@ -1353,27 +2055,24 @@ function ChoiceCard({
       onClick={
         onClick
       }
-      className={`group flex w-full items-center gap-4 rounded-2xl border p-4 text-left shadow-[0_3px_14px_rgba(25,35,28,0.05)] transition active:scale-[0.99] ${
+      className={`group flex w-full items-center gap-4 rounded-2xl border p-4 text-left shadow-[0_3px_14px_rgba(25,35,28,0.045)] transition active:scale-[0.99] ${
         selected
-          ? "border-[#18a95e] bg-[#edf9ef]"
-          : "border-[#e5e7e2] bg-white hover:border-[#b9d9c2]"
+          ? "border-[#139b56] bg-[#edf9ef]"
+          : "border-[#e3e6e1] bg-white hover:border-[#a9d4b4]"
       }`}
     >
       <span
-        className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
+        className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${
           selected
             ? "bg-[#d8f2df] text-[#087542]"
-            : "bg-[#f4f6f2] text-[#075936]"
+            : "bg-[#f1f6f1] text-[#075936]"
         }`}
       >
-        <Icon
-          className="size-5"
-          strokeWidth={2}
-        />
+        <Icon className="size-5" />
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold leading-5 text-[#111611]">
+        <span className="block text-[15px] font-bold leading-5 text-[#111611]">
           {title}
         </span>
 
@@ -1382,7 +2081,7 @@ function ChoiceCard({
         </span>
       </span>
 
-      <ChevronRight className="size-5 shrink-0 text-[#1f2a23]" />
+      <ChevronRight className="size-5 shrink-0 text-[#385044]" />
     </button>
   );
 }
@@ -1393,10 +2092,8 @@ function MoneyCard({
   onClick,
 }: {
   amount: string;
-
   selected:
     boolean;
-
   onClick:
     () => void;
 }) {
@@ -1406,18 +2103,18 @@ function MoneyCard({
       onClick={
         onClick
       }
-      className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left shadow-[0_3px_14px_rgba(25,35,28,0.05)] transition active:scale-[0.99] ${
+      className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left shadow-[0_3px_14px_rgba(25,35,28,0.045)] transition active:scale-[0.99] ${
         selected
-          ? "border-[#18a95e] bg-[#edf9ef]"
-          : "border-[#e5e7e2] bg-white hover:border-[#b9d9c2]"
+          ? "border-[#139b56] bg-[#edf9ef]"
+          : "border-[#e3e6e1] bg-white hover:border-[#a9d4b4]"
       }`}
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f0f8f0] text-[#0a7f47]">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#eef7ef] text-[#0a7f47]">
         <CircleDollarSign className="size-5" />
       </span>
 
       <span className="flex-1">
-        <span className="block text-[18px] font-bold tracking-[-0.02em]">
+        <span className="block text-[20px] font-bold tracking-[-0.03em]">
           {amount}
         </span>
 
@@ -1426,29 +2123,28 @@ function MoneyCard({
         </span>
       </span>
 
-      <ChevronRight className="size-5 text-[#1f2a23]" />
+      <ChevronRight className="size-5 text-[#385044]" />
     </button>
   );
 }
 
 function Result({
   answers,
-  onBack,
-  onStart,
   reviews,
   proofs,
+  onBack,
+  onStart,
 }: {
   answers:
     FunnelAnswers;
-
+  reviews:
+    PublicMarketingReview[];
+  proofs:
+    PublicMarketingProof[];
   onBack:
     () => void;
-
   onStart:
     () => void;
-
-  reviews: PublicMarketingReview[];
-  proofs: PublicMarketingProof[];
 }) {
   const goal =
     Number(
@@ -1457,7 +2153,8 @@ function Result({
     );
 
   const goalLabel =
-    goal >= 1_000_000
+    goal >=
+    1_000_000
       ? "₦1,000,000+"
       : `₦${goal.toLocaleString(
           "en-NG",
@@ -1486,14 +2183,12 @@ function Result({
       return {
         firstPrice,
         firstClients,
-
         firstTotal:
           firstPrice *
           firstClients,
 
         secondPrice,
         secondClients,
-
         secondTotal:
           secondPrice *
           secondClients,
@@ -1501,40 +2196,44 @@ function Result({
     }, [goal]);
 
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-[760px] px-5 pb-10 pt-5 sm:px-7">
+    <main className="mx-auto min-h-[100dvh] w-full max-w-[620px] px-5 pb-10 pt-5 sm:px-7">
+      <Brand />
+
       <button
         type="button"
         onClick={
           onBack
         }
         aria-label="Go back"
-        className="flex size-9 items-center justify-center rounded-full text-[#1c251f] transition hover:bg-black/5"
+        className="mt-5 flex size-9 items-center justify-center rounded-full text-[#1c251f] transition hover:bg-black/5"
       >
         <ArrowLeft className="size-5" />
       </button>
 
-      <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#13864d]">
-        Your plan
-      </p>
+      <div className="mt-5">
+        <Pill>
+          Your plan
+        </Pill>
+      </div>
 
-      <h1 className="mt-2 text-[33px] font-bold leading-[1.02] tracking-[-0.05em]">
+      <h1 className="mt-3 text-[35px] font-bold leading-[1] tracking-[-0.055em]">
         Let's work
         towards{" "}
 
-        <span className="text-[#0a9a51]">
+        <span className="text-[#079653]">
           {goalLabel}
         </span>{" "}
 
         a month.
       </h1>
 
-      <p className="mt-3 text-sm leading-5 text-[#626c66]">
-        Here's one
-        simple way to
-        think about it.
+      <p className="mt-3 text-[14px] leading-5 text-[#626c66]">
+        Here's one simple
+        way to think about
+        your target.
       </p>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-[#e2e6e1] bg-white shadow-[0_3px_14px_rgba(25,35,28,0.04)]">
+      <div className="mt-7 overflow-hidden rounded-2xl border border-[#e2e6e1] bg-white shadow-[0_5px_18px_rgba(25,35,28,0.04)]">
         <IncomeExample
           clients={
             examples.firstClients
@@ -1562,48 +2261,54 @@ function Result({
         />
       </div>
 
-      <h2 className="mt-7 text-[17px] font-bold">
-        Kodarai helps
-        you do the work.
+      <h2 className="mt-8 text-[20px] font-bold tracking-[-0.025em]">
+        Kodarai helps you
+        do the work.
       </h2>
 
-      <div className="mt-4 space-y-5">
+      <div className="mt-5 space-y-5">
         <PlanStep
           number={1}
           title="Find a business"
-          text="Find real businesses that don't have a good website yet."
+          text="Find real businesses that need a website or need a better one."
         />
 
         <PlanStep
           number={2}
           title="Make something to show them"
-          text="Use Kodarai to create a website sample for the business."
+          text="Use Kodarai to make a website sample for the business."
         />
 
         <PlanStep
           number={3}
-          title="Talk to the owner"
+          title="Show the owner"
           text="Get their contact details and show them what you made."
         />
 
         <PlanStep
           number={4}
           title="Agree on a price"
-          text="If they want the website, agree on the work and what they'll pay you."
+          text="If they want it, agree on the work and how much they will pay."
         />
       </div>
 
-      <ResultProof reviews={reviews} proofs={proofs} />
+      <ResultProof
+        reviews={
+          reviews
+        }
+        proofs={
+          proofs
+        }
+      />
 
       <button
         type="button"
         onClick={
           onStart
         }
-        className="mt-8 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-[#076b3a] px-5 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(6,83,48,0.16)] transition hover:bg-[#065f34] active:scale-[0.99]"
+        className="mt-8 flex min-h-[58px] w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(6,83,48,0.16)] transition hover:bg-[#078549] active:scale-[0.99]"
       >
-        Start finding
-        businesses
+        Start finding businesses
 
         <ArrowRight className="size-4" />
       </button>
@@ -1614,68 +2319,122 @@ function Result({
         start free
       </p>
 
-      <p className="mt-4 text-[10px] leading-4 text-[#818982]">
+      <p className="mt-5 text-[10px] leading-4 text-[#818982]">
         Earnings are not
-        guaranteed. These
-        numbers are
+        guaranteed. The
+        numbers above are
         examples only.
         What you earn
         depends on your
-        effort, pricing
-        and ability to
-        find and close
-        customers.
+        effort, pricing,
+        the businesses you
+        contact and the
+        deals you close.
       </p>
     </main>
   );
 }
 
-function ResultProof({ reviews, proofs }: { reviews: PublicMarketingReview[]; proofs: PublicMarketingProof[] }) {
-  const selected = reviews.slice(0, 1);
-  const proof = proofs[0];
-  if (!selected.length && !proof) return null;
+function ResultProof({
+  reviews,
+  proofs,
+}: {
+  reviews:
+    PublicMarketingReview[];
+  proofs:
+    PublicMarketingProof[];
+}) {
+  const review =
+    reviews[0];
+
+  const proof =
+    proofs[0];
+
+  if (
+    !review &&
+    !proof
+  ) {
+    return null;
+  }
 
   return (
-    <section className="mt-8 border-t border-[#dfe4dd] pt-7">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-0.5 text-[#e8a317]">
-          {Array.from({
-            length: 5,
-          }).map(
-            (_, index) => (
-              <Star
-                key={
-                  index
-                }
-                className="size-3.5 fill-current"
-              />
-            ),
-          )}
-        </div>
+    <section className="mt-9 border-t border-[#dfe4dd] pt-8">
+      <Pill>
+        Real proof
+      </Pill>
 
-        <span className="text-[11px] font-semibold text-[#526057]">
-          From people
-          using Kodarai
-        </span>
-      </div>
-
-      <h2 className="mt-3 text-[19px] font-bold tracking-[-0.025em]">
-        Others are already
-        using this approach.
+      <h2 className="mt-3 text-[22px] font-bold leading-[1.05] tracking-[-0.035em]">
+        People are already
+        doing this.
       </h2>
 
       <p className="mt-2 text-[12px] leading-5 text-[#68716b]">
-        Find businesses,
-        build something
-        useful, then have
-        a real reason to
-        start the
-        conversation.
+        Find a business.
+        Make something
+        useful. Show the
+        owner.
       </p>
 
-      <div className="mt-4 space-y-3">
-        {selected.map((review) => <TestimonialCard key={review.id} review={review} compact />)}
-        {proof && <div className="overflow-hidden rounded-2xl border border-[#e0e5df] bg-white"><div className="flex items-center gap-3 p-3">{proof.proofImageUrl && <img src={proof.proofImageUrl} alt={proof.proofAlt || `${proof.name}'s proof of work`} loading="lazy" className="size-16 rounded-lg border bg-[#f5f6f3] object-contain" />}<div><p className="text-[12px] font-semibold">{proof.headline}</p><p className="mt-1 text-[11px] leading-4 text-[#68716b]">{proof.name}{proof.location ? ` · ${proof.location}` : ""}</p>{proof.resultAmount != null && <p className="mt-1 text-[11px] font-bold text-[#087542]">{formatProofAmount(proof.resultAmount, proof.currency)}</p>}</div></div></div>}
+      <div className="mt-5 space-y-3">
+        {proof && (
+          <div className="overflow-hidden rounded-2xl border border-[#dfe5df] bg-white shadow-sm">
+            {proof.proofImageUrl && (
+              <div className="aspect-[16/10] bg-[#f3f5f1]">
+                <img
+                  src={
+                    proof.proofImageUrl
+                  }
+                  alt={
+                    proof.proofAlt ||
+                    `${proof.name}'s result`
+                  }
+                  loading="lazy"
+                  className="h-full w-full object-contain"
+                />
+              </div>
+            )}
+
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[14px] font-bold text-[#172019]">
+                    {
+                      proof.headline
+                    }
+                  </p>
+
+                  <p className="mt-1 text-[11px] text-[#68716b]">
+                    {
+                      proof.name
+                    }
+                    {proof.location
+                      ? ` · ${proof.location}`
+                      : ""}
+                  </p>
+                </div>
+
+                {proof.resultAmount !=
+                  null && (
+                  <span className="shrink-0 rounded-full bg-[#e6f5e8] px-2.5 py-1 text-[11px] font-bold text-[#087542]">
+                    {formatProofAmount(
+                      proof.resultAmount,
+                      proof.currency,
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {review && (
+          <TestimonialCard
+            review={
+              review
+            }
+            compact
+          />
+        )}
       </div>
 
       <div className="mt-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-[#dfe5df] bg-white">
@@ -1725,10 +2484,8 @@ function IncomeExample({
 }: {
   clients:
     number;
-
   price:
     number;
-
   total:
     number;
 }) {
@@ -1736,12 +2493,11 @@ function IncomeExample({
     <div className="flex items-center justify-between gap-3 p-4">
       <div>
         <p className="text-[13px] font-semibold">
-          Sell {clients}{" "}
-
+          Sell{" "}
+          {clients}{" "}
           {clients === 1
             ? "website"
             : "websites"}{" "}
-
           at ₦
           {price.toLocaleString(
             "en-NG",
@@ -1773,21 +2529,19 @@ function PlanStep({
 }: {
   number:
     number;
-
   title:
     string;
-
   text:
     string;
 }) {
   return (
     <div className="flex gap-3">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#076b3a] text-[12px] font-bold text-white">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#079653] text-[12px] font-bold text-white">
         {number}
       </span>
 
       <div>
-        <p className="text-[14px] font-semibold">
+        <p className="text-[14px] font-bold">
           {title}
         </p>
 
