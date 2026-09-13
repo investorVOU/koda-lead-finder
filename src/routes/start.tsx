@@ -8,6 +8,10 @@ import {
   Check,
   ChevronRight,
   CircleDollarSign,
+  Copy,
+  Eye,
+  Link2,
+  PhoneCall,
   GraduationCap,
   ImageIcon,
   Laptop,
@@ -56,6 +60,13 @@ import {
   trackFunnelSituationSelected,
   trackFunnelStarted,
   trackFunnelViewed,
+  trackStartCallScriptDemoViewed,
+  trackStartDemoLinkFeatureViewed,
+  trackStartFinderDemoViewed,
+  trackStartLiveDemoClicked,
+  trackStartProductWorkflowViewed,
+  trackStartStudioDemoViewed,
+  trackStartWorkflowCtaClicked,
   trackSignupStarted,
   trackStartProofChanged,
   trackStartProofCtaClicked,
@@ -806,6 +817,8 @@ function IntroPage({
         <HowItWorks />
       </div>
 
+      <ProductWorkflowSection onStart={onStart} />
+
       <ReviewsSection
         reviews={
           reviews
@@ -1091,6 +1104,99 @@ function HowItWorks() {
   );
 }
 
+const START_FINDER_IMAGE = "/start/Lead%20Finder%20%E2%80%94%20Kodarai.png";
+const START_STUDIO_IMAGE = "/start/Studio%20Builder%20%E2%80%94%20Kodarai.png";
+const KODARAI_EXAMPLE_DEMO = "https://kodarai.xyz/demo/pDSidqTXdikM-Br_hJerfkOLveCibHtNEVt-HiI4XNY";
+
+function ProductWorkflowSection({
+  onStart,
+}: {
+  onStart: () => void;
+}) {
+  return (
+    <section className="border-y border-[#e5e6df] bg-[#f8f7f1]">
+      <div className="mx-auto w-full max-w-[1120px] px-5 py-12 sm:px-8 sm:py-16 lg:px-10">
+        <WorkflowViewTracker onViewed={trackStartProductWorkflowViewed}>
+          <div className="max-w-[680px]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#16894e]">See what Kodarai does</p>
+            <h2 className="mt-3 text-[30px] font-bold leading-[1.04] tracking-[-0.05em] text-[#172019] sm:text-[44px]">
+              See how Kodarai helps you turn businesses into website opportunities.
+            </h2>
+            <p className="mt-3 max-w-[580px] text-[14px] leading-6 text-[#687169]">
+              Find a business that needs a website, make something to show them, contact the owner and try to sell the website.
+            </p>
+          </div>
+        </WorkflowViewTracker>
+
+        <WorkflowViewTracker onViewed={trackStartFinderDemoViewed}>
+          <div className="mt-10 grid items-center gap-6 border-t border-[#dfe5df] pt-8 lg:mt-14 lg:grid-cols-[0.82fr_1.18fr] lg:gap-12 lg:pt-12">
+            <div>
+              <p className="text-[11px] font-bold tracking-[0.15em] text-[#159051]">01 · FIND</p>
+              <h3 className="mt-3 text-[25px] font-bold leading-[1.08] tracking-[-0.04em] sm:text-[32px]">Find businesses you can sell websites to</h3>
+              <p className="mt-3 text-[14px] leading-6 text-[#5f6b63]">KodarAI helps you find real businesses with no website or a poor one. You can see their phone number, address, reviews and opportunity score before you decide who to contact.</p>
+              <div className="mt-5 border-l-2 border-[#079653] pl-4"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#16894e]">Possible website price</p><p className="mt-1 text-[23px] font-bold tracking-[-0.04em] text-[#172019]">₦70,000 – ₦150,000</p><p className="mt-1 text-[11px] leading-5 text-[#687169]">Example only. What you charge and earn depends on the work and the deal you agree with the business.</p></div>
+            </div>
+            <a href={START_FINDER_IMAGE} target="_blank" rel="noopener noreferrer" className="group block overflow-hidden rounded-[20px] border border-[#dce2db] bg-white p-2" aria-label="Open the Kodarai Finder example image"><div className="overflow-hidden rounded-[14px] bg-[#edf0ea]"><img src={START_FINDER_IMAGE} alt="KodarAI Finder showing businesses without websites and website-building actions" width={1920} height={878} loading="lazy" className="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]" /></div><p className="px-1 pt-2 text-[10px] text-[#687169]">Real Kodarai Finder interface</p></a>
+          </div>
+        </WorkflowViewTracker>
+
+        <WorkflowViewTracker onViewed={trackStartStudioDemoViewed}>
+          <div className="mt-12 grid items-center gap-6 border-t border-[#dfe5df] pt-8 lg:mt-16 lg:grid-cols-[1.18fr_0.82fr] lg:gap-12 lg:pt-12">
+            <a href={START_STUDIO_IMAGE} target="_blank" rel="noopener noreferrer" className="group order-2 block overflow-hidden rounded-[20px] border border-[#dce2db] bg-white p-2 lg:order-1" aria-label="Open the Kodarai Studio example image"><div className="overflow-hidden rounded-[14px] bg-[#edf0ea]"><img src={START_STUDIO_IMAGE} alt="KodarAI Studio showing website code, live preview and shareable demo link" width={1920} height={1516} loading="lazy" className="h-auto w-full object-contain transition duration-300 group-hover:scale-[1.01]" /></div><p className="px-1 pt-2 text-[10px] text-[#687169]">Real Kodarai Studio interface</p></a>
+            <div className="order-1 lg:order-2"><p className="text-[11px] font-bold tracking-[0.15em] text-[#159051]">03 · BUILD</p><h3 className="mt-3 text-[25px] font-bold leading-[1.08] tracking-[-0.04em] sm:text-[32px]">Make them a website — even if you don&apos;t code</h3><p className="mt-3 text-[14px] leading-6 text-[#5f6b63]">Click Build Website and Kodarai Studio can create a website you can show the owner. Preview it, make changes, save it and send them a demo link.</p><a href={KODARAI_EXAMPLE_DEMO} target="_blank" rel="noopener noreferrer" onClick={trackStartLiveDemoClicked} className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[14px] font-semibold text-white transition hover:bg-[#078549] sm:w-auto">See what Kodarai can build <ArrowRight className="size-4" /></a><p className="mt-2 text-[11px] text-[#69746c]">Example website built with Kodarai Studio.</p></div>
+          </div>
+        </WorkflowViewTracker>
+
+        <div className="mt-12 border-t border-[#dfe5df] pt-8 lg:mt-16 lg:pt-12">
+          <div className="max-w-[560px]"><p className="text-[11px] font-bold tracking-[0.15em] text-[#159051]">04 · CONTACT AND FOLLOW UP</p><h3 className="mt-3 text-[25px] font-bold leading-[1.08] tracking-[-0.04em] sm:text-[32px]">KodarAI helps you know what to say and what to do next</h3></div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <WorkflowViewTracker onViewed={trackStartCallScriptDemoViewed}><div className="rounded-2xl border border-[#dfe5df] bg-white p-4"><div className="flex items-center gap-2 text-[11px] font-bold text-[#2c3c31]"><PhoneCall className="size-4 text-[#0a9451]" /> Call script</div><p className="mt-3 text-[12px] leading-5 text-[#5f6b63]">Hi, good afternoon. I noticed your business doesn&apos;t have a website yet. I made a quick sample. Can I send it to you on WhatsApp?</p><span className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#16894e]"><Copy className="size-3.5" /> Copy message</span></div></WorkflowViewTracker>
+            <WorkflowViewTracker onViewed={trackStartDemoLinkFeatureViewed}><div className="rounded-2xl border border-[#dfe5df] bg-white p-4"><div className="flex items-center gap-2 text-[11px] font-bold text-[#2c3c31]"><Link2 className="size-4 text-[#0a9451]" /> Send a demo link</div><p className="mt-3 text-[12px] leading-5 text-[#5f6b63]">Send a website the owner can actually open on WhatsApp, email or wherever you&apos;re talking.</p><div className="mt-3 flex items-center gap-2 rounded-lg bg-[#f4f7f3] px-2.5 py-2"><span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[#59655d]">kodarai.xyz/demo/abc...</span><Copy className="size-3.5 shrink-0 text-[#16894e]" /></div></div></WorkflowViewTracker>
+            <div className="rounded-2xl border border-[#dfe5df] bg-white p-4"><div className="flex items-center gap-2 text-[11px] font-bold text-[#2c3c31]"><Eye className="size-4 text-[#0a9451]" /> Know when it was opened</div><span className="mt-3 inline-flex rounded-full bg-[#e7f5e9] px-2 py-1 text-[10px] font-bold text-[#17834d]">Example</span><p className="mt-2 text-[12px] font-semibold text-[#334339]">Viewed 1 time · 17 minutes ago</p><p className="mt-2 text-[12px] leading-5 text-[#5f6b63]">KodarAI can show you when it may be a good time to follow up.</p><span className="mt-3 inline-flex text-[11px] font-semibold text-[#16894e]">Follow up now →</span></div>
+          </div>
+        </div>
+
+        <div className="mt-12 border-t border-[#dfe5df] pt-8 lg:mt-16 lg:pt-12"><p className="text-[11px] font-bold tracking-[0.15em] text-[#159051]">07 · SELL</p><h3 className="mt-3 max-w-[650px] text-[28px] font-bold leading-[1.06] tracking-[-0.045em] sm:text-[38px]">Follow up, agree on a price and get paid</h3><p className="mt-3 max-w-[610px] text-[14px] leading-6 text-[#5f6b63]">If the owner likes what you made, agree on the price, finish the website and get paid for the job.</p><div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-bold text-[#24352a] sm:text-[14px]"><span>Find</span><ChevronRight className="size-4 text-[#159051]" /><span>Build</span><ChevronRight className="size-4 text-[#159051]" /><span>Contact</span><ChevronRight className="size-4 text-[#159051]" /><span>Show</span><ChevronRight className="size-4 text-[#159051]" /><span>Follow up</span><ChevronRight className="size-4 text-[#159051]" /><span>Sell</span></div><p className="mt-4 text-[13px] font-semibold text-[#334339]">KodarAI helps you with the parts before the sale.</p><p className="mt-5 max-w-[620px] text-[13px] font-semibold text-[#172019]">One good client can be worth more than the cost of a Kodarai plan.</p><p className="mt-1 text-[11px] leading-5 text-[#687169]">Earnings are not guaranteed. Your results depend on your pricing, effort and the deals you close.</p></div>
+
+        <div className="mt-10 border-t border-[#dfe5df] pt-8"><p className="text-[22px] font-bold tracking-[-0.04em] text-[#172019]">Ready to try it yourself?</p><button type="button" onClick={() => { trackStartWorkflowCtaClicked(); onStart(); }} className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[14px] font-semibold text-white transition hover:bg-[#078549] sm:w-auto">Show me my plan <ArrowRight className="size-4" /></button></div>
+      </div>
+    </section>
+  );
+}
+function WorkflowViewTracker({
+  onViewed,
+  children,
+}: {
+  onViewed: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const tracked = useRef(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || tracked.current) return;
+    const track = () => {
+      if (tracked.current) return;
+      tracked.current = true;
+      onViewed();
+    };
+    if (!("IntersectionObserver" in window)) {
+      track();
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        track();
+        observer.disconnect();
+      }
+    }, { threshold: 0.2 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [onViewed]);
+
+  return <div ref={ref}>{children}</div>;
+}
 function ReviewsSection({
   reviews,
 }: {

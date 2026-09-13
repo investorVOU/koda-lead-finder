@@ -285,6 +285,13 @@ function emitInternalEvent(eventName: string, properties: AnalyticsProperties) {
 
 export const trackFunnelViewed = () => trackEvent("funnel_viewed");
 export const trackFunnelStarted = () => trackEvent("funnel_started");
+export const trackStartProductWorkflowViewed = () => trackEvent("start_product_workflow_viewed");
+export const trackStartFinderDemoViewed = () => trackEvent("start_finder_demo_viewed");
+export const trackStartStudioDemoViewed = () => trackEvent("start_studio_demo_viewed");
+export const trackStartLiveDemoClicked = () => trackEvent("start_live_demo_clicked");
+export const trackStartCallScriptDemoViewed = () => trackEvent("start_call_script_demo_viewed");
+export const trackStartDemoLinkFeatureViewed = () => trackEvent("start_demo_link_feature_viewed");
+export const trackStartWorkflowCtaClicked = () => trackEvent("start_workflow_cta_clicked");
 export const trackStartReviewsViewed = () => trackEvent("start_reviews_viewed");
 export const trackStartReviewChanged = (review_position: number) => trackEvent("start_review_changed", { review_position });
 export const trackStartProofViewed = () => trackEvent("start_proof_viewed");
