@@ -46,16 +46,20 @@ export function FirstClientChallenge() {
     next.key === "followedUp" ? "Follow up" : "View Revenue";
   return (
     <section className="mb-5">
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Your first client challenge</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Follow these steps to work toward your first paying client.</p>
+            <h2 className="text-base font-semibold sm:text-lg">Your first client challenge</h2>
+            <p className="mt-1 hidden text-sm text-muted-foreground sm:block">Follow these steps to work toward your first paying client.</p>
           </div>
           <span className="shrink-0 text-sm font-semibold text-primary">{total}/{available}</span>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted" aria-label={`${total} of ${available} challenge actions completed`}><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${available ? (total / available) * 100 : 0}%` }} /></div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted sm:mt-4" aria-label={`${total} of ${available} challenge actions completed`}><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${available ? (total / available) * 100 : 0}%` }} /></div>
+        <div className="mt-3 flex items-center justify-between gap-3 sm:hidden">
+          <p className="min-w-0 text-sm text-muted-foreground">Next: <span className="font-medium text-foreground">{next.label}</span></p>
+          <Button size="sm" onClick={continueToNextStep} className="shrink-0">{continueLabel} <ArrowRight className="size-4" /></Button>
+        </div>
+        <div className="mt-4 hidden gap-2 sm:grid sm:grid-cols-2">
           {steps.map((step) => {
             const count = progress?.[step.key] ?? 0;
             const complete = count >= step.target;
@@ -65,9 +69,8 @@ export function FirstClientChallenge() {
             </Link>;
           })}
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"><p className="text-sm text-muted-foreground">{total ? "You're one step closer. Keep going!" : "Start with one small step today."}</p><Button size="sm" onClick={continueToNextStep}>{continueLabel} <ArrowRight className="size-4" /></Button></div>
+        <div className="mt-4 hidden flex-wrap items-center justify-between gap-3 border-t border-border pt-4 sm:flex"><p className="text-sm text-muted-foreground">{total ? "You're one step closer. Keep going!" : "Start with one small step today."}</p><Button size="sm" onClick={continueToNextStep}>{continueLabel} <ArrowRight className="size-4" /></Button></div>
       </div>
-
     </section>
   );
 }

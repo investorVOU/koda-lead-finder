@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { MapPin, Search, Star } from "lucide-react";
+import { MapPin, Phone, Search, Star } from "lucide-react";
 import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
@@ -37,7 +37,8 @@ export function FinderDemo() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="font-semibold">Example local restaurant</h3>
-            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="size-3" /> Lagos, Nigeria</p>
+<p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="size-3" /> Lagos, Nigeria</p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Phone className="size-3" /> Contact preview: +234 80•• ••• 1234</p>
           </div>
           <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">No website</span>
         </div>
