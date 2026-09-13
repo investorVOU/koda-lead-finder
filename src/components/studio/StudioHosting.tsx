@@ -267,38 +267,6 @@ export function StudioHosting({
           </section>
         )}
 
-        {deploymentUrl && (
-          <section className="border border-white/[0.08] p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-              Vercel URL
-            </p>
-            <p className="mt-2 break-all font-mono text-xs leading-5 text-zinc-300">
-              {deploymentUrl}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="border-white/[0.1] bg-transparent"
-              >
-                <a href={deploymentUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 size-3.5" />
-                  Open site
-                </a>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void copyText(deploymentUrl)}
-                className="border-white/[0.1] bg-transparent"
-              >
-                <Copy className="mr-2 size-3.5" />
-                Copy link
-              </Button>
-            </div>
-          </section>
-        )}
 
         {!managementAllowed ? (
           <LockedDomainCard currentDomain={currentDomain} connected={connected} />
