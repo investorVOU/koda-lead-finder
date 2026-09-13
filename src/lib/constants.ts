@@ -448,6 +448,7 @@ export interface LeadResult {
   category?: string;
   address: string;
   phone: string | null;
+  email: string | null;
   rating: number | null;
   reviewCount: number;
   hasWebsite: boolean;

@@ -27,6 +27,7 @@ import {
   Star,
   MapPin,
   Phone,
+  Mail,
   Bookmark,
   BookmarkCheck,
   Code2,
@@ -101,6 +102,8 @@ import {
 import {
   createWebsiteProjectFromLead,
 } from "@/lib/studio.functions";
+
+import { findBusinessEmail } from "@/lib/business-email.functions";
 
 import {
   estimateWebsitePrice,
@@ -183,6 +186,8 @@ export function LeadResultCard({
       createWebsiteProjectFromLead,
     );
 
+  const runBusinessEmailLookup = useServerFn(findBusinessEmail);
+
   const {
     data:
       subscription,
@@ -240,6 +245,9 @@ export function LeadResultCard({
     useState(
       false,
     );
+
+  const [businessEmail, setBusinessEmail] = useState(lead.email);
+  const [emailLoading, setEmailLoading] = useState(false);
 
   const [
     buildingWebsite,
@@ -471,6 +479,24 @@ export function LeadResultCard({
       lead,
     );
 
+  const lookupBusinessEmail = async () => {
+    if (!lead.websiteUrl || emailLoading) return;
+    setEmailLoading(true);
+    try {
+      const result = await runBusinessEmailLookup({ data: { websiteUrl: lead.websiteUrl } });
+      if ("error" in result) {
+        toast.error(result.message);
+        return;
+      }
+      setBusinessEmail(result.email);
+      if (result.email) toast.success("Public business email found.");
+      else toast.message("No public business email was found on this website.");
+    } catch {
+      toast.error("We could not check that website for an email.");
+    } finally {
+      setEmailLoading(false);
+    }
+  };
   const saveLead =
     async () => {
       if (
@@ -1201,6 +1227,16 @@ export function LeadResultCard({
               }
             </a>
           )}
+          {businessEmail ? (
+            <a href={`mailto:${businessEmail}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+              <Mail className="size-3.5" /> {businessEmail}
+            </a>
+          ) : lead.websiteUrl ? (
+            <button type="button" onClick={lookupBusinessEmail} disabled={emailLoading} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground disabled:cursor-wait disabled:opacity-70">
+              {emailLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
+              {emailLoading ? "Finding email…" : "Find email"}
+            </button>
+          ) : null}
         </div>
 
         {/* OPPORTUNITY */}

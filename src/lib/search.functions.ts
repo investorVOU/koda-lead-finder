@@ -44,7 +44,8 @@ function demoLeads(category: string, location: string): LeadResult[] {
       name,
       address: `${100 + i * 7} Main St, ${location}`,
       phone: `+1 (555) ${String(100 + i).padStart(3, "0")}-${String(1000 + i * 13).slice(0, 4)}`,
-      rating: Number((4.9 - i * 0.1).toFixed(1)),
+      email: null,
+      ating: Number((4.9 - i * 0.1).toFixed(1)),
       reviewCount: 320 - i * 27,
       hasWebsite,
       websiteUrl: hasWebsite ? "https://example.com" : null,
@@ -149,7 +150,8 @@ export const findLeads = createServerFn({ method: "POST" })
           name: p.displayName?.text ?? "Unknown business",
           address: p.formattedAddress ?? "",
           phone: p.nationalPhoneNumber ?? p.internationalPhoneNumber ?? null,
-          rating: p.rating ?? null,
+          email: null,
+          ating: p.rating ?? null,
           reviewCount: p.userRatingCount ?? 0,
           hasWebsite: Boolean(p.websiteUri),
           websiteUrl: p.websiteUri ?? null,
