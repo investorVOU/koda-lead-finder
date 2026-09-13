@@ -1203,6 +1203,7 @@ function StudioBuilder() {
               onChanged={() =>
                 queryClient.invalidateQueries({ queryKey: ["studio-project", projectId] })
               }
+              onClose={() => setShowHosting(false)}
             />
           </div>
         </ModalBackdrop>

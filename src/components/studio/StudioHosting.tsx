@@ -37,6 +37,7 @@ type HostingProps = {
   fileCount: number;
   onDeploy: () => void;
   onChanged: () => void;
+  onClose: () => void;
 };
 
 type DomainDetails = StudioCustomDomainDetails;
@@ -67,6 +68,7 @@ export function StudioHosting({
   fileCount,
   onDeploy,
   onChanged,
+  onClose,
 }: HostingProps) {
   const runAddDomain = useServerFn(addStudioCustomDomain);
   const runDomainStatus = useServerFn(getStudioCustomDomainStatus);
@@ -195,11 +197,21 @@ export function StudioHosting({
               Publish and manage your site
             </h2>
           </div>
-          <StatusPill
-            tone={deploymentUrl ? "green" : deploymentStatus === "error" ? "red" : "zinc"}
-          >
-            {deploymentLabel}
-          </StatusPill>
+          <div className="flex items-center gap-2">
+            <StatusPill
+              tone={deploymentUrl ? "green" : deploymentStatus === "error" ? "red" : "zinc"}
+            >
+              {deploymentLabel}
+            </StatusPill>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close deploy dialog"
+              className="flex size-8 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
         </div>
 
         {primaryUrl ? (
