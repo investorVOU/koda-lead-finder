@@ -1,11 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFirstClientProgress } from "@/lib/conversion.functions";
-import { getPublishedSocialProof, type PublicMarketingProof, type PublicMarketingReview } from "@/lib/social-proof.functions";
 import { trackEvent } from "@/lib/analytics";
 
 const steps = [
@@ -18,30 +17,18 @@ const steps = [
 
 type Progress = Record<(typeof steps)[number]["key"], number>;
 
-function resultLabel(type: PublicMarketingProof["resultType"]) {
-  return ({ client_won: "Client won", payment_received: "Payment received", website_sold: "Website sold", positive_reply: "Positive reply", recurring_client: "Recurring client", other: "Result shared" } as const)[type];
-}
-
 export function FirstClientChallenge() {
   const getProgress = useServerFn(getFirstClientProgress);
-  const getProof = useServerFn(getPublishedSocialProof);
   const navigate = useNavigate();
   const progressQuery = useQuery({ queryKey: ["first-client-progress"], queryFn: () => getProgress(), staleTime: 30_000 });
   const location = useLocation();
-  const proofQuery = useQuery({ queryKey: ["dashboard-social-proof"], queryFn: () => getProof(), staleTime: 5 * 60_000 });
   const progress = (progressQuery.data && "progress" in progressQuery.data ? progressQuery.data.progress : null) as Progress | null;
   const total = progress ? steps.reduce((sum, step) => sum + Math.min(progress[step.key] ?? 0, step.target), 0) : 0;
   const available = steps.reduce((sum, step) => sum + step.target, 0);
   const next = steps.find((step) => !progress || (progress[step.key] ?? 0) < step.target) ?? steps[steps.length - 1];
-  const proof = useMemo(() => {
-    const data = proofQuery.data;
-    if (!data) return null;
-    return (data.proofs?.[0] ?? data.reviews?.[0] ?? null) as PublicMarketingProof | PublicMarketingReview | null;
-  }, [proofQuery.data]);
 
   useEffect(() => { trackEvent("first_client_progress_viewed"); }, []);
 
-  useEffect(() => { if (proof) trackEvent("success_story_viewed"); }, [proof]);
   const continueToNextStep = () => {
     trackEvent("first_client_step_clicked", { step: next.key, source: "continue" });
     if (next.key === "found" && location.pathname === "/dashboard") {
@@ -58,7 +45,7 @@ export function FirstClientChallenge() {
     next.key === "contacted" ? "Contact owners" :
     next.key === "followedUp" ? "Follow up" : "View Revenue";
   return (
-    <section className="mb-5 grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,.75fr)]">
+    <section className="mb-5">
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -81,13 +68,6 @@ export function FirstClientChallenge() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"><p className="text-sm text-muted-foreground">{total ? "You're one step closer. Keep going!" : "Start with one small step today."}</p><Button size="sm" onClick={continueToNextStep}>{continueLabel} <ArrowRight className="size-4" /></Button></div>
       </div>
 
-      {proof && <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">People are getting results with Kodarai</p>
-        <p className="mt-3 font-semibold">{"headline" in proof ? resultLabel(proof.resultType) : "Customer story"}</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">&quot;{"quote" in proof ? (proof.quote ?? proof.description ?? proof.headline) : proof.reviewText}&quot;</p>
-        <p className="mt-4 text-sm font-medium">{proof.name}{proof.location ? ` - ${proof.location}` : ""}</p>
-        {"resultAmount" in proof && proof.resultAmount !== null && <p className="mt-1 text-sm font-semibold text-primary">{proof.currency ?? "\u20A6"}{proof.resultAmount.toLocaleString()}</p>}
-      </article>}
     </section>
   );
 }

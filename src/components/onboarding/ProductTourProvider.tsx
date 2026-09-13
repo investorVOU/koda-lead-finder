@@ -119,7 +119,7 @@ function TourOverlay({ step, rect, onBack, onNext, onSkip, cardRef }: { step: nu
   return <div className="fixed inset-0 z-[100]" aria-live="polite">
     <div className="absolute inset-0 bg-black/55" />
     {rect && <div aria-hidden="true" className="pointer-events-none fixed rounded-xl border-2 border-primary bg-white/10 shadow-[0_0_0_4px_rgba(255,255,255,.7)]" style={{ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 }} />}
-    <section ref={cardRef} role="dialog" aria-modal="true" aria-label={current.title} className={`fixed z-[101] w-[calc(100%-2rem)] max-w-[350px] rounded-2xl border border-border bg-card p-5 shadow-xl ${mobile ? "inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))]" : ""}`} style={style}>
+    <section ref={cardRef} role="dialog" aria-modal="true" aria-label={current.title} className={`fixed z-[101] w-[calc(100%-2rem)] max-w-[350px] rounded-2xl border border-border bg-card p-5 shadow-xl ${mobile ? "inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))]" : ""}`} style={style}>
       {step === steps.length - 1 ? <CheckCircle2 className="mb-3 size-8 text-primary" /> : null}
       <p className="text-xs font-medium text-primary">{isWelcome ? "1 of 6" : `${step + 1} of 6`}</p>
       <h2 className="mt-1 text-lg font-semibold">{current.title}</h2>
