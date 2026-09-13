@@ -154,6 +154,9 @@ export const updateStudioProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => updateProjectSchema.parse(d))
   .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) {
+      return { error: "plan_required", message: "Choose a paid plan to edit a Studio project." } as const;
+    }
     const { id, ...fields } = data;
     const { error } = await db
       .from("studio_projects")
@@ -168,6 +171,9 @@ export const deleteStudioProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) {
+      return { error: "plan_required", message: "Choose a paid plan to edit a Studio project." } as const;
+    }
     const { error } = await db
       .from("studio_projects")
       .delete()
@@ -518,6 +524,9 @@ export const createStudioMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => createMessageSchema.parse(d))
   .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) {
+      return { error: "plan_required", message: "Choose a paid plan to use Studio AI." } as const;
+    }
     // Verify ownership
     const { data: proj } = await db
       .from("studio_projects")
@@ -576,6 +585,9 @@ export const createStudioSnapshot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => createSnapshotSchema.parse(d))
   .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) {
+      return { error: "plan_required", message: "Choose a paid plan to edit a Studio project." } as const;
+    }
     const { data: proj } = await db
       .from("studio_projects")
       .select("id")

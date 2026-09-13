@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
 
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
@@ -359,7 +360,9 @@ export const getYouTubeChannel = createServerFn({
 })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => channelUrlSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     try {
       const parsed = parseYouTubeChannelUrl(data.url);
       const channelId = await resolveChannelId(parsed);
@@ -427,7 +430,9 @@ export const getYouTubeChannelVideos = createServerFn({
       limit: z.number().int().min(1).max(50).optional().default(25),
     }),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     try {
       const searchResult = await youtubeFetch<{
         items?: {
@@ -539,7 +544,9 @@ export const getYouTubeChannelData = createServerFn({
         .default(25),
     }),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     try {
       const parsed = parseYouTubeChannelUrl(data.url);
       const channelId = await resolveChannelId(parsed);

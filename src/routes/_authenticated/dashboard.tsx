@@ -20,7 +20,11 @@ import { Button } from "@/components/ui/button";
 
 import { findLeads } from "@/lib/search.functions";
 import { useAuth } from "@/lib/auth";
-import { useProfile } from "@/lib/queries";
+import { useProfile, useSubscription } from "@/lib/queries";
+import { FinderDemo } from "@/components/conversion/FinderDemo";
+import { FirstClientChallenge } from "@/components/conversion/FirstClientChallenge";
+import { isPreviewMode } from "@/lib/plan-access";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import {
   trackFinderSearch,
   trackFirstFinderSearch,
@@ -50,6 +54,9 @@ type WebsiteFilter =
 
 function DashboardPage() {
   const { user } = useAuth();
+  const { guardAction } = usePlanPreviewGate();
+  const { data: subscription } = useSubscription(user?.id);
+  const isPreview = isPreviewMode(subscription?.status);
 
   const { data: profile } =
     useProfile(user?.id);
@@ -106,6 +113,8 @@ function DashboardPage() {
     category: string,
     location: string,
   ) => {
+    if (guardAction("finder_search")) return;
+
     setLoading(true);
     setSearched(false);
 
@@ -260,6 +269,7 @@ function DashboardPage() {
   return (
     <DashboardShell>
       <div className="mx-auto w-full max-w-3xl pb-4">
+        <FirstClientChallenge />
         {/* PAGE TITLE */}
 
         <header className="mb-4">
@@ -329,7 +339,7 @@ function DashboardPage() {
 
         {/* SEARCH */}
 
-        <section
+        <section data-first-client-finder
           className="
             rounded-[20px]
             border
@@ -359,6 +369,7 @@ function DashboardPage() {
         <div className="mt-3">
           <CreditMeter slim />
         </div>
+        {isPreview && <FinderDemo />}
 
         {/* RESULT HEADER */}
 

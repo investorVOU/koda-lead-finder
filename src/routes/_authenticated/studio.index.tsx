@@ -34,7 +34,9 @@ import type {
 } from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 
+import { StudioDemo } from "@/components/conversion/StudioDemo";
 import {
   listStudioProjects,
   type StudioProject,
@@ -139,6 +141,7 @@ const STUDIO_TOOLS: StudioTool[] = [
 ];
 
 function StudioPage() {
+  const { guardAction, isPreview } = usePlanPreviewGate();
   const runListProjects =
     useServerFn(listStudioProjects);
 
@@ -332,6 +335,9 @@ function StudioPage() {
               hover:bg-primary/90
               sm:px-4
             "
+            onClick={(event) => {
+              if (guardAction("studio_new_website")) event.preventDefault();
+            }}
           >
             <Plus className="size-4" />
 
@@ -344,6 +350,7 @@ function StudioPage() {
             </span>
           </Link>
         </header>
+        {isPreview && <StudioDemo />}
 
         {/* SEARCH */}
 
@@ -543,6 +550,9 @@ function StudioPage() {
                   transition
                   hover:bg-primary/90
                 "
+                onClick={(event) => {
+                  if (guardAction("studio_new_website")) event.preventDefault();
+                }}
               >
                 <Plus className="size-3.5" />
                 Create
@@ -963,9 +973,13 @@ function StudioActionCard({
 }: {
   tool: StudioTool;
 }) {
+  const { guardAction } = usePlanPreviewGate();
   return (
     <Link
       to={tool.href}
+      onClick={(event) => {
+        if (tool.href === "/studio/new" && guardAction("studio_new_website")) event.preventDefault();
+      }}
       className="
         group
         flex

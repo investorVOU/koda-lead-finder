@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,6 +83,7 @@ const MODES: {
 ];
 
 function ScraperPage() {
+  const { guardAction } = usePlanPreviewGate();
   const scrape = useServerFn(scrapeUrl);
 
   const [url, setUrl] = useState("");
@@ -110,6 +112,10 @@ function ScraperPage() {
       toast.error(
         "Enter a valid URL, including https://",
       );
+      return;
+    }
+
+    if (guardAction("studio_ai_edit")) {
       return;
     }
 

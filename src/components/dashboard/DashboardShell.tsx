@@ -1,5 +1,6 @@
 import {
   type ReactNode,
+  useEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -41,6 +42,10 @@ import { SupportChat } from "@/components/support/SupportChat";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
+import { ProductTourProvider } from "@/components/onboarding/ProductTourProvider";
+import { PreviewModeBanner } from "@/components/billing/PlanPreviewGate";
+import { trackPreviewModeEntered } from "@/lib/analytics";
+import { isPreviewMode } from "@/lib/plan-access";
 
 interface NavItem {
   to: string;
@@ -140,7 +145,12 @@ export function DashboardShell({
   const navigate = useNavigate();
   const location = useLocation();
 
-  useSubscription(user?.id);
+  const { data: subscription } = useSubscription(user?.id);
+  const isPreview = isPreviewMode(subscription?.status);
+
+  useEffect(() => {
+    if (isPreview) trackPreviewModeEntered();
+  }, [isPreview]);
 
   const [moreOpen, setMoreOpen] =
     useState(false);
@@ -231,7 +241,7 @@ export function DashboardShell({
     "there";
 
   return (
-    <div className="min-h-screen bg-background pb-28 md:pb-0">
+    <ProductTourProvider><div className="min-h-screen bg-background pb-28 md:pb-0">
       {/* HEADER */}
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
@@ -247,6 +257,7 @@ export function DashboardShell({
                 <Link
                   key={item.to}
                   to={item.to}
+                  data-tour={item.to === "/dashboard" ? "finder" : item.to === "/studio" ? "studio" : item.to === "/leads" ? "leads" : item.to === "/revenue" ? "revenue" : undefined}
                   className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   activeProps={{
                     className:
@@ -323,14 +334,16 @@ export function DashboardShell({
         </div>
       </header>
 
+
       {/* CONTENT */}
 
       <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:py-8 md:pb-8">
+        <PreviewModeBanner />
         <div
           key={location.pathname}
           className="animate-page-enter"
         >
-          {children}
+          <div data-tour="dashboard">{children}</div>
         </div>
       </main>
 
@@ -445,6 +458,7 @@ export function DashboardShell({
                   el;
               }}
               to="/leads"
+              dataTour="leads"
               label="Leads"
               icon={Bookmark}
               active={isPathActive(
@@ -465,6 +479,7 @@ export function DashboardShell({
                   el;
               }}
               to="/studio"
+              dataTour="studio"
               label="Studio"
               icon={Code2}
               active={isPathActive(
@@ -486,6 +501,7 @@ export function DashboardShell({
                   mobileNavRefs.current[2] =
                     el;
                 }}
+                data-tour="finder"
                 onKeyDown={(e) =>
                   handleNavKeyDown(
                     e,
@@ -1068,7 +1084,7 @@ export function DashboardShell({
           </div>
         </>
       )}
-    </div>
+    </div></ProductTourProvider>
   );
 }
 
@@ -1077,6 +1093,7 @@ function MobileNavItem({
   label,
   icon: Icon,
   active,
+  dataTour,
   onKeyDown,
   refCallback,
 }: {
@@ -1085,6 +1102,7 @@ function MobileNavItem({
     | "/studio"
     | "/numbers";
   label: string;
+  dataTour?: string;
   icon: typeof Bookmark;
   active: boolean;
   onKeyDown: (
@@ -1098,6 +1116,7 @@ function MobileNavItem({
     <Link
       to={to}
       ref={refCallback}
+      data-tour={dataTour}
       onKeyDown={onKeyDown}
       aria-label={label}
       className="

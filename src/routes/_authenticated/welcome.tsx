@@ -163,7 +163,7 @@ function WelcomePage() {
         <div className="mx-auto w-full max-w-md px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <button
             type="button"
-            onClick={() => navigate({ to: "/onboarding" })}
+            onClick={() => navigate({ to: "/choose-plan" })}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg transition-opacity hover:opacity-90"
           >
             Get started

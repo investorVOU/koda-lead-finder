@@ -54,9 +54,12 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { StudioLivePreview } from "@/components/studio/StudioLivePreview";
 
+import { StudioDemoLinkCard } from "@/components/conversion/StudioDemoLinkCard";
 import { StudioHosting } from "@/components/studio/StudioHosting";
 
 import { useAuth } from "@/lib/auth";
+
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -267,6 +270,8 @@ function StudioBuilder() {
 
   const { user } = useAuth();
 
+  const { guardAction, isPreview } = usePlanPreviewGate();
+
   const isMobile = useIsMobile();
 
   const queryClient = useQueryClient();
@@ -441,6 +446,10 @@ function StudioBuilder() {
    */
   useEffect(
     () => {
+      if (isPreview) {
+        return;
+      }
+
       if (!project || project.generation_status === "ready" || isStreaming) {
         return;
       }
@@ -535,10 +544,14 @@ function StudioBuilder() {
     },
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [generate, project?.id, project?.generation_status],
+    [generate, project?.id, project?.generation_status, isPreview],
   );
 
   const saveProjectName = async () => {
+    if (guardAction("studio_ai_edit")) {
+      return;
+    }
+
     setEditingName(false);
 
     const value = projectName.trim();
@@ -671,6 +684,10 @@ function StudioBuilder() {
   };
 
   const saveFiles = async () => {
+    if (guardAction("studio_ai_edit")) {
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -695,6 +712,10 @@ function StudioBuilder() {
   };
 
   const undoEdit = async () => {
+    if (guardAction("studio_ai_edit")) {
+      return;
+    }
+
     const result = await runUndo({
       data: {
         project_id: projectId,
@@ -718,6 +739,10 @@ function StudioBuilder() {
     const clean = prompt.trim();
 
     if (!clean || isStreaming) {
+      return;
+    }
+
+    if (guardAction(fileCount === 0 ? "studio_generate" : "studio_ai_edit")) {
       return;
     }
 
@@ -1050,6 +1075,7 @@ function StudioBuilder() {
           </Button>
         </div>
       </header>
+      <div className="px-3 pt-3 sm:px-5"><StudioDemoLinkCard projectId={projectId} hasWebsite={fileCount > 0} /></div>
 
       {isMobile ? (
         <MobileStudio
@@ -1093,7 +1119,10 @@ function StudioBuilder() {
           onDeleteFile={deleteFile}
           onRenameFile={renameFile}
           onSend={handleSend}
-          onDeploy={() => setShowDeploy(true)}
+          onDeploy={() => {
+            if (guardAction("studio_generate")) return;
+            setShowDeploy(true);
+          }}
           onUndo={undoEdit}
         />
       ) : (
@@ -1119,7 +1148,10 @@ function StudioBuilder() {
           onDeleteFile={deleteFile}
           onRenameFile={renameFile}
           onSend={handleSend}
-          onDeploy={() => setShowDeploy(true)}
+          onDeploy={() => {
+            if (guardAction("studio_generate")) return;
+            setShowDeploy(true);
+          }}
         />
       )}
 
@@ -1164,6 +1196,7 @@ function StudioBuilder() {
               )}
               fileCount={fileCount}
               onDeploy={() => {
+                if (guardAction("studio_generate")) return;
                 setShowHosting(false);
                 setShowDeploy(true);
               }}

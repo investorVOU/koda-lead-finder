@@ -14,6 +14,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
+import { supabase } from "@/integrations/supabase/client";
 import type { ChannelReviewResult } from "@/lib/channel-review.functions";
 
 export const Route = createFileRoute("/_authenticated/studio/channel-review")({
@@ -24,6 +26,7 @@ export const Route = createFileRoute("/_authenticated/studio/channel-review")({
 });
 
 function ChannelReviewPage() {
+  const { guardAction } = usePlanPreviewGate();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,14 +40,29 @@ function ChannelReviewPage() {
       return;
     }
 
+    if (guardAction("studio_ai_edit")) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Not authenticated.");
+      }
+
       const res = await fetch("/api/studio/channel-review", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ channelInput: input.trim() }),
       });
 

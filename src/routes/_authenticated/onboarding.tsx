@@ -26,9 +26,17 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
     meta: [{ title: "Welcome — Kodarai" }],
   }),
-  component: OnboardingPage,
+  component: LegacyOnboardingRedirect,
 });
 function OnboardingPage() {
+/** Legacy links now continue straight to plan selection. */
+function LegacyOnboardingRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate({ to: "/choose-plan", replace: true });
+  }, [navigate]);
+  return null;
+}
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

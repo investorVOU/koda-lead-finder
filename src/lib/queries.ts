@@ -9,6 +9,7 @@ export interface Profile {
   primary_niche: string | null;
   target_location: string | null;
   onboarded: boolean;
+  product_tour_state?: "not_started" | "in_progress" | "completed" | "skipped";
 }
 
 export interface Subscription {

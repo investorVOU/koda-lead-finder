@@ -21,6 +21,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
+import { Route as DemoShareTokenRouteImport } from './routes/demo/$shareToken'
 import { Route as ApiPingRouteImport } from './routes/api/ping'
 import { Route as AuthenticatedWelcomeRouteImport } from './routes/_authenticated/welcome'
 import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
@@ -117,6 +118,11 @@ const IndexRoute = IndexRouteImport.update({
 const PreviewSlugRoute = PreviewSlugRouteImport.update({
   id: '/preview/$slug',
   path: '/preview/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoShareTokenRoute = DemoShareTokenRouteImport.update({
+  id: '/demo/$shareToken',
+  path: '/demo/$shareToken',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPingRoute = ApiPingRouteImport.update({
@@ -355,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof AuthenticatedSupportRoute
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
+  '/demo/$shareToken': typeof DemoShareTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -405,6 +412,7 @@ export interface FileRoutesByTo {
   '/support': typeof AuthenticatedSupportRoute
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
+  '/demo/$shareToken': typeof DemoShareTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -458,6 +466,7 @@ export interface FileRoutesById {
   '/_authenticated/support': typeof AuthenticatedSupportRoute
   '/_authenticated/welcome': typeof AuthenticatedWelcomeRoute
   '/api/ping': typeof ApiPingRoute
+  '/demo/$shareToken': typeof DemoShareTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
   '/_authenticated/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -511,6 +520,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/welcome'
     | '/api/ping'
+    | '/demo/$shareToken'
     | '/preview/$slug'
     | '/internal/marketing'
     | '/studio/$projectId'
@@ -561,6 +571,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/welcome'
     | '/api/ping'
+    | '/demo/$shareToken'
     | '/preview/$slug'
     | '/internal/marketing'
     | '/studio/$projectId'
@@ -613,6 +624,7 @@ export interface FileRouteTypes {
     | '/_authenticated/support'
     | '/_authenticated/welcome'
     | '/api/ping'
+    | '/demo/$shareToken'
     | '/preview/$slug'
     | '/_authenticated/internal/marketing'
     | '/_authenticated/studio/$projectId'
@@ -652,6 +664,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TrialWelcomeRoute: typeof TrialWelcomeRoute
   ApiPingRoute: typeof ApiPingRoute
+  DemoShareTokenRoute: typeof DemoShareTokenRoute
   PreviewSlugRoute: typeof PreviewSlugRoute
   ApiStudioChannelReviewRoute: typeof ApiStudioChannelReviewRoute
   ApiStudioGenerateRoute: typeof ApiStudioGenerateRoute
@@ -751,6 +764,13 @@ declare module '@tanstack/react-router' {
       path: '/preview/$slug'
       fullPath: '/preview/$slug'
       preLoaderRoute: typeof PreviewSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/$shareToken': {
+      id: '/demo/$shareToken'
+      path: '/demo/$shareToken'
+      fullPath: '/demo/$shareToken'
+      preLoaderRoute: typeof DemoShareTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ping': {
@@ -1105,6 +1125,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TrialWelcomeRoute: TrialWelcomeRoute,
   ApiPingRoute: ApiPingRoute,
+  DemoShareTokenRoute: DemoShareTokenRoute,
   PreviewSlugRoute: PreviewSlugRoute,
   ApiStudioChannelReviewRoute: ApiStudioChannelReviewRoute,
   ApiStudioGenerateRoute: ApiStudioGenerateRoute,

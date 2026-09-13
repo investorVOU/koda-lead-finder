@@ -44,6 +44,9 @@ import { useSubscription } from "@/lib/queries";
 import { hasPlanAccess } from "@/lib/billing";
 import { LEAD_STATUSES, STATUS_LABELS, type LeadStatusValue } from "@/lib/constants";
 import { createWebsiteProjectFromLead } from "@/lib/studio.functions";
+import { MessageHelper } from "@/components/conversion/MessageHelper";
+import { trackEvent } from "@/lib/analytics";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 
 export interface SavedLead {
   id: string;
@@ -90,6 +93,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: subscription } = useSubscription(user?.id);
+  const { guardAction } = usePlanPreviewGate();
   const queryClient = useQueryClient();
   const runGenerate = useServerFn(generateContent);
   const runAnalyzeReviews = useServerFn(analyzeReviews);
@@ -105,6 +109,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [proposalOpen, setProposalOpen] = useState(false);
   const [emailSeqOpen, setEmailSeqOpen] = useState(false);
+  const [messageHelperOpen, setMessageHelperOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -154,6 +159,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   };
 
   const generate = async (kind: "website_prompt" | "call_script") => {
+    if (guardAction("lead_paid_action")) return;
     setGenKind(kind);
     setDialogTitle(kind === "website_prompt" ? "Website Prompt" : "Cold Call Script");
     setDialogDesc(
@@ -187,6 +193,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
   };
 
   const openReviews = async () => {
+    if (guardAction("lead_paid_action")) return;
     if (!lead.place_id) return;
     setReviewAnalysis(null);
     setReviewLoading(true);
@@ -210,6 +217,7 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
 
   const buildWebsite = async () => {
     if (lead.has_website || buildingWebsite) return;
+    if (guardAction("studio_generate")) return;
     setBuildingWebsite(true);
     try {
       const result = await runCreateWebsiteProject({
@@ -350,13 +358,19 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
           <Button variant="ghost" size="icon" className="size-8" onClick={() => generate("call_script")} title="Cold call script">
             <PhoneCall className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => (canUseProTools ? setEmailSeqOpen(true) : setUpgradeFeature("3-email outreach sequences"))} title={canUseProTools ? "Email sequence" : "Email sequence — Pro"}>
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => {
+            if (guardAction("lead_paid_action")) return;
+            canUseProTools ? setEmailSeqOpen(true) : setUpgradeFeature("3-email outreach sequences");
+          }} title={canUseProTools ? "Email sequence" : "Email sequence — Pro"}>
             {canUseProTools ? <Mail className="size-4" /> : <Lock className="size-4" />}
           </Button>
           <Button variant="ghost" size="icon" className="size-8" onClick={() => setOutreachOpen(true)} title="Outreach templates">
             <MessageCircle className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => (canUseProTools ? setProposalOpen(true) : setUpgradeFeature("Branded PDF proposals"))} title={canUseProTools ? "Proposal" : "Proposal — Pro"}>
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => {
+            if (guardAction("lead_paid_action")) return;
+            canUseProTools ? setProposalOpen(true) : setUpgradeFeature("Branded PDF proposals");
+          }} title={canUseProTools ? "Proposal" : "Proposal — Pro"}>
             {canUseProTools ? <FileText className="size-4" /> : <Lock className="size-4" />}
           </Button>
           <Button
@@ -407,6 +421,10 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
           </Button>
         </div>
 
+        <button type="button" onClick={() => { setMessageHelperOpen((open) => !open); trackEvent("message_helper_opened"); }} className="mt-2 text-xs font-medium text-primary hover:underline">
+          {messageHelperOpen ? "Hide message helper" : "Need help writing a message?"}
+        </button>
+        {messageHelperOpen && <div className="mt-3"><MessageHelper lead={lead} compact /></div>}
         {/* Build site shortcut — shown for contacted / closed / paid leads */}
         {!lead.has_website && (
           <button

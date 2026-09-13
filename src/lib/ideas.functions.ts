@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getYouTubeChannelData } from "@/lib/youtube.functions";
+import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "openai/gpt-oss-120b"; // verify against console.groq.com/docs/models before shipping — Groq deprecates fast
@@ -129,7 +130,9 @@ export const generateVideoIdeas = createServerFn({
 })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => generateIdeasSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     let channelName: string | null = null;
     let channelId: string | null = null;
     let channelContext = "";

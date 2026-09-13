@@ -13,6 +13,7 @@ import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { Logo } from "@/components/landing/Logo";
 import { WelcomeEmailSync } from "@/components/auth/WelcomeEmailSync";
 import { PlanActivationEnrollmentSync } from "@/components/marketing/PlanActivationEnrollmentSync";
+import { trackPlanSkipped } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
   head: () => ({ meta: [{ title: "Choose your plan — Kodarai" }] }),
@@ -139,6 +140,20 @@ function ChoosePlanPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        <div className="mt-8 text-center">
+          <p className="font-medium">Not ready yet?</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You can look around Kodarai first.<br />
+            Some features will stay locked until you choose a plan.
+          </p>
+          <Button variant="ghost" className="mt-3" onClick={() => {
+            trackPlanSkipped();
+            navigate({ to: "/dashboard" });
+          }}>
+            I&apos;ll do this later
+          </Button>
+        </div>
       </div>
     </div>
   );

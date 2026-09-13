@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { hasPaidSubscription } from "@/lib/subscription.server";
 
 // ============================================================================
 // AI CONFIG
@@ -704,6 +705,21 @@ export const Route = createFileRoute(
                   "application/json",
               },
             }
+          );
+        }
+
+        if (!(await hasPaidSubscription(user.id))) {
+          return new Response(
+            JSON.stringify({
+              error: "plan_required",
+              message: "Choose a paid plan to use Studio AI.",
+            }),
+            {
+              status: 402,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
           );
         }
 

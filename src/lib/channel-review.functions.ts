@@ -5,6 +5,7 @@ import {
   getYouTubeChannelData,
   type YouTubeChannelData,
 } from "@/lib/youtube.functions";
+import { hasPaidSubscription, paidPlanRequired } from "@/lib/subscription.server";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "openai/gpt-oss-120b"; // verify against console.groq.com/docs/models — Groq deprecates fast
@@ -264,7 +265,9 @@ export const reviewYouTubeChannel = createServerFn({
 })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => inputSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await hasPaidSubscription(context.userId))) return paidPlanRequired();
+
     try {
       /*
        * Your existing YouTube server function handles:

@@ -176,7 +176,7 @@ function SignupPage() {
       user
     ) {
       navigate({
-        to: "/dashboard",
+        to: "/choose-plan",
       });
     }
   }, [
@@ -358,7 +358,7 @@ function SignupPage() {
         );
 
         navigate({
-          to: "/dashboard",
+          to: "/choose-plan",
         });
 
         return;

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import { createStudioProject } from "@/lib/studio.functions";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import { supabase } from "@/integrations/supabase/client";
 import type { SavedLead } from "@/components/dashboard/SavedLeadCard";
 
@@ -37,6 +38,7 @@ const TEMPLATES = [
 
 function NewStudioProjectPage() {
   const { user } = useAuth();
+  const { guardAction } = usePlanPreviewGate();
   const navigate = useNavigate();
   const { leadId = "" } = useSearch({ from: "/_authenticated/studio/new" });
   const runCreate = useServerFn(createStudioProject);
@@ -150,11 +152,13 @@ function NewStudioProjectPage() {
 
   useEffect(() => {
     if (!autoCreate || !prompt.trim() || createMutation.isPending || createMutation.isSuccess) return;
+    if (guardAction("studio_generate")) return;
     createMutation.mutate();
-  }, [autoCreate, prompt, createMutation.isPending, createMutation.isSuccess, createMutation]);
+  }, [autoCreate, prompt, createMutation.isPending, createMutation.isSuccess, createMutation, guardAction]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (guardAction("studio_new_website")) return;
     createMutation.mutate();
   };
 

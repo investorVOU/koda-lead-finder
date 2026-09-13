@@ -446,7 +446,11 @@ previewRoot.render(
 </html>`;
 }
 
-function buildPreviewDoc(
+/**
+ * Produces the same isolated document used by Studio's private preview. The
+ * public demo route receives only this document, never project or lead data.
+ */
+export function buildStudioPreviewDoc(
   files: Record<
     string,
     string
@@ -518,7 +522,7 @@ export function StudioLivePreview({
   const previewDoc =
     useMemo(
       () =>
-        buildPreviewDoc(
+        buildStudioPreviewDoc(
           files,
         ),
       [files],

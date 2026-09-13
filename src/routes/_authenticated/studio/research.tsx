@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,7 @@ type ResearchType =
   | "trends";
 
 function ResearchPage() {
+  const { guardAction } = usePlanPreviewGate();
   const runResearch =
     useServerFn(conductResearch);
 
@@ -68,6 +70,10 @@ function ResearchPage() {
       toast.error(
         "Enter something you want to research.",
       );
+      return;
+    }
+
+    if (guardAction("studio_ai_edit")) {
       return;
     }
 

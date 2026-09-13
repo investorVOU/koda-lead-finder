@@ -8,6 +8,8 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useProfile, useSubscription } from "@/lib/queries";
+import { hasPaidPlan } from "@/lib/plan-access";
+import { PlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -71,9 +73,7 @@ function AuthenticatedLayout() {
        * showing the plan picker again.
        */
       if (pathname === "/choose-plan") {
-        const hasAccess =
-          sub?.status === "active" ||
-          sub?.status === "canceling";
+        const hasAccess = hasPaidPlan(sub?.status);
 
         if (hasAccess) {
           navigate({ to: "/dashboard" });
@@ -83,15 +83,11 @@ function AuthenticatedLayout() {
       return;
     }
 
-    if (!profile.onboarded) {
-      navigate({ to: "/welcome" });
-      return;
-    }
 
-    const hasPaidAccess =
-      sub?.status === "active" || sub?.status === "canceling";
+    const isPendingPlan = sub?.status === "pending_plan";
+    const hasPaidAccess = hasPaidPlan(sub?.status);
 
-    if (!hasPaidAccess) {
+    if (!hasPaidAccess && !isPendingPlan) {
       navigate({ to: "/choose-plan" });
       return;
     }
@@ -116,5 +112,9 @@ function AuthenticatedLayout() {
     return <FullScreenLoader />;
   }
 
-  return <Outlet />;
+  return (
+    <PlanPreviewGate>
+      <Outlet />
+    </PlanPreviewGate>
+  );
 }

@@ -15,6 +15,7 @@ import {
   CreditCard,
   Eye,
   EyeOff,
+  CircleHelp,
 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { AvatarUpload } from "@/components/dashboard/AvatarUpload";
@@ -456,6 +457,15 @@ function SettingsPage() {
           </Section>
 
           {/* ── Danger zone ── */}
+          <Section id="help" icon={CircleHelp} title="Get to know Kodarai" description="A quick refresher on finding businesses, making websites, and following up">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-md text-sm text-muted-foreground">Take the six-step product tour again whenever you need a refresher.</p>
+              <Button type="button" variant="outline" className="shrink-0" onClick={() => document.getElementById("restart-product-tour")?.click()}>
+                Take product tour again
+              </Button>
+            </div>
+          </Section>
+
           <Section
             id="billing"
             icon={CreditCard}

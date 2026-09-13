@@ -326,6 +326,10 @@ export const trackFinderSearch = (data: { category: string; state?: string; city
 export const trackFirstFinderSearch = (userId?: string) => trackOnce(`kodarai_first_finder_search_tracked:${userId ?? "device"}`, () => trackEvent("first_finder_search"));
 export const trackWebsiteGenerated = (data: { template?: string; category?: string; source?: string }) => trackEvent("website_generated", data);
 export const trackFirstWebsiteGenerated = (userId?: string) => trackOnce(`kodarai_first_website_generated_tracked:${userId ?? "device"}`, () => trackEvent("first_website_generated"));
+export const trackPlanSkipped = () => trackEvent("plan_skipped");
+export const trackPreviewModeEntered = () => trackOnce("kodarai_preview_mode_entered", () => trackEvent("preview_mode_entered"));
+export const trackPreviewLockedAction = (feature: "finder_search" | "studio_new_website" | "studio_generate" | "studio_ai_edit" | "lead_paid_action") => trackEvent("preview_locked_action_clicked", { feature });
+export const trackPreviewUpgradeClicked = () => trackEvent("preview_upgrade_clicked");
 export const trackCheckoutStarted = (data: { plan: string; currency: string; value: number }) => {
   emitInternalEvent("checkout_started", data);
   trackEvent("InitiateCheckout", data);

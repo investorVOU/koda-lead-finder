@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ type Length =
   | "medium"
   | "long";
 function ContentPage() {
+  const { guardAction } = usePlanPreviewGate();
   const generate = useServerFn(generateContent);
   const [type, setType] =
     useState<ContentType>("youtube-script");
@@ -65,6 +67,9 @@ function ContentPage() {
     event.preventDefault();
     if (!topic.trim()) {
       toast.error("Enter a topic first.");
+      return;
+    }
+    if (guardAction("studio_ai_edit")) {
       return;
     }
     setLoading(true);

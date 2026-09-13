@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/studio/ideas")({
 type Format = "any" | "short" | "long";
 
 function IdeasPage() {
+  const { guardAction } = usePlanPreviewGate();
   const generateIdeas = useServerFn(generateVideoIdeas);
 
   const [topic, setTopic] = useState("");
@@ -48,6 +50,10 @@ function IdeasPage() {
 
     if (!topic.trim() && !channelUrl.trim()) {
       toast.error("Enter a topic or YouTube channel first.");
+      return;
+    }
+
+    if (guardAction("studio_ai_edit")) {
       return;
     }
 

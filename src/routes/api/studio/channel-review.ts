@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
 import { z } from "zod";
 import { fetchYouTubeChannelData } from "@/lib/youtube.functions";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { hasPaidSubscription } from "@/lib/subscription.server";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "openai/gpt-oss-120b";
@@ -44,6 +46,26 @@ export const Route = createFileRoute("/api/studio/channel-review")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+        if (!token) {
+          return json({ error: "unauthorized", message: "Sign in to use Channel Review." }, { status: 401 });
+        }
+
+        const {
+          data: { user },
+          error: authError,
+        } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) {
+          return json({ error: "unauthorized", message: "Sign in to use Channel Review." }, { status: 401 });
+        }
+
+        if (!(await hasPaidSubscription(user.id))) {
+          return json(
+            { error: "plan_required", message: "Choose a paid plan to use Channel Review." },
+            { status: 402 },
+          );
+        }
+
         let body: z.infer<typeof bodySchema>;
         try {
           const raw = await request.json();

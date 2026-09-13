@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { LeadResult } from "@/lib/constants";
-import { hasPlanAtLeast } from "@/lib/subscription.server";
+import { hasPaidSubscription, hasPlanAtLeast } from "@/lib/subscription.server";
 
 const inputSchema = z.object({
   category: z.string().min(1).max(80),
@@ -58,6 +58,10 @@ export const findLeads = createServerFn({ method: "POST" })
   .inputValidator((data) => inputSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+
+    if (!(await hasPaidSubscription(userId))) {
+      return { error: "plan_required", message: "Choose a paid plan to search for businesses." } as const;
+    }
 
     let savedSearch: SavedSearchRecord | null = null;
 
