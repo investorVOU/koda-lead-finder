@@ -7,6 +7,9 @@ export interface NumberCountry {
 }
 
 export const PRICING_PLATFORM_FEE_NGN = 400;
+// Retained for SMSPool short-term rental quote calculations in BuyNumberDialog.
+export const PRICING_MARKUP_PERCENT = 40;
+export const PRICING_MARKUP_MIN_NGN = 200;
 
 // All Telnyx-supported countries for rental (local) numbers with SMS.
 // NGN â‰ˆ USD Ã— 1600 (standard reference rate; actual charge uses live fxRate in UI).
