@@ -562,8 +562,14 @@ export function StudioLivePreview({
     [filesSignature],
   );
 
+  const hasPreview = Boolean(previewDoc);
+
   useEffect(
     () => {
+      if (!hasPreview) {
+        return;
+      }
+
       const element =
         previewAreaRef.current;
 
@@ -598,7 +604,7 @@ export function StudioLivePreview({
       return () =>
         observer.disconnect();
     },
-    [],
+    [hasPreview],
   );
 
   const device =

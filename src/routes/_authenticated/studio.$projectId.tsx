@@ -969,7 +969,7 @@ function StudioBuilder() {
   }
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#080b0d] text-zinc-100">
+    <div className="flex min-h-[100dvh] flex-col overflow-y-auto bg-[#080b0d] text-zinc-100">
       {/* HEADER */}
 
       <header className="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-white/[0.06] px-3 sm:h-[82px] sm:px-5">
@@ -1075,7 +1075,7 @@ function StudioBuilder() {
           </Button>
         </div>
       </header>
-      <div className="px-3 pt-3 sm:px-5"><StudioDemoLinkCard projectId={projectId} hasWebsite={fileCount > 0} /></div>
+      <div className="shrink-0 px-3 pt-3 sm:px-5"><StudioDemoLinkCard projectId={projectId} hasWebsite={fileCount > 0} /></div>
 
       {isMobile ? (
         <MobileStudio
@@ -1280,7 +1280,7 @@ function DesktopStudio({
   const [sidebar, setSidebar] = useState<"files" | "chat" | "history">("files");
 
   return (
-    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[220px_minmax(0,1fr)_minmax(320px,0.9fr)] overflow-hidden">
+    <div className="grid min-h-[680px] min-w-0 flex-1 grid-cols-[220px_minmax(0,1fr)_minmax(320px,0.9fr)] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-white/[0.06] bg-[#0b0e11]">
         <div className="flex h-11 border-b border-white/[0.06] p-1.5">
           {(
