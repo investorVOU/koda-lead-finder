@@ -38,12 +38,15 @@ import {
   createCheckout,
   cancelSubscription,
 } from "@/lib/billing.functions";
+import { getMyNumberBonusStatus } from "@/lib/number-bonus.functions";
 import {
   clearPendingCheckout,
   readPendingCheckout,
   rememberCheckout,
   trackCheckoutStarted,
   trackPurchase,
+  trackNumberBonusCtaClicked,
+  trackNumberBonusGranted,
 } from "@/lib/analytics";
 
 export const Route = createFileRoute(
@@ -69,6 +72,7 @@ function BillingPage() {
 
   const runCheckout = useServerFn(createCheckout);
   const runCancel = useServerFn(cancelSubscription);
+  const runGetBonus = useServerFn(getMyNumberBonusStatus);
 
   const [busy, setBusy] = useState<string | null>(
     null,
@@ -78,6 +82,7 @@ function BillingPage() {
 
   const [awaitingPaymentVerification, setAwaitingPaymentVerification] =
     useState(false);
+  const [postPaymentBonusAvailable, setPostPaymentBonusAvailable] = useState(false);
 
   useEffect(() => {
     if (window.location.hash === "#annually") {
@@ -145,6 +150,12 @@ function BillingPage() {
       currency: pending.currency,
       value: pending.value,
     }, payment.id);
+    void runGetBonus().then((bonus) => {
+      if (bonus.status === "available") {
+        setPostPaymentBonusAvailable(true);
+        trackNumberBonusGranted(pending.plan);
+      }
+    });
     clearPendingCheckout();
     setAwaitingPaymentVerification(false);
   }, [awaitingPaymentVerification, paymentHistory]);
@@ -246,6 +257,19 @@ function BillingPage() {
         </Button>
       </div>
 
+      {postPaymentBonusAvailable && (
+        <section className="mb-6 rounded-2xl border border-primary/20 bg-primary/[0.04] p-5">
+          <p className="font-semibold">Your plan is active</p>
+          <p className="mt-1 text-sm text-muted-foreground">You're ready to start finding businesses and building websites.</p>
+          <p className="mt-4 font-medium">You've also unlocked your new-member bonus: 1 U.S. temporary number.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild onClick={() => trackNumberBonusCtaClicked("post_payment")}>
+              <a href="/numbers?bonus=claim">Claim my number</a>
+            </Button>
+            <Button variant="outline" onClick={() => setPostPaymentBonusAvailable(false)}>I'll do this later</Button>
+          </div>
+        </section>
+      )}
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         <div className="space-y-4">
           <CreditMeter />

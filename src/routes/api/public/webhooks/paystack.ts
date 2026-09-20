@@ -12,12 +12,16 @@ import {
 } from "@/lib/billing.server";
 import { activateVirtualNumber } from "@/lib/numbers.server";
 import { creditWallet } from "@/lib/wallet.server";
+import { revokeAvailableNumberBonusForPaymentReference } from "@/lib/number-bonus.server";
 
 type PaystackWebhookEvent = {
   event?: string;
   data?: {
     id?: string | number;
     reference?: string;
+    transaction?: {
+      reference?: string;
+    };
     subscription_code?: string;
     amount?: number;
     currency?: string;
@@ -133,6 +137,22 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
               // (number_rental, subscription, credit_pack all land here)
               await supabaseAdmin.from("profiles").update({ onboarded: true }).eq("id", userId);
 
+              break;
+            }
+            case "refund.processed":
+            case "charge.dispute.create": {
+              // A reversed payment may not leave an unclaimed promotional number
+              // available. A redeemed entitlement is intentionally retained: no
+              // unsafe provider cancellation is attempted and no replacement is granted.
+              const reversalReference = data.reference ?? data.transaction?.reference;
+              if (reversalReference) {
+                await supabaseAdmin
+                  .from("payment_history")
+                  .update({ status: "reversed" })
+                  .eq("provider", "paystack")
+                  .eq("provider_reference", reversalReference);
+                await revokeAvailableNumberBonusForPaymentReference(reversalReference);
+              }
               break;
             }
             case "subscription.create": {

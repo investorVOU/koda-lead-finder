@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BuyNumberDialog } from "@/components/numbers/BuyNumberDialog";
+import { NumberBonusClaimDialog } from "@/components/numbers/NumberBonusClaimDialog";
 import { SmsInbox } from "@/components/numbers/SmsInbox";
 import { OutboundSMS } from "@/components/numbers/OutboundSMS";
 import { SMSTemplates } from "@/components/numbers/SMSTemplates";
@@ -19,6 +20,8 @@ import { SMSPoolOrders } from "@/components/numbers/SMSPoolOrders";
 import { WalletWidget } from "@/components/numbers/WalletWidget";
 import { OTPHistory, pushOTPHistory } from "@/components/numbers/OTPHistory";
 import { getUserNumbers, getAllMessages } from "@/lib/numbers.functions";
+import { getMyNumberBonusStatus } from "@/lib/number-bonus.functions";
+import { trackNumberBonusCtaClicked, trackNumberBonusViewed } from "@/lib/analytics";
 import { searchMessages, exportMessages } from "@/lib/numbers-extra.functions";
 import { getWalletData } from "@/lib/wallet.functions";
 import { NUMBER_COUNTRIES } from "@/lib/numbers";
@@ -105,6 +108,7 @@ function expiryCountdown(expiresAt: string | null, nowMs: number): string {
 }
 
 function priceLabel(num: VirtualNumber): string {
+  if (num.number_type === "promotional temporary number") return "Included";
   if (num.provider === "smspool" && num.monthly_ngn <= 500) return "₦150";
   if (num.monthly_ngn) return `₦${Math.round(num.monthly_ngn).toLocaleString()}/mo`;
   return "";
@@ -118,6 +122,7 @@ function NumbersPage() {
   const runSearch      = useServerFn(searchMessages);
   const runExport      = useServerFn(exportMessages);
   const runGetWallet   = useServerFn(getWalletData);
+  const runGetBonus    = useServerFn(getMyNumberBonusStatus);
 
   // Core state
   const [numbers,      setNumbers]      = useState<VirtualNumber[]>([]);
@@ -126,6 +131,8 @@ function NumbersPage() {
   const [subTab,       setSubTab]       = useState<SubTab>("inbox");
   const [buyOpen,      setBuyOpen]      = useState(false);
   const [myNumbersOpen,setMyNumbersOpen]= useState(false);
+  const [bonusClaimOpen, setBonusClaimOpen] = useState(false);
+  const [bonusStatus, setBonusStatus] = useState<"none" | "available" | "redeemed" | "revoked">("none");
   const [nowMs,        setNowMs]        = useState(() => Date.now());
 
   // Wallet
@@ -141,7 +148,7 @@ function NumbersPage() {
   const [exporting,    setExporting]    = useState(false);
 
   // URL params
-  const { status, wallet: walletParam } = Route.useSearch() as { status?: string; wallet?: string };
+  const { status, wallet: walletParam, bonus: bonusParam } = Route.useSearch() as { status?: string; wallet?: string; bonus?: string };
   useEffect(() => {
     if (status === "success") {
       toast.success("Payment confirmed! Your number is being activated.");
@@ -149,13 +156,16 @@ function NumbersPage() {
     } else if (status === "cancel") {
       toast.info("Number purchase cancelled.");
       navigate({ to: "/numbers", replace: true });
+    } else if (bonusParam === "claim") {
+      setBonusClaimOpen(true);
+      navigate({ to: "/numbers", replace: true });
     } else if (walletParam === "funded") {
       toast.success("Wallet topped up!");
       navigate({ to: "/numbers", replace: true });
       // Refresh balance
       runGetWallet().then((r) => { setBalance(r.balance); setFxRate(r.fxRate); });
     }
-  }, [status, walletParam]);
+  }, [status, walletParam, bonusParam]);
 
   // Keep expiration countdowns live across My Numbers
   useEffect(() => {
@@ -169,9 +179,15 @@ function NumbersPage() {
   // Load wallet + numbers on mount
   useEffect(() => {
     runGetWallet().then((r) => { setBalance(r.balance); setFxRate(r.fxRate); });
-    loadNumbers();
+    void loadBonus();
+    void loadNumbers();
   }, []);
 
+  const loadBonus = async () => {
+    const result = await runGetBonus();
+    setBonusStatus(result.status);
+    if (result.status === "available") trackNumberBonusViewed();
+  };
   const loadNumbers = async () => {
     setLoading(true);
     const res = await runGetNumbers();
@@ -663,6 +679,21 @@ function NumbersPage() {
           </div>
         </section>
 
+        {bonusStatus === "available" && (
+          <section className="flex flex-col gap-4 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <p className="font-semibold text-foreground">Your plan includes 1 U.S. temporary number</p>
+              <p className="mt-1 text-sm text-muted-foreground">You haven't claimed your new-member bonus yet. No separate Numbers deposit is needed.</p>
+            </div>
+            <Button className="shrink-0" onClick={() => { trackNumberBonusCtaClicked("numbers"); setBonusClaimOpen(true); }}>
+              Claim free U.S. number
+            </Button>
+          </section>
+        )}
+
+        {bonusStatus === "redeemed" && (
+          <p className="text-sm font-medium text-muted-foreground">New-member number bonus claimed <span className="text-primary">✓</span></p>
+        )}
         {/* Popular uses ticker */}
         <section className="numbers-ticker relative overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <div className="flex items-center">
@@ -1280,6 +1311,14 @@ function NumbersPage() {
 
       <OTPHistory />
 
+      <NumberBonusClaimDialog
+        open={bonusClaimOpen}
+        onOpenChange={setBonusClaimOpen}
+        onClaimed={() => {
+          void loadBonus();
+          void loadNumbers();
+        }}
+      />
       <BuyNumberDialog
         open={buyOpen}
         onOpenChange={(open) => {

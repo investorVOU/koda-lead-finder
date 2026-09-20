@@ -13,7 +13,7 @@ import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { Logo } from "@/components/landing/Logo";
 import { WelcomeEmailSync } from "@/components/auth/WelcomeEmailSync";
 import { PlanActivationEnrollmentSync } from "@/components/marketing/PlanActivationEnrollmentSync";
-import { trackPlanSkipped } from "@/lib/analytics";
+import { trackNumberBonusCtaClicked, trackPlanSkipped } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
   head: () => ({ meta: [{ title: "Choose your plan — Kodarai" }] }),
@@ -62,6 +62,12 @@ function ChoosePlanPage() {
                 Every monthly plan includes Studio and Website Builder access.
               </p>
             </div>
+            <div className="mb-5 rounded-xl border border-border bg-card px-4 py-3 text-center">
+              <p className="text-sm font-semibold">New member bonus</p>
+              <p className="mt-1 text-sm text-muted-foreground">Choose your first paid KodarAI plan and get 1 U.S. temporary number included — no separate Numbers deposit needed for your bonus number.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Available once per eligible new paying account. Temporary number only. Availability and supported services may vary.</p>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {PLANS.map((plan) => (
                 <div
@@ -92,7 +98,7 @@ function ChoosePlanPage() {
                   <Button
                     className="mt-6 w-full"
                     variant={plan.highlight ? "hero" : "outline"}
-                    onClick={goToBilling}
+                    onClick={() => { trackNumberBonusCtaClicked("choose_plan"); goToBilling(); }}
                   >
                     Get {plan.name}
                   </Button>

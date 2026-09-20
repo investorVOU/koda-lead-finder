@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, CreditCard, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,9 +11,11 @@ import {
 import { PACKS, PLANS, formatNgn, getAnnualSavings, getPlanPrice, type BillingCycle } from "@/lib/billing";
 import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { FadeUp } from "./FadeUp";
+import { trackNumberBonusCtaClicked, trackNumberBonusPricingViewed } from "@/lib/analytics";
 
 export function Pricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  useEffect(() => { trackNumberBonusPricingViewed(); }, []);
   return (
     <section id="pricing" className="border-y border-border bg-secondary/40">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
@@ -35,6 +37,12 @@ export function Pricing() {
             <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">2. Build</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">A website sample for them</p></div>
             <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">3. Send</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">The link and start talking</p></div>
           </div>
+        </div>
+
+        <div className="mx-auto mt-6 max-w-4xl rounded-xl border border-border bg-card px-4 py-3 text-center">
+          <p className="text-sm font-semibold">New member bonus</p>
+          <p className="mt-1 text-sm text-muted-foreground">Choose your first paid KodarAI plan and get 1 U.S. temporary number included — no separate Numbers deposit needed for your bonus number.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Available once per eligible new paying account. Temporary number only. Availability and supported services may vary.</p>
         </div>
 
         <Tabs defaultValue="plans" className="mt-9 sm:mt-12">
@@ -78,7 +86,7 @@ export function Pricing() {
                     {plan.credits.toLocaleString("en-NG")} leads included each month
                   </p>
                   <Button variant={plan.highlight ? "hero" : "outline"} size="lg" className="mt-6 w-full" asChild>
-                    <Link to="/signup">Get {plan.name}</Link>
+                    <Link to="/signup" onClick={() => trackNumberBonusCtaClicked("pricing")}>Get {plan.name}</Link>
                   </Button>
                   <ul className="mt-6 space-y-3">
                     {plan.features.map((feature) => (

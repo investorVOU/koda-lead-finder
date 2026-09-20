@@ -345,3 +345,13 @@ export const trackPurchase = (data: { plan: string; currency: string; value: num
   emitInternalEvent("purchase", data);
   trackEvent("Purchase", data);
 });
+
+// New-member number bonus events deliberately exclude phone numbers, account
+// identifiers, and provider cost. They are emitted only from the shared client helper.
+export const trackNumberBonusGranted = (plan: string) => trackEvent("number_bonus_granted", { plan, country: "US", bonus_type: "first_paid_plan_us_number" });
+export const trackNumberBonusViewed = () => trackEvent("number_bonus_viewed", { country: "US", bonus_type: "first_paid_plan_us_number" });
+export const trackNumberBonusClaimStarted = (service: string) => trackEvent("number_bonus_claim_started", { country: "US", bonus_type: "first_paid_plan_us_number", service_category: service });
+export const trackNumberBonusClaimed = (service: string) => trackEvent("number_bonus_claimed", { country: "US", bonus_type: "first_paid_plan_us_number", service_category: service });
+export const trackNumberBonusClaimFailed = (service: string) => trackEvent("number_bonus_claim_failed", { country: "US", bonus_type: "first_paid_plan_us_number", service_category: service });
+export const trackNumberBonusPricingViewed = () => trackEvent("number_bonus_pricing_viewed", { country: "US", bonus_type: "first_paid_plan_us_number" });
+export const trackNumberBonusCtaClicked = (source: "pricing" | "choose_plan" | "start" | "numbers" | "post_payment") => trackEvent("number_bonus_cta_clicked", { country: "US", bonus_type: "first_paid_plan_us_number", source });

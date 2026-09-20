@@ -6,6 +6,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { BILLING_PRICE_TIER, findPlan, findPack, getPlanPrice, type BillingCycle, type Plan } from "@/lib/billing";
 import { sendUserTransactionalEmail } from "@/lib/email.server";
+import { grantFirstPaidPlanUSNumberBonus } from "@/lib/number-bonus.server";
 
 export type Provider = "paystack";
 
@@ -163,17 +164,31 @@ export async function applySubscription(args: {
 }): Promise<void> {
   const plan = findPlan(args.planId);
   if (!plan || !args.userId) return;
+
   const { data: existingSubscription } = await supabaseAdmin
     .from("subscriptions")
-    .select("billing_cycle")
+    .select("id, billing_cycle")
     .eq("user_id", args.userId)
     .maybeSingle();
   const savedCycle = (existingSubscription as { billing_cycle?: string } | null)?.billing_cycle;
+  const subscriptionId = (existingSubscription as { id?: string } | null)?.id ?? null;
+
+  // Query before recording this verified charge. Once an account has any
+  // successful paid subscription, renewals, upgrades, interval changes, and
+  // resubscriptions are all ineligible for another bonus.
+  const { data: priorPaidSubscription } = await supabaseAdmin
+    .from("payment_history")
+    .select("id")
+    .eq("user_id", args.userId)
+    .eq("kind", "subscription")
+    .eq("status", "success")
+    .limit(1)
+    .maybeSingle();
+  const isFirstPaidPlan = !priorPaidSubscription;
+
   // Paystack renewal events may not repeat the checkout metadata. Preserve the
   // already-recorded cycle in that case, while new checkouts always send one.
   const cycle = args.cycle ?? (savedCycle === "annually" ? "annually" : "monthly");
-  // Annual billing changes when the customer is charged, not their monthly
-  // lead allowance. The credit RPC resets this allowance every month.
   const creditsResetAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
   const periodEnd = args.periodEnd ?? new Date(
     Date.now() + (cycle === "annually" ? 365 : 30) * 86_400_000,
@@ -197,29 +212,42 @@ export async function applySubscription(args: {
     })
     .eq("user_id", args.userId);
 
-  await supabaseAdmin.from("payment_history").insert({
-    user_id: args.userId,
-    provider: args.provider,
-    provider_reference: args.reference ?? null,
-    kind: "subscription",
-    description: `${plan.name} plan — ${cycle === "annually" ? "annual billing" : "monthly billing"}`,
-    plan_id: plan.id,
-    amount: args.amount ?? getPlanPrice(plan, cycle),
-    currency: args.currency ?? "NGN",
-    credits_granted: plan.credits,
-    status: "success",
+  const { data: payment, error: paymentError } = await supabaseAdmin
+    .from("payment_history")
+    .insert({
+      user_id: args.userId,
+      provider: args.provider,
+      provider_reference: args.reference ?? null,
+      kind: "subscription",
+      description: `${plan.name} plan — ${cycle === "annually" ? "annual billing" : "monthly billing"}`,
+      plan_id: plan.id,
+      amount: args.amount ?? getPlanPrice(plan, cycle),
+      currency: args.currency ?? "NGN",
+      credits_granted: plan.credits,
+      status: "success",
+    })
+    .select("id")
+    .single();
+  if (paymentError) throw paymentError;
+
+  const bonusGranted = isFirstPaidPlan && await grantFirstPaidPlanUSNumberBonus({
+    userId: args.userId,
+    subscriptionId,
+    paymentId: payment?.id ?? null,
+    planId: plan.id,
   });
 
   await sendUserTransactionalEmail(args.userId, {
     subject: `Your ${plan.name} plan is active — KodarAI`,
     title: "Your subscription is active",
-    preview: `${plan.credits} leads are ready for this billing period.`,
-    body: `Your ${plan.name} plan is now active with ${cycle === "annually" ? "annual" : "monthly"} billing. ${plan.credits} leads are available for this billing period.`,
-    ctaLabel: "Open billing",
-    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}/billing`,
+    preview: bonusGranted
+      ? "Your plan is active and your new-member number bonus is ready."
+      : `${plan.credits} leads are ready for this billing period.`,
+    body: `Your ${plan.name} plan is now active with ${cycle === "annually" ? "annual" : "monthly"} billing. ${plan.credits} leads are available for this billing period.${bonusGranted ? "\n\nYour new-member bonus: 1 U.S. temporary number included. No separate Numbers deposit is needed for this bonus number." : ""}`,
+    ctaLabel: bonusGranted ? "Claim your number" : "Open billing",
+    ctaUrl: `${(process.env.APP_URL || "https://kodarai.xyz").replace(/\/$/, "")}${bonusGranted ? "/numbers?bonus=claim" : "/billing"}`,
   });
 }
-
 export async function applyCreditPack(args: {
   userId: string;
   packId: string;

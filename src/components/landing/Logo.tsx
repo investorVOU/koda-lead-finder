@@ -31,7 +31,7 @@ export function Logo({ className = "" }: { className?: string }) {
 
       {/* Wordmark */}
       <span className="font-display text-lg font-bold tracking-tight">
-        Koda<span className="text-primary">rai</span>
+        Kodar<span className="text-primary">AI</span>
       </span>
     </div>
   );
