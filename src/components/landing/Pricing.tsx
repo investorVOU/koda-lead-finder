@@ -2,20 +2,24 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Check, CreditCard, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { PACKS, PLANS, formatNgn, getAnnualSavings, getPlanPrice, type BillingCycle } from "@/lib/billing";
+  PACKS,
+  PLANS,
+  formatNgn,
+  getAnnualSavings,
+  getPlanPrice,
+  type BillingCycle,
+} from "@/lib/billing";
 import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { FadeUp } from "./FadeUp";
 import { trackNumberBonusCtaClicked, trackNumberBonusPricingViewed } from "@/lib/analytics";
 
 export function Pricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
-  useEffect(() => { trackNumberBonusPricingViewed(); }, []);
+  useEffect(() => {
+    trackNumberBonusPricingViewed();
+  }, []);
   return (
     <section id="pricing" className="border-y border-border bg-secondary/40">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
@@ -25,24 +29,52 @@ export function Pricing() {
               Plans built to help you win paying work
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Find prospects, make a stronger pitch, and deliver a website worth paying for. Pay securely in Naira with Paystack.
+              Find prospects, make a stronger pitch, and deliver a website worth paying for. Pay
+              securely in Naira with Paystack.
             </p>
           </div>
         </FadeUp>
 
         <div className="mx-auto mt-8 max-w-4xl rounded-2xl border border-primary/15 bg-primary/5 p-3 text-left sm:p-4">
-          <p className="px-1 text-xs font-semibold text-primary sm:text-sm">How Kodarai helps you get clients</p>
+          <p className="px-1 text-xs font-semibold text-primary sm:text-sm">
+            How Kodarai helps you get clients
+          </p>
           <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
-            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">1. Find</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">A business without a website</p></div>
-            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">2. Build</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">A website sample for them</p></div>
-            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3"><p className="text-xs font-bold text-primary">3. Send</p><p className="mt-1 text-xs font-medium leading-5 sm:text-sm">The link and start talking</p></div>
+            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3">
+              <p className="text-xs font-bold text-primary">1. Find</p>
+              <p className="mt-1 text-xs font-medium leading-5 sm:text-sm">
+                A business without a website
+              </p>
+            </div>
+            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3">
+              <p className="text-xs font-bold text-primary">2. Build</p>
+              <p className="mt-1 text-xs font-medium leading-5 sm:text-sm">
+                A website sample for them
+              </p>
+            </div>
+            <div className="rounded-xl bg-background/70 p-2.5 sm:p-3">
+              <p className="text-xs font-bold text-primary">3. Send</p>
+              <p className="mt-1 text-xs font-medium leading-5 sm:text-sm">
+                The link and start talking
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mx-auto mt-6 max-w-4xl rounded-xl border border-border bg-card px-4 py-3 text-center">
-          <p className="text-sm font-semibold">New member bonus</p>
-          <p className="mt-1 text-sm text-muted-foreground">Choose your first paid KodarAI plan and get 1 U.S. temporary number included — no separate Numbers deposit needed for your bonus number.</p>
-          <p className="mt-1 text-xs text-muted-foreground">Available once per eligible new paying account. Temporary number only. Availability and supported services may vary.</p>
+        <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-primary/35 bg-primary/10 px-4 py-4 text-center shadow-sm sm:px-6">
+          <span className="inline-flex rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-foreground">
+            Free new member bonus
+          </span>
+          <p className="mt-2 text-base font-bold text-foreground">
+            1 U.S. temporary number included with your first paid plan
+          </p>
+          <p className="mt-1 text-sm text-foreground/80">
+            No separate Numbers deposit needed for your bonus number.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Available once for eligible new paying accounts. Temporary number only. Availability and
+            supported services may vary.
+          </p>
         </div>
 
         <Tabs defaultValue="plans" className="mt-9 sm:mt-12">
@@ -58,7 +90,9 @@ export function Pricing() {
           <TabsContent value="plans" className="mt-8">
             <BillingCycleToggle cycle={cycle} onChange={setCycle} />
             <p className="mb-5 text-center text-sm text-muted-foreground">
-              {cycle === "annually" ? "Pay once per year and save 20%." : "Every monthly plan includes Kodarai Studio and Website Builder access."}
+              {cycle === "annually"
+                ? "Pay once per year and save 20%."
+                : "Every monthly plan includes Kodarai Studio and Website Builder access."}
             </p>
             <div className="grid items-start gap-6 lg:grid-cols-3">
               {PLANS.map((plan) => (
@@ -78,21 +112,43 @@ export function Pricing() {
                   <h3 className="text-lg font-semibold">{plan.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
                   <div className="mt-5 flex items-end gap-1">
-                    <span className="font-display text-4xl font-bold">{formatNgn(getPlanPrice(plan, cycle))}</span>
-                    <span className="mb-1 text-sm text-muted-foreground">{cycle === "annually" ? "/yr" : "/mo"}</span>
+                    <span className="font-display text-4xl font-bold">
+                      {formatNgn(getPlanPrice(plan, cycle))}
+                    </span>
+                    <span className="mb-1 text-sm text-muted-foreground">
+                      {cycle === "annually" ? "/yr" : "/mo"}
+                    </span>
                   </div>
-                  {cycle === "annually" && <p className="mt-1 text-xs font-medium text-primary">Save {formatNgn(getAnnualSavings(plan))} per year</p>}
+                  {cycle === "annually" && (
+                    <p className="mt-1 text-xs font-medium text-primary">
+                      Save {formatNgn(getAnnualSavings(plan))} per year
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-muted-foreground">
                     {plan.credits.toLocaleString("en-NG")} leads included each month
                   </p>
-                  <Button variant={plan.highlight ? "hero" : "outline"} size="lg" className="mt-6 w-full" asChild>
-                    <Link to="/signup" onClick={() => trackNumberBonusCtaClicked("pricing")}>Get {plan.name}</Link>
+                  <Button
+                    variant={plan.highlight ? "hero" : "outline"}
+                    size="lg"
+                    className="mt-6 w-full"
+                    asChild
+                  >
+                    <Link to="/signup" onClick={() => trackNumberBonusCtaClicked("pricing")}>
+                      Get {plan.name}
+                    </Link>
                   </Button>
                   <ul className="mt-6 space-y-3">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2.5 text-sm">
                         <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                        <span>{feature}</span>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {feature}
+                          {feature === "1 U.S. temporary number included" && (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
+                              FREE
+                            </span>
+                          )}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -129,7 +185,12 @@ export function Pricing() {
                     {pack.credits.toLocaleString("en-NG")} leads, once
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">Never expires</p>
-                  <Button variant={pack.highlight ? "hero" : "soft"} size="sm" className="mt-4 w-full" asChild>
+                  <Button
+                    variant={pack.highlight ? "hero" : "soft"}
+                    size="sm"
+                    className="mt-4 w-full"
+                    asChild
+                  >
                     <Link to="/signup">Buy {pack.credits.toLocaleString("en-NG")} leads</Link>
                   </Button>
                 </div>

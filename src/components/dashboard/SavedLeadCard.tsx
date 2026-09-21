@@ -425,6 +425,10 @@ export function SavedLeadCard({ lead }: { lead: SavedLead }) {
           {messageHelperOpen ? "Hide message helper" : "Need help writing a message?"}
         </button>
         {messageHelperOpen && <div className="mt-3"><MessageHelper lead={lead} compact /></div>}
+        <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => navigate({ to: "/client-pack/$leadId", params: { leadId: lead.id } })}>
+          <FileText className="size-4" /> Open Client Pack
+        </Button>
+
         {/* Build site shortcut — shown for contacted / closed / paid leads */}
         {!lead.has_website && (
           <button

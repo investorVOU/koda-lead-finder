@@ -1076,6 +1076,7 @@ function StudioBuilder() {
         </div>
       </header>
       <div className="shrink-0 px-3 pt-3 sm:px-5"><StudioDemoLinkCard projectId={projectId} hasWebsite={fileCount > 0} /></div>
+      {project?.lead_id && fileCount > 0 && <div className="shrink-0 px-3 pt-3 sm:px-5"><div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-zinc-100"><div><p className="text-sm font-semibold">Your client pack is ready</p><p className="mt-1 text-xs text-zinc-400">Website demo, message, call script, price and proposal in one place.</p></div><Button size="sm" onClick={() => navigate({ to: "/client-pack/$leadId", params: { leadId: project.lead_id! } })} className="shrink-0 bg-emerald-500 text-[#04120c] hover:bg-emerald-400">Start contacting</Button></div></div>}
 
       {isMobile ? (
         <MobileStudio

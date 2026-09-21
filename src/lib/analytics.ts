@@ -20,7 +20,11 @@ export type CheckoutAttribution = {
   started_at: string;
 };
 
-type MetaPixel = ((action: "init" | "track" | "trackCustom", event: string, properties?: AnalyticsProperties) => void) & {
+type MetaPixel = ((
+  action: "init" | "track" | "trackCustom",
+  event: string,
+  properties?: AnalyticsProperties,
+) => void) & {
   callMethod?: (...args: unknown[]) => void;
   queue?: unknown[][];
   push?: (...args: unknown[]) => void;
@@ -48,9 +52,12 @@ declare global {
     fbq?: MetaPixel;
     ttq?: TikTokPixel;
     TiktokAnalyticsObject?: string;
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
     __kodaraiAnalytics?: {
       metaInitialized?: boolean;
       tiktokInitialized?: boolean;
+      googleAnalyticsMeasurementId?: string;
       lastPageView?: string;
       signupStarted?: boolean;
     };
@@ -85,7 +92,10 @@ const cleanProperties = (properties: AnalyticsProperties = {}) =>
   Object.fromEntries(
     Object.entries(properties).filter(([key, value]) => {
       const normalized = key.toLowerCase();
-      const sensitive = /email|password|phone|full.?name|user.?id|lead.?id|address|token|prompt|code/.test(normalized);
+      const sensitive =
+        /email|password|phone|full.?name|user.?id|lead.?id|address|token|prompt|code/.test(
+          normalized,
+        );
       return value !== undefined && !sensitive;
     }),
   ) as AnalyticsProperties;
@@ -142,7 +152,10 @@ export function markRegistrationTracked(userId: string) {
 export function rememberCheckout(data: Omit<CheckoutAttribution, "started_at">) {
   try {
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(PENDING_CHECKOUT_KEY, JSON.stringify({ ...data, started_at: new Date().toISOString() }));
+      window.sessionStorage.setItem(
+        PENDING_CHECKOUT_KEY,
+        JSON.stringify({ ...data, started_at: new Date().toISOString() }),
+      );
     }
   } catch {
     // Checkout is never dependent on analytics storage.
@@ -178,6 +191,28 @@ function trackOnce(storageKey: string, callback: () => void) {
   callback();
 }
 
+export function initializeGoogleAnalytics(measurementId?: string | null) {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  const normalized = measurementId?.trim().toUpperCase();
+  if (!normalized || !/^G-[A-Z0-9]{6,20}$/.test(normalized)) return;
+
+  const state = analyticsState();
+  if (!state || state.googleAnalyticsMeasurementId === normalized) return;
+  window.dataLayer ??= [];
+  window.gtag ??= (...args: unknown[]) => window.dataLayer?.push(args);
+  window.gtag("js", new Date());
+  window.gtag("config", normalized);
+
+  if (!document.querySelector("script[data-kodarai-google-analytics]")) {
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(normalized)}`;
+    script.dataset.kodaraiGoogleAnalytics = "true";
+    document.head.appendChild(script);
+  }
+  state.googleAnalyticsMeasurementId = normalized;
+}
+
 export function initializePixels(metaPixelId?: string, tiktokPixelId?: string) {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   const state = analyticsState();
@@ -186,13 +221,15 @@ export function initializePixels(metaPixelId?: string, tiktokPixelId?: string) {
   try {
     if (metaPixelId && !state.metaInitialized) {
       const existing = window.fbq;
-      const fbq: MetaPixel = existing ?? Object.assign(
-        ((...args: unknown[]) => {
-          if (fbq.callMethod) fbq.callMethod(...args);
-          else fbq.queue?.push(args);
-        }) as MetaPixel,
-        { queue: [] as unknown[][], loaded: false, version: "2.0" },
-      );
+      const fbq: MetaPixel =
+        existing ??
+        Object.assign(
+          ((...args: unknown[]) => {
+            if (fbq.callMethod) fbq.callMethod(...args);
+            else fbq.queue?.push(args);
+          }) as MetaPixel,
+          { queue: [] as unknown[][], loaded: false, version: "2.0" },
+        );
       window.fbq = fbq;
       fbq("init", metaPixelId);
       if (!document.querySelector("script[data-kodarai-meta-pixel]")) {
@@ -206,12 +243,28 @@ export function initializePixels(metaPixelId?: string, tiktokPixelId?: string) {
     }
 
     if (tiktokPixelId && !state.tiktokInitialized) {
-      const ttq = window.ttq ?? Object.assign([], {
-        _i: {},
-        _t: {},
-        _o: {},
-        methods: ["page", "track", "identify", "instances", "debug", "on", "off", "once", "ready", "alias", "group", "enableCookie", "disableCookie"],
-      }) as TikTokPixel;
+      const ttq =
+        window.ttq ??
+        (Object.assign([], {
+          _i: {},
+          _t: {},
+          _o: {},
+          methods: [
+            "page",
+            "track",
+            "identify",
+            "instances",
+            "debug",
+            "on",
+            "off",
+            "once",
+            "ready",
+            "alias",
+            "group",
+            "enableCookie",
+            "disableCookie",
+          ],
+        }) as TikTokPixel);
       window.ttq = ttq;
       window.TiktokAnalyticsObject = "ttq";
       ttq._i ??= {};
@@ -242,19 +295,29 @@ export function initializePixels(metaPixelId?: string, tiktokPixelId?: string) {
   }
 }
 
-export function trackPageView(locationKey = typeof window === "undefined" ? "" : `${window.location.pathname}${window.location.search}`) {
+export function trackPageView(
+  locationKey = typeof window === "undefined"
+    ? ""
+    : `${window.location.pathname}${window.location.search}`,
+) {
   const state = analyticsState();
   if (!state || state.lastPageView === locationKey) return;
   state.lastPageView = locationKey;
   try {
     window.fbq?.("track", "PageView");
     window.ttq?.page?.();
+    window.gtag?.("event", "page_view", { page_path: locationKey.split("?")[0] });
   } catch {
     // Tracking must not affect navigation.
   }
 }
 
-const metaStandardEvents = new Set(["CompleteRegistration", "Search", "InitiateCheckout", "Purchase"]);
+const metaStandardEvents = new Set([
+  "CompleteRegistration",
+  "Search",
+  "InitiateCheckout",
+  "Purchase",
+]);
 const tiktokStandardEvents: Record<string, string> = {
   CompleteRegistration: "CompleteRegistration",
   Search: "Search",
@@ -269,6 +332,7 @@ export function trackEvent(eventName: string, properties?: AnalyticsProperties) 
     if (metaStandardEvents.has(eventName)) window.fbq?.("track", eventName, safeProperties);
     else window.fbq?.("trackCustom", eventName, safeProperties);
     window.ttq?.track?.(tiktokStandardEvents[eventName] ?? eventName, safeProperties);
+    window.gtag?.("event", eventName, safeProperties);
     emitInternalEvent(eventName, safeProperties);
   } catch {
     // Pixels and optional in-browser listeners cannot affect product flows.
@@ -277,7 +341,9 @@ export function trackEvent(eventName: string, properties?: AnalyticsProperties) 
 
 function emitInternalEvent(eventName: string, properties: AnalyticsProperties) {
   try {
-    window.dispatchEvent(new CustomEvent("kodarai:analytics", { detail: { eventName, properties } }));
+    window.dispatchEvent(
+      new CustomEvent("kodarai:analytics", { detail: { eventName, properties } }),
+    );
   } catch {
     // Optional in-browser analytics listeners are non-blocking.
   }
@@ -293,21 +359,27 @@ export const trackStartCallScriptDemoViewed = () => trackEvent("start_call_scrip
 export const trackStartDemoLinkFeatureViewed = () => trackEvent("start_demo_link_feature_viewed");
 export const trackStartWorkflowCtaClicked = () => trackEvent("start_workflow_cta_clicked");
 export const trackStartReviewsViewed = () => trackEvent("start_reviews_viewed");
-export const trackStartReviewChanged = (review_position: number) => trackEvent("start_review_changed", { review_position });
+export const trackStartReviewChanged = (review_position: number) =>
+  trackEvent("start_review_changed", { review_position });
 export const trackStartProofViewed = () => trackEvent("start_proof_viewed");
-export const trackStartProofChanged = (proof_position: number, result_type?: string) => trackEvent("start_proof_changed", { proof_position, result_type });
+export const trackStartProofChanged = (proof_position: number, result_type?: string) =>
+  trackEvent("start_proof_changed", { proof_position, result_type });
 export const trackStartProofCtaClicked = () => trackEvent("start_proof_cta_clicked");
-export const trackFunnelExperienceSelected = (experience: string) => trackEvent("funnel_experience_selected", { experience });
-export const trackFunnelGoalSelected = (goal: string) => trackEvent("funnel_goal_selected", { goal });
-export const trackFunnelSituationSelected = (situation: string) => trackEvent("funnel_situation_selected", { situation });
-export const trackFunnelCompleted = (data: FunnelAttribution) => trackEvent("funnel_completed", {
-  experience: data.experience,
-  goal: data.goal,
-  situation: data.situation,
-  utm_source: data.utm_source,
-  utm_campaign: data.utm_campaign,
-  utm_content: data.utm_content,
-});
+export const trackFunnelExperienceSelected = (experience: string) =>
+  trackEvent("funnel_experience_selected", { experience });
+export const trackFunnelGoalSelected = (goal: string) =>
+  trackEvent("funnel_goal_selected", { goal });
+export const trackFunnelSituationSelected = (situation: string) =>
+  trackEvent("funnel_situation_selected", { situation });
+export const trackFunnelCompleted = (data: FunnelAttribution) =>
+  trackEvent("funnel_completed", {
+    experience: data.experience,
+    goal: data.goal,
+    situation: data.situation,
+    utm_source: data.utm_source,
+    utm_campaign: data.utm_campaign,
+    utm_content: data.utm_content,
+  });
 export const trackSignupStarted = (data?: FunnelAttribution) => {
   const state = analyticsState();
   if (!state || state.signupStarted) return;
@@ -318,40 +390,120 @@ export const trackSignupStarted = (data?: FunnelAttribution) => {
     // A per-page guard still prevents duplicate effects when storage is unavailable.
   }
   state.signupStarted = true;
-  trackEvent("signup_started", { source: data?.source, utm_source: data?.utm_source, utm_campaign: data?.utm_campaign });
+  trackEvent("signup_started", {
+    source: data?.source,
+    utm_source: data?.utm_source,
+    utm_campaign: data?.utm_campaign,
+  });
 };
-export const trackSignupSubmitted = (data?: FunnelAttribution) => trackEvent("signup_submitted", { source: data?.source, utm_source: data?.utm_source, utm_campaign: data?.utm_campaign, utm_content: data?.utm_content, experience: data?.experience, goal: data?.goal, situation: data?.situation });
+export const trackSignupSubmitted = (data?: FunnelAttribution) =>
+  trackEvent("signup_submitted", {
+    source: data?.source,
+    utm_source: data?.utm_source,
+    utm_campaign: data?.utm_campaign,
+    utm_content: data?.utm_content,
+    experience: data?.experience,
+    goal: data?.goal,
+    situation: data?.situation,
+  });
 export const trackSignupCompleted = (data?: FunnelAttribution) => {
-  const properties = { source: data?.source ?? "direct", utm_source: data?.utm_source, utm_campaign: data?.utm_campaign, utm_content: data?.utm_content, experience: data?.experience, goal: data?.goal, situation: data?.situation };
+  const properties = {
+    source: data?.source ?? "direct",
+    utm_source: data?.utm_source,
+    utm_campaign: data?.utm_campaign,
+    utm_content: data?.utm_content,
+    experience: data?.experience,
+    goal: data?.goal,
+    situation: data?.situation,
+  };
   emitInternalEvent("signup_completed", cleanProperties(properties));
   trackEvent("CompleteRegistration", properties);
 };
-export const trackFinderSearch = (data: { category: string; state?: string; city?: string; website_filter: string }) => {
+export const trackFinderSearch = (data: {
+  category: string;
+  state?: string;
+  city?: string;
+  website_filter: string;
+}) => {
   emitInternalEvent("finder_search", cleanProperties(data));
   trackEvent("Search", data);
 };
-export const trackFirstFinderSearch = (userId?: string) => trackOnce(`kodarai_first_finder_search_tracked:${userId ?? "device"}`, () => trackEvent("first_finder_search"));
-export const trackWebsiteGenerated = (data: { template?: string; category?: string; source?: string }) => trackEvent("website_generated", data);
-export const trackFirstWebsiteGenerated = (userId?: string) => trackOnce(`kodarai_first_website_generated_tracked:${userId ?? "device"}`, () => trackEvent("first_website_generated"));
+export const trackFirstFinderSearch = (userId?: string) =>
+  trackOnce(`kodarai_first_finder_search_tracked:${userId ?? "device"}`, () =>
+    trackEvent("first_finder_search"),
+  );
+export const trackWebsiteGenerated = (data: {
+  template?: string;
+  category?: string;
+  source?: string;
+}) => trackEvent("website_generated", data);
+export const trackFirstWebsiteGenerated = (userId?: string) =>
+  trackOnce(`kodarai_first_website_generated_tracked:${userId ?? "device"}`, () =>
+    trackEvent("first_website_generated"),
+  );
 export const trackPlanSkipped = () => trackEvent("plan_skipped");
-export const trackPreviewModeEntered = () => trackOnce("kodarai_preview_mode_entered", () => trackEvent("preview_mode_entered"));
-export const trackPreviewLockedAction = (feature: "finder_search" | "studio_new_website" | "studio_generate" | "studio_ai_edit" | "lead_paid_action") => trackEvent("preview_locked_action_clicked", { feature });
+export const trackPreviewModeEntered = () =>
+  trackOnce("kodarai_preview_mode_entered", () => trackEvent("preview_mode_entered"));
+export const trackPreviewLockedAction = (
+  feature:
+    | "finder_search"
+    | "studio_new_website"
+    | "studio_generate"
+    | "studio_ai_edit"
+    | "lead_paid_action",
+) => trackEvent("preview_locked_action_clicked", { feature });
 export const trackPreviewUpgradeClicked = () => trackEvent("preview_upgrade_clicked");
 export const trackCheckoutStarted = (data: { plan: string; currency: string; value: number }) => {
   emitInternalEvent("checkout_started", data);
   trackEvent("InitiateCheckout", data);
 };
-export const trackPurchase = (data: { plan: string; currency: string; value: number }, paymentId: string) => trackOnce(`kodarai_purchase_tracked:${paymentId}`, () => {
-  emitInternalEvent("purchase", data);
-  trackEvent("Purchase", data);
-});
+export const trackPurchase = (
+  data: { plan: string; currency: string; value: number },
+  paymentId: string,
+) =>
+  trackOnce(`kodarai_purchase_tracked:${paymentId}`, () => {
+    emitInternalEvent("purchase", data);
+    trackEvent("Purchase", data);
+  });
 
 // New-member number bonus events deliberately exclude phone numbers, account
 // identifiers, and provider cost. They are emitted only from the shared client helper.
-export const trackNumberBonusGranted = (plan: string) => trackEvent("number_bonus_granted", { plan, country: "US", bonus_type: "first_paid_plan_us_number" });
-export const trackNumberBonusViewed = () => trackEvent("number_bonus_viewed", { country: "US", bonus_type: "first_paid_plan_us_number" });
-export const trackNumberBonusClaimStarted = (service: string) => trackEvent("number_bonus_claim_started", { country: "US", bonus_type: "first_paid_plan_us_number", service_category: service });
-export const trackNumberBonusClaimed = (service: string) => trackEvent("number_bonus_claimed", { country: "US", bonus_type: "first_paid_plan_us_number", service_category: service });
-export const trackNumberBonusClaimFailed = (service: string) => trackEvent("number_bonus_claim_failed", { country: "US", bonus_type: "first_paid_plan_us_number", service_category: service });
-export const trackNumberBonusPricingViewed = () => trackEvent("number_bonus_pricing_viewed", { country: "US", bonus_type: "first_paid_plan_us_number" });
-export const trackNumberBonusCtaClicked = (source: "pricing" | "choose_plan" | "start" | "numbers" | "post_payment") => trackEvent("number_bonus_cta_clicked", { country: "US", bonus_type: "first_paid_plan_us_number", source });
+export const trackNumberBonusGranted = (plan: string) =>
+  trackEvent("number_bonus_granted", {
+    plan,
+    country: "US",
+    bonus_type: "first_paid_plan_us_number",
+  });
+export const trackNumberBonusViewed = () =>
+  trackEvent("number_bonus_viewed", { country: "US", bonus_type: "first_paid_plan_us_number" });
+export const trackNumberBonusClaimStarted = (service: string) =>
+  trackEvent("number_bonus_claim_started", {
+    country: "US",
+    bonus_type: "first_paid_plan_us_number",
+    service_category: service,
+  });
+export const trackNumberBonusClaimed = (service: string) =>
+  trackEvent("number_bonus_claimed", {
+    country: "US",
+    bonus_type: "first_paid_plan_us_number",
+    service_category: service,
+  });
+export const trackNumberBonusClaimFailed = (service: string) =>
+  trackEvent("number_bonus_claim_failed", {
+    country: "US",
+    bonus_type: "first_paid_plan_us_number",
+    service_category: service,
+  });
+export const trackNumberBonusPricingViewed = () =>
+  trackEvent("number_bonus_pricing_viewed", {
+    country: "US",
+    bonus_type: "first_paid_plan_us_number",
+  });
+export const trackNumberBonusCtaClicked = (
+  source: "pricing" | "choose_plan" | "start" | "numbers" | "post_payment",
+) =>
+  trackEvent("number_bonus_cta_clicked", {
+    country: "US",
+    bonus_type: "first_paid_plan_us_number",
+    source,
+  });

@@ -11,60 +11,34 @@ export interface ProposalOptions {
   scope: string;
 }
 
-// Kodarai brand green (approx of the oklch primary token) as RGB.
 const BRAND: [number, number, number] = [22, 163, 74];
 const DARK: [number, number, number] = [17, 24, 39];
 const MUTED: [number, number, number] = [107, 114, 128];
+const safe = (value: string) =>
+  value
+    .split("")
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code >= 32 && code !== 127;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
 
+/** A deliberately small PDF: only selected scope items are printed. */
 export function generateProposalPdf(lead: SavedLead, opts: ProposalOptions) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const pageW = doc.internal.pageSize.getWidth();
+  const width = doc.internal.pageSize.getWidth();
   const margin = 48;
   let y = 56;
-
-  // Header band
-  doc.setFillColor(...BRAND);
-  doc.rect(0, 0, pageW, 8, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(...DARK);
-  doc.text(opts.fromCompany || "Website Proposal", margin, y);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  y += 18;
-  const meta = [opts.fromName, opts.fromContact].filter(Boolean).join("  ·  ");
-  if (meta) doc.text(meta, margin, y);
-  doc.text(new Date().toLocaleDateString(), pageW - margin, y, { align: "right" });
-
-  // Title
-  y += 40;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...BRAND);
-  doc.text("Website Proposal", margin, y);
-
-  y += 22;
-  doc.setFontSize(12);
-  doc.setTextColor(...DARK);
-  doc.text(`Prepared for: ${lead.business_name}`, margin, y);
-
-  y += 16;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  const details = [lead.category, lead.location || lead.address].filter(Boolean).join("  ·  ");
-  if (details) {
-    doc.text(details, margin, y);
-    y += 14;
-  }
-  if (lead.rating != null) {
-    doc.text(`Google rating: ${lead.rating.toFixed(1)} stars (${lead.review_count} reviews)`, margin, y);
-    y += 14;
-  }
-
+  const add = (text: string, size = 10, color: [number, number, number] = MUTED) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(size);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(safe(text), width - margin * 2);
+    doc.text(lines, margin, y);
+    y += lines.length * (size + 3);
+  };
   const section = (title: string) => {
     y += 16;
     doc.setFont("helvetica", "bold");
@@ -72,54 +46,50 @@ export function generateProposalPdf(lead: SavedLead, opts: ProposalOptions) {
     doc.setTextColor(...DARK);
     doc.text(title, margin, y);
     doc.setDrawColor(...BRAND);
-    doc.setLineWidth(1);
     doc.line(margin, y + 4, margin + 36, y + 4);
-    y += 18;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(...MUTED);
+    y += 20;
   };
-
-  const paragraph = (text: string) => {
-    const lines = doc.splitTextToSize(text, pageW - margin * 2);
-    doc.text(lines, margin, y);
-    y += lines.length * 13;
-  };
-
-  section("Overview");
-  paragraph(
-    `${lead.business_name} has built a strong reputation${
-      lead.rating != null ? ` with a ${lead.rating.toFixed(1)}-star Google rating` : ""
-    }. A modern, mobile-friendly website will help convert that reputation into more enquiries, bookings, and revenue — and make it easy for new customers in ${
-      lead.location || "your area"
-    } to find and trust you.`,
+  doc.setFillColor(...BRAND);
+  doc.rect(0, 0, width, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(...DARK);
+  doc.text(safe(opts.fromCompany) || "Website Proposal", margin, y);
+  y += 22;
+  add([safe(opts.fromName), safe(opts.fromContact)].filter(Boolean).join("  "), 10);
+  y += 20;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...BRAND);
+  doc.text("Website Proposal", margin, y);
+  y += 24;
+  add(`Prepared for: ${lead.business_name}`, 12, DARK);
+  const context = [lead.category, lead.location || lead.address].filter(Boolean).join("  ");
+  if (context) add(context);
+  section("What I'll build");
+  const items = safe(opts.scope)
+    .split(/\n|/)
+    .map((item) => safe(item.replace(/^-\s*/, "")))
+    .filter(Boolean);
+  if (items.length) items.forEach((item) => add(` ${item}`));
+  else add("Website details to be agreed.");
+  section("Price");
+  add(safe(opts.price) || "To be agreed.");
+  section("Delivery");
+  add(safe(opts.timeline) || "To be agreed.");
+  section("Next step");
+  add(
+    "If you are happy with the sample, we can agree the final details and I can complete the website for you.",
   );
-
-  section("Scope of work");
-  paragraph(opts.scope || "Custom website design, mobile optimisation, contact and booking integration, Google Maps embed, and basic SEO setup.");
-
-  section("Package");
-  paragraph(`${opts.packageName || "Professional Website"} — ${opts.price || "Contact for pricing"}`);
-
-  section("Timeline");
-  paragraph(opts.timeline || "Estimated 1–2 weeks from kickoff to launch.");
-
-  section("Next steps");
-  paragraph(
-    `Reply to confirm and we'll send over a free preview of your new website. Once approved, work begins immediately. ${
-      opts.fromContact ? `Questions? Reach me at ${opts.fromContact}.` : ""
-    }`,
-  );
-
-  // Footer
   const footerY = doc.internal.pageSize.getHeight() - 32;
   doc.setDrawColor(230, 230, 230);
-  doc.setLineWidth(0.5);
-  doc.line(margin, footerY, pageW - margin, footerY);
+  doc.line(margin, footerY, width - margin, footerY);
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
   doc.text("Proposal generated with Kodarai", margin, footerY + 14);
-
-  const safeName = lead.business_name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-  doc.save(`proposal-${safeName}.pdf`);
+  const filename =
+    safe(lead.business_name)
+      .replace(/[^a-z0-9]+/gi, "-")
+      .toLowerCase() || "website";
+  doc.save(`proposal-${filename}.pdf`);
 }

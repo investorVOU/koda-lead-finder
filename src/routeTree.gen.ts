@@ -20,6 +20,7 @@ import { Route as LearnRouteImport } from './routes/learn'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProposalShareTokenRouteImport } from './routes/proposal.$shareToken'
 import { Route as PreviewSlugRouteImport } from './routes/preview/$slug'
 import { Route as DemoShareTokenRouteImport } from './routes/demo/$shareToken'
 import { Route as ApiPingRouteImport } from './routes/api/ping'
@@ -49,6 +50,7 @@ import { Route as AuthenticatedStudioChannelReviewRouteImport } from './routes/_
 import { Route as AuthenticatedStudioAutomationsRouteImport } from './routes/_authenticated/studio/automations'
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as AuthenticatedInternalMarketingRouteImport } from './routes/_authenticated/internal.marketing'
+import { Route as AuthenticatedClientPackLeadIdRouteImport } from './routes/_authenticated/client-pack.$leadId'
 import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool/poll.$numberId'
 import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
@@ -113,6 +115,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProposalShareTokenRoute = ProposalShareTokenRouteImport.update({
+  id: '/proposal/$shareToken',
+  path: '/proposal/$shareToken',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewSlugRoute = PreviewSlugRouteImport.update({
@@ -270,6 +277,12 @@ const AuthenticatedInternalMarketingRoute =
     path: '/internal/marketing',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedClientPackLeadIdRoute =
+  AuthenticatedClientPackLeadIdRouteImport.update({
+    id: '/client-pack/$leadId',
+    path: '/client-pack/$leadId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiSmspoolPollNumberIdRoute = ApiSmspoolPollNumberIdRouteImport.update({
   id: '/api/smspool/poll/$numberId',
   path: '/api/smspool/poll/$numberId',
@@ -363,6 +376,8 @@ export interface FileRoutesByFullPath {
   '/api/ping': typeof ApiPingRoute
   '/demo/$shareToken': typeof DemoShareTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/proposal/$shareToken': typeof ProposalShareTokenRoute
+  '/client-pack/$leadId': typeof AuthenticatedClientPackLeadIdRoute
   '/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/studio/automations': typeof AuthenticatedStudioAutomationsRoute
@@ -414,6 +429,8 @@ export interface FileRoutesByTo {
   '/api/ping': typeof ApiPingRoute
   '/demo/$shareToken': typeof DemoShareTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/proposal/$shareToken': typeof ProposalShareTokenRoute
+  '/client-pack/$leadId': typeof AuthenticatedClientPackLeadIdRoute
   '/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/studio/automations': typeof AuthenticatedStudioAutomationsRoute
@@ -468,6 +485,8 @@ export interface FileRoutesById {
   '/api/ping': typeof ApiPingRoute
   '/demo/$shareToken': typeof DemoShareTokenRoute
   '/preview/$slug': typeof PreviewSlugRoute
+  '/proposal/$shareToken': typeof ProposalShareTokenRoute
+  '/_authenticated/client-pack/$leadId': typeof AuthenticatedClientPackLeadIdRoute
   '/_authenticated/internal/marketing': typeof AuthenticatedInternalMarketingRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/_authenticated/studio/automations': typeof AuthenticatedStudioAutomationsRoute
@@ -522,6 +541,8 @@ export interface FileRouteTypes {
     | '/api/ping'
     | '/demo/$shareToken'
     | '/preview/$slug'
+    | '/proposal/$shareToken'
+    | '/client-pack/$leadId'
     | '/internal/marketing'
     | '/studio/$projectId'
     | '/studio/automations'
@@ -573,6 +594,8 @@ export interface FileRouteTypes {
     | '/api/ping'
     | '/demo/$shareToken'
     | '/preview/$slug'
+    | '/proposal/$shareToken'
+    | '/client-pack/$leadId'
     | '/internal/marketing'
     | '/studio/$projectId'
     | '/studio/automations'
@@ -626,6 +649,8 @@ export interface FileRouteTypes {
     | '/api/ping'
     | '/demo/$shareToken'
     | '/preview/$slug'
+    | '/proposal/$shareToken'
+    | '/_authenticated/client-pack/$leadId'
     | '/_authenticated/internal/marketing'
     | '/_authenticated/studio/$projectId'
     | '/_authenticated/studio/automations'
@@ -666,6 +691,7 @@ export interface RootRouteChildren {
   ApiPingRoute: typeof ApiPingRoute
   DemoShareTokenRoute: typeof DemoShareTokenRoute
   PreviewSlugRoute: typeof PreviewSlugRoute
+  ProposalShareTokenRoute: typeof ProposalShareTokenRoute
   ApiStudioChannelReviewRoute: typeof ApiStudioChannelReviewRoute
   ApiStudioGenerateRoute: typeof ApiStudioGenerateRoute
   ApiPublicFollowUpRemindersDueRoute: typeof ApiPublicFollowUpRemindersDueRoute
@@ -757,6 +783,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proposal/$shareToken': {
+      id: '/proposal/$shareToken'
+      path: '/proposal/$shareToken'
+      fullPath: '/proposal/$shareToken'
+      preLoaderRoute: typeof ProposalShareTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preview/$slug': {
@@ -962,6 +995,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInternalMarketingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/client-pack/$leadId': {
+      id: '/_authenticated/client-pack/$leadId'
+      path: '/client-pack/$leadId'
+      fullPath: '/client-pack/$leadId'
+      preLoaderRoute: typeof AuthenticatedClientPackLeadIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/smspool/poll/$numberId': {
       id: '/api/smspool/poll/$numberId'
       path: '/api/smspool/poll/$numberId'
@@ -1087,6 +1127,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
   AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
   AuthenticatedWelcomeRoute: typeof AuthenticatedWelcomeRoute
+  AuthenticatedClientPackLeadIdRoute: typeof AuthenticatedClientPackLeadIdRoute
   AuthenticatedInternalMarketingRoute: typeof AuthenticatedInternalMarketingRoute
 }
 
@@ -1105,6 +1146,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
   AuthenticatedSupportRoute: AuthenticatedSupportRoute,
   AuthenticatedWelcomeRoute: AuthenticatedWelcomeRoute,
+  AuthenticatedClientPackLeadIdRoute: AuthenticatedClientPackLeadIdRoute,
   AuthenticatedInternalMarketingRoute: AuthenticatedInternalMarketingRoute,
 }
 
@@ -1127,6 +1169,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPingRoute: ApiPingRoute,
   DemoShareTokenRoute: DemoShareTokenRoute,
   PreviewSlugRoute: PreviewSlugRoute,
+  ProposalShareTokenRoute: ProposalShareTokenRoute,
   ApiStudioChannelReviewRoute: ApiStudioChannelReviewRoute,
   ApiStudioGenerateRoute: ApiStudioGenerateRoute,
   ApiPublicFollowUpRemindersDueRoute: ApiPublicFollowUpRemindersDueRoute,

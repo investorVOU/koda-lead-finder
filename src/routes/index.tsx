@@ -14,18 +14,18 @@ import { VirtualNumberModal } from "@/components/landing/VirtualNumberModal";
 import { MarketingPromoModal } from "@/components/landing/MarketingPromoModal";
 import { LiveNotification } from "@/components/LiveNotification";
 import { SupportChat } from "@/components/support/SupportChat";
-
+import { AdSenseUnit } from "@/components/marketing/AdSenseUnit";
+import { MarketingVisitorTracker } from "@/components/analytics/MarketingVisitorTracker";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       {
-        title:
-          "Kodarai — Find Businesses Without Websites & Close Them Fast",
+        title: "Kodarai — Find Businesses Without Websites & Close Them Fast",
       },
       {
         name: "description",
         content:
-          "Kodarai helps web designers find high-rated local businesses with no website, generate AI website prompts, and get cold-call scripts to close clients fast.",
+          "Kodarai helps web designers find businesses in the locations they choose, generate AI website prompts, and get cold-call scripts to close clients fast.",
       },
       {
         property: "og:title",
@@ -49,7 +49,11 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: "https://kodarai.xyz/kodarai-social-preview.png" },
       { name: "twitter:title", content: "Kodarai — Lead Gen for Web Designers" },
-      { name: "twitter:description", content: "Find high-rated businesses without websites, build a website, and close clients faster." },
+      {
+        name: "twitter:description",
+        content:
+          "Find high-rated businesses without websites, build a website, and close clients faster.",
+      },
     ],
     links: [{ rel: "canonical", href: "https://kodarai.xyz/" }],
   }),
@@ -68,6 +72,7 @@ function Index() {
         <Features />
         <HowItWorks />
         <Pricing />
+        <AdSenseUnit />
         <Testimonials />
         <LearnPreview />
         <FAQ />
@@ -76,12 +81,11 @@ function Index() {
 
       <SiteFooter />
 
+      <MarketingVisitorTracker />
       <LiveNotification />
       <SupportChat />
 
-      <VirtualNumberModal
-        storageKey="virtual_number_modal_shown_public"
-      />
+      <VirtualNumberModal storageKey="virtual_number_modal_shown_public" />
       <MarketingPromoModal />
     </div>
   );

@@ -3,10 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateJsonWithConfiguredAi } from "@/lib/content.functions";
-import {
-  getPlanActivationMetrics,
-  sendPlanActivationCampaign,
-} from "@/lib/plan-activation.server";
+import { getPlanActivationMetrics, sendPlanActivationCampaign } from "@/lib/plan-activation.server";
 
 const platformSchema = z.enum(["linkedin", "x", "facebook", "threads", "pinterest", "instagram"]);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -18,16 +15,47 @@ const accessSchema = z.object({
   passcode: z.string().min(1).max(256),
 });
 
+const adsenseSettingsSchema = accessSchema.extend({
+  enabled: z.boolean(),
+  adCode: z.string().trim().max(10_000).default(""),
+});
+
+const googleAnalyticsSettingsSchema = accessSchema.extend({
+  measurementCode: z.string().trim().max(10_000).default(""),
+});
+
+const visitorDimensionSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(160)
+  .regex(/^[A-Za-z0-9._ -]+$/);
+const visitorSessionSchema = z.object({
+  visitorId: z.string().uuid(),
+  source: visitorDimensionSchema.max(80),
+  medium: visitorDimensionSchema.max(80).optional(),
+  campaign: visitorDimensionSchema.optional(),
+  landingPath: z.string().max(500).regex(/^\//),
+});
+
 const generateSchema = accessSchema.extend({
   platform: platformSchema,
   topic: z.string().trim().max(800).optional().default(""),
-  tone: z.string().trim().max(120).optional().default("confident, direct, benefit-led, no corporate fluff"),
+  tone: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .default("confident, direct, benefit-led, no corporate fluff"),
 });
 
 const uploadSchema = accessSchema.extend({
   filename: z.string().trim().min(1).max(180),
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
-  contentBase64: z.string().min(1).max(Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 64),
+  contentBase64: z
+    .string()
+    .min(1)
+    .max(Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 64),
 });
 
 const pushSchema = accessSchema.extend({
@@ -55,7 +83,8 @@ async function matchesPasscode(candidate: string) {
   const expectedBytes = new Uint8Array(expectedHash);
   const candidateBytes = new Uint8Array(candidateHash);
   let difference = 0;
-  for (let index = 0; index < expectedBytes.length; index += 1) difference |= expectedBytes[index] ^ candidateBytes[index];
+  for (let index = 0; index < expectedBytes.length; index += 1)
+    difference |= expectedBytes[index] ^ candidateBytes[index];
   return difference === 0;
 }
 
@@ -96,7 +125,9 @@ function platformInstructions(platform: MarketingPlatform) {
 }
 
 function buildMarketingPrompt(input: z.infer<typeof generateSchema>) {
-  const topic = input.topic || "KodarAI helps freelancers and agencies find local businesses without websites, build a website quickly, and turn outreach into paid work.";
+  const topic =
+    input.topic ||
+    "KodarAI helps freelancers and agencies find local businesses without websites, build a website quickly, and turn outreach into paid work.";
   return `You write marketing copy for KodarAI. KodarAI helps freelancers and agencies find local businesses without websites, build a website quickly, and turn outreach into paid work.
 
 Create exactly 3 distinct ${input.platform} post drafts about this angle: ${topic}
@@ -112,7 +143,11 @@ Guardrails:
 }
 
 function cleanJson(raw: string) {
-  return raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+  return raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
 }
 
 function bufferChannelId(platform: MarketingPlatform) {
@@ -133,11 +168,242 @@ function isMarketingAssetUrl(value: string) {
   try {
     const asset = new URL(value);
     const supabase = new URL(supabaseUrl);
-    return asset.origin === supabase.origin && asset.pathname.startsWith("/storage/v1/object/public/marketing-assets/");
+    return (
+      asset.origin === supabase.origin &&
+      asset.pathname.startsWith("/storage/v1/object/public/marketing-assets/")
+    );
   } catch {
     return false;
   }
 }
+
+type AdSenseSettingsRow = {
+  is_enabled: boolean;
+  publisher_id: string | null;
+  landing_ad_slot: string | null;
+  google_analytics_measurement_id: string | null;
+};
+
+function parseAdSenseCode(adCode: string) {
+  const code = adCode.trim();
+  if (!/https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(code)) {
+    return { error: "Paste the Google AdSense code from your AdSense account." } as const;
+  }
+
+  const publisherId = code.match(/ca-pub-[0-9]{10,20}/i)?.[0];
+  if (!publisherId)
+    return { error: "The AdSense publisher ID was not found in that code." } as const;
+
+  const landingAdSlot = code.match(/data-ad-slot\s*=\s*["']?([0-9]{6,20})/i)?.[1] ?? null;
+  return { publisherId, landingAdSlot } as const;
+}
+
+function displayAdSenseCode(settings: AdSenseSettingsRow | null) {
+  if (!settings?.publisher_id) return "";
+  const unit = settings.landing_ad_slot
+    ? `\n<ins class="adsbygoogle" style="display:block" data-ad-client="${settings.publisher_id}" data-ad-slot="${settings.landing_ad_slot}" data-ad-format="auto" data-full-width-responsive="true"></ins>`
+    : "";
+  return `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${settings.publisher_id}" crossorigin="anonymous"></script>${unit}`;
+}
+
+async function readAdSenseSettings() {
+  // Supabase types are generated separately; this new migration is not represented yet.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabaseAdmin as any)
+    .from("marketing_adsense_settings")
+    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id")
+    .eq("singleton", true)
+    .maybeSingle();
+  if (error) throw new Error("Could not read AdSense settings.");
+  return data as AdSenseSettingsRow | null;
+}
+
+export const getPublicAdSenseSettings = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const settings = await readAdSenseSettings();
+    if (!settings?.is_enabled || !settings.publisher_id) return { enabled: false } as const;
+    return {
+      enabled: true,
+      publisherId: settings.publisher_id,
+      landingAdSlot: settings.landing_ad_slot,
+    } as const;
+  } catch {
+    return { enabled: false } as const;
+  }
+});
+
+function parseGoogleAnalyticsMeasurementId(measurementCode: string) {
+  const measurementId = measurementCode
+    .trim()
+    .match(/G-[A-Z0-9]{6,20}/i)?.[0]
+    ?.toUpperCase();
+  if (!measurementId)
+    return {
+      error: "Paste a Google Analytics measurement ID or the official Google tag code.",
+    } as const;
+  return { measurementId } as const;
+}
+
+export const getPublicGoogleAnalyticsSettings = createServerFn({ method: "GET" }).handler(
+  async () => {
+    try {
+      const settings = await readAdSenseSettings();
+      return { measurementId: settings?.google_analytics_measurement_id ?? null } as const;
+    } catch {
+      return { measurementId: null } as const;
+    }
+  },
+);
+
+async function hashVisitorId(visitorId: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(visitorId));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export const recordMarketingVisitorSession = createServerFn({ method: "POST" })
+  .inputValidator((data) => visitorSessionSchema.parse(data))
+  .handler(async ({ data }) => {
+    try {
+      // Supabase types are generated separately; this new migration is not represented yet.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabaseAdmin as any).from("marketing_visitor_sessions").upsert(
+        {
+          visitor_hash: await hashVisitorId(data.visitorId),
+          source: data.source.toLowerCase(),
+          medium: data.medium?.toLowerCase() ?? null,
+          campaign: data.campaign ?? null,
+          landing_path: data.landingPath,
+        },
+        { onConflict: "visitor_hash,visit_date", ignoreDuplicates: true },
+      );
+      if (error) console.warn("Could not record anonymous visitor session:", error.message);
+    } catch {
+      // Visitor reporting is optional and must never affect a public page.
+    }
+    return { recorded: true } as const;
+  });
+
+export const getMarketingVisitorDashboard = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => accessSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    const startDate = new Date();
+    startDate.setUTCDate(startDate.getUTCDate() - 29);
+    const from = startDate.toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Supabase types are generated separately; this new migration is not represented yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rows, error } = await (supabaseAdmin as any)
+      .from("marketing_visitor_sessions")
+      .select("visit_date, source, medium")
+      .gte("visit_date", from)
+      .limit(50_000);
+    if (error)
+      throw new Error("Could not load visitor reporting. Apply the analytics migration first.");
+
+    const visitors = (rows ?? []) as {
+      visit_date: string;
+      source: string;
+      medium: string | null;
+    }[];
+    const grouped = new Map<string, { source: string; medium: string | null; visitors: number }>();
+    for (const visitor of visitors) {
+      const key = `${visitor.source}\u0000${visitor.medium ?? ""}`;
+      const current = grouped.get(key) ?? {
+        source: visitor.source,
+        medium: visitor.medium,
+        visitors: 0,
+      };
+      current.visitors += 1;
+      grouped.set(key, current);
+    }
+
+    const settings = await readAdSenseSettings();
+    return {
+      visitorsToday: visitors.filter((visitor) => visitor.visit_date === today).length,
+      visitorsLast30Days: visitors.length,
+      sources: [...grouped.values()]
+        .sort((left, right) => right.visitors - left.visitors)
+        .slice(0, 8),
+      googleAnalyticsMeasurementId: settings?.google_analytics_measurement_id ?? null,
+    } as const;
+  });
+
+export const saveMarketingGoogleAnalyticsSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => googleAnalyticsSettingsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    const parsed = parseGoogleAnalyticsMeasurementId(data.measurementCode);
+    if ("error" in parsed) return { error: "analytics_error", message: parsed.error } as const;
+
+    // Supabase types are generated separately; this new migration is not represented yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
+      {
+        singleton: true,
+        google_analytics_measurement_id: parsed.measurementId,
+        updated_by: context.userId,
+      },
+      { onConflict: "singleton" },
+    );
+    if (error)
+      return {
+        error: "analytics_error",
+        message: "Could not save Google Analytics. Apply the analytics migration first.",
+      } as const;
+    return { measurementId: parsed.measurementId } as const;
+  });
+
+export const getMarketingAdSenseSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => accessSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    const settings = await readAdSenseSettings();
+    return {
+      enabled: settings?.is_enabled ?? false,
+      adCode: displayAdSenseCode(settings),
+      hasLandingAdUnit: Boolean(settings?.landing_ad_slot),
+    } as const;
+  });
+
+export const saveMarketingAdSenseSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => adsenseSettingsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+
+    const parsed = parseAdSenseCode(data.adCode);
+    if ("error" in parsed) return { error: "adsense_error", message: parsed.error } as const;
+
+    // Supabase types are generated separately; this new migration is not represented yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
+      {
+        singleton: true,
+        is_enabled: data.enabled,
+        publisher_id: parsed.publisherId,
+        landing_ad_slot: parsed.landingAdSlot,
+        updated_by: context.userId,
+      },
+      { onConflict: "singleton" },
+    );
+    if (error) {
+      console.error("Could not save AdSense settings:", error.message);
+      return {
+        error: "adsense_error",
+        message: "Could not save AdSense settings. Apply the AdSense migration first.",
+      } as const;
+    }
+
+    return {
+      enabled: data.enabled,
+      hasLandingAdUnit: Boolean(parsed.landingAdSlot),
+    } as const;
+  });
 
 export const verifyMarketingAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -173,12 +439,18 @@ export const generateMarketingPost = createServerFn({ method: "POST" })
       const parsed = draftResponseSchema.safeParse(JSON.parse(cleanJson(ai.raw)));
       if (!parsed.success) {
         console.error("Invalid internal marketing AI response:", parsed.error.flatten());
-        return { error: "generation_error", message: "The AI returned an invalid draft set. Please try again." } as const;
+        return {
+          error: "generation_error",
+          message: "The AI returned an invalid draft set. Please try again.",
+        } as const;
       }
       return { drafts: parsed.data.drafts, provider: ai.provider, model: ai.model } as const;
     } catch (error) {
       console.error("Internal marketing generation failed:", error);
-      return { error: "generation_error", message: "Could not generate drafts right now. Please try again." } as const;
+      return {
+        error: "generation_error",
+        message: "Could not generate drafts right now. Please try again.",
+      } as const;
     }
   });
 
@@ -189,9 +461,11 @@ export const uploadMarketingAsset = createServerFn({ method: "POST" })
     await requireMarketingAccess(context.userId, data.passcode);
     try {
       const bytes = Buffer.from(data.contentBase64, "base64");
-      if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) return { error: "upload_error", message: "Image must be 10 MB or smaller." } as const;
+      if (!bytes.length || bytes.length > MAX_IMAGE_BYTES)
+        return { error: "upload_error", message: "Image must be 10 MB or smaller." } as const;
 
-      const extension = data.contentType.split("/")[1] === "jpeg" ? "jpg" : data.contentType.split("/")[1];
+      const extension =
+        data.contentType.split("/")[1] === "jpeg" ? "jpg" : data.contentType.split("/")[1];
       const path = `${context.userId}/${crypto.randomUUID()}.${extension}`;
       const { error } = await supabaseAdmin.storage.from("marketing-assets").upload(path, bytes, {
         contentType: data.contentType,
@@ -200,7 +474,11 @@ export const uploadMarketingAsset = createServerFn({ method: "POST" })
       });
       if (error) {
         console.error("Marketing asset upload failed:", error.message);
-        return { error: "upload_error", message: "Could not upload the image. Make sure the marketing-assets bucket migration has been applied." } as const;
+        return {
+          error: "upload_error",
+          message:
+            "Could not upload the image. Make sure the marketing-assets bucket migration has been applied.",
+        } as const;
       }
       const { data: publicUrl } = supabaseAdmin.storage.from("marketing-assets").getPublicUrl(path);
       return { publicUrl: publicUrl.publicUrl } as const;
@@ -218,14 +496,27 @@ export const pushToBuffer = createServerFn({ method: "POST" })
     const apiKey = process.env.BUFFER_API_KEY?.trim();
     const channelId = bufferChannelId(data.platform);
     if (!apiKey || !channelId) {
-      console.error("Buffer configuration is incomplete.", { platform: data.platform, hasApiKey: Boolean(apiKey), hasChannelId: Boolean(channelId) });
-      return { error: "buffer_error", message: "Buffer is not configured for this platform." } as const;
+      console.error("Buffer configuration is incomplete.", {
+        platform: data.platform,
+        hasApiKey: Boolean(apiKey),
+        hasChannelId: Boolean(channelId),
+      });
+      return {
+        error: "buffer_error",
+        message: "Buffer is not configured for this platform.",
+      } as const;
     }
     if ((data.platform === "pinterest" || data.platform === "instagram") && !data.assetUrl) {
-      return { error: "buffer_error", message: `${data.platform === "instagram" ? "Instagram" : "Pinterest"} posts require an image.` } as const;
+      return {
+        error: "buffer_error",
+        message: `${data.platform === "instagram" ? "Instagram" : "Pinterest"} posts require an image.`,
+      } as const;
     }
     if (data.assetUrl && !isMarketingAssetUrl(data.assetUrl)) {
-      return { error: "buffer_error", message: "The image must be uploaded through this tool." } as const;
+      return {
+        error: "buffer_error",
+        message: "The image must be uploaded through this tool.",
+      } as const;
     }
 
     const query = `mutation CreatePost($input: CreatePostInput!) {
@@ -250,24 +541,41 @@ export const pushToBuffer = createServerFn({ method: "POST" })
       });
       if (response.status === 401 || response.status === 403 || response.status === 429) {
         console.error("Buffer authorization or rate-limit error:", response.status);
-        return { error: "buffer_error", message: "Buffer API key invalid or rate-limited." } as const;
+        return {
+          error: "buffer_error",
+          message: "Buffer API key invalid or rate-limited.",
+        } as const;
       }
       if (!response.ok) {
         console.error("Buffer API error:", response.status, await response.text().catch(() => ""));
-        return { error: "buffer_error", message: "Buffer could not queue this post. Please try again." } as const;
+        return {
+          error: "buffer_error",
+          message: "Buffer could not queue this post. Please try again.",
+        } as const;
       }
-      const payload = await response.json() as {
+      const payload = (await response.json()) as {
         errors?: { message?: string }[];
-        data?: { createPost?: { message?: string; post?: { id: string; text: string; dueAt: string | null } } };
+        data?: {
+          createPost?: {
+            message?: string;
+            post?: { id: string; text: string; dueAt: string | null };
+          };
+        };
       };
       const result = payload.data?.createPost;
       if (payload.errors?.length || result?.message || !result?.post) {
         console.error("Buffer GraphQL mutation error:", payload.errors ?? result?.message);
-        return { error: "buffer_error", message: result?.message || "Buffer could not queue this post." } as const;
+        return {
+          error: "buffer_error",
+          message: result?.message || "Buffer could not queue this post.",
+        } as const;
       }
       return { post: result.post, status: "queued" as const };
     } catch (error) {
       console.error("Buffer request failed:", error);
-      return { error: "buffer_error", message: "Could not reach Buffer. Please try again." } as const;
+      return {
+        error: "buffer_error",
+        message: "Could not reach Buffer. Please try again.",
+      } as const;
     }
   });

@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
   }),
   component: LegacyOnboardingRedirect,
 });
-function OnboardingPage() {
+
 /** Legacy links now continue straight to plan selection. */
 function LegacyOnboardingRedirect() {
   const navigate = useNavigate();
@@ -37,6 +37,8 @@ function LegacyOnboardingRedirect() {
   }, [navigate]);
   return null;
 }
+
+function OnboardingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -104,9 +106,7 @@ function LegacyOnboardingRedirect() {
         localStorage.removeItem("kodarai_ref");
       });
     }
-    toast.success(
-      "You're all set! Choose the plan that fits you.",
-    );
+    toast.success("You're all set! Choose the plan that fits you.");
     /*
      * New-user flow:
      *
@@ -126,19 +126,14 @@ function LegacyOnboardingRedirect() {
         <span className="flex size-11 items-center justify-center rounded-xl bg-[image:var(--gradient-primary)] text-primary-foreground">
           <Radar className="size-6" />
         </span>
-        <h1 className="mt-5 text-2xl font-bold">
-          Welcome to Kodarai 👋
-        </h1>
+        <h1 className="mt-5 text-2xl font-bold">Welcome to Kodarai 👋</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Tell us a bit about you so we can tailor your Kodarai
-          experience.
+          Tell us a bit about you so we can tailor your Kodarai experience.
         </p>
         <form onSubmit={submit} className="mt-6 space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="fullName">
-              Your name
-            </Label>
+            <Label htmlFor="fullName">Your name</Label>
             <Input
               id="fullName"
               value={fullName}
@@ -150,10 +145,7 @@ function LegacyOnboardingRedirect() {
           {/* Company */}
           <div className="space-y-1.5">
             <Label htmlFor="company">
-              Company / brand{" "}
-              <span className="font-normal text-muted-foreground">
-                (optional)
-              </span>
+              Company / brand <span className="font-normal text-muted-foreground">(optional)</span>
             </Label>
             <Input
               id="company"
@@ -164,13 +156,8 @@ function LegacyOnboardingRedirect() {
           </div>
           {/* Niche */}
           <div className="space-y-1.5">
-            <Label>
-              Niche you target most
-            </Label>
-            <Select
-              value={niche}
-              onValueChange={setNiche}
-            >
+            <Label>Niche you target most</Label>
+            <Select value={niche} onValueChange={setNiche}>
               <SelectTrigger>
                 <SelectValue placeholder="Pick a category" />
               </SelectTrigger>
@@ -181,10 +168,7 @@ function LegacyOnboardingRedirect() {
                       {group.group}
                     </SelectLabel>
                     {group.items.map((c) => (
-                      <SelectItem
-                        key={c}
-                        value={c}
-                      >
+                      <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>
                     ))}
@@ -194,24 +178,18 @@ function LegacyOnboardingRedirect() {
                   <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Other
                   </SelectLabel>
-                  <SelectItem value="Other">
-                    Other / Custom
-                  </SelectItem>
+                  <SelectItem value="Other">Other / Custom</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
           </div>
           {/* Location */}
           <div className="space-y-1.5">
-            <Label htmlFor="loc">
-              Main location you serve
-            </Label>
+            <Label htmlFor="loc">Main location you serve</Label>
             <Input
               id="loc"
               value={location}
-              onChange={(e) =>
-                setLocation(e.target.value)
-              }
+              onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Lagos, Nigeria or Chicago, USA"
             />
           </div>
@@ -224,7 +202,9 @@ function LegacyOnboardingRedirect() {
             />
             <span>
               <span className="font-medium">Send me weekly lead ideas and KodarAI offers</span>
-              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">Optional. You can unsubscribe at any time.</span>
+              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                Optional. You can unsubscribe at any time.
+              </span>
             </span>
           </label>
           {/* Continue */}

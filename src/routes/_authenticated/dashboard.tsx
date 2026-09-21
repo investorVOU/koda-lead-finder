@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth";
 import { useProfile, useSubscription } from "@/lib/queries";
 import { FinderDemo } from "@/components/conversion/FinderDemo";
 import { FirstClientChallenge } from "@/components/conversion/FirstClientChallenge";
+import { TodayPlan } from "@/components/conversion/TodayPlan";
 import { isPreviewMode } from "@/lib/plan-access";
 import { usePlanPreviewGate } from "@/components/billing/PlanPreviewGate";
 import {
@@ -269,6 +270,7 @@ function DashboardPage() {
   return (
     <DashboardShell>
       <div className="mx-auto w-full max-w-3xl pb-4">
+        <TodayPlan />
         <FirstClientChallenge />
         {/* PAGE TITLE */}
 

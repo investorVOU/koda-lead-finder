@@ -2,13 +2,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Check, CreditCard, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { PACKS, PLANS, formatNgn, getAnnualSavings, getPlanPrice, type BillingCycle } from "@/lib/billing";
+  PACKS,
+  PLANS,
+  formatNgn,
+  getAnnualSavings,
+  getPlanPrice,
+  type BillingCycle,
+} from "@/lib/billing";
 import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { Logo } from "@/components/landing/Logo";
 import { WelcomeEmailSync } from "@/components/auth/WelcomeEmailSync";
@@ -36,9 +38,12 @@ function ChoosePlanPage() {
         </div>
 
         <div className="mt-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Choose how you want to find clients</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Choose how you want to find clients
+          </h1>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-            Start a monthly plan for the full Kodarai workflow, or buy leads once and use them whenever you are ready.
+            Start a monthly plan for the full Kodarai workflow, or buy leads once and use them
+            whenever you are ready.
           </p>
         </div>
 
@@ -62,10 +67,20 @@ function ChoosePlanPage() {
                 Every monthly plan includes Studio and Website Builder access.
               </p>
             </div>
-            <div className="mb-5 rounded-xl border border-border bg-card px-4 py-3 text-center">
-              <p className="text-sm font-semibold">New member bonus</p>
-              <p className="mt-1 text-sm text-muted-foreground">Choose your first paid KodarAI plan and get 1 U.S. temporary number included — no separate Numbers deposit needed for your bonus number.</p>
-              <p className="mt-1 text-xs text-muted-foreground">Available once per eligible new paying account. Temporary number only. Availability and supported services may vary.</p>
+            <div className="mb-5 rounded-2xl border border-primary/35 bg-primary/10 px-4 py-4 text-center shadow-sm sm:px-6">
+              <span className="inline-flex rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-foreground">
+                Free new member bonus
+              </span>
+              <p className="mt-2 text-base font-bold text-foreground">
+                1 U.S. temporary number included with your first paid plan
+              </p>
+              <p className="mt-1 text-sm text-foreground/80">
+                No separate Numbers deposit needed for your bonus number.
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Available once for eligible new paying accounts. Temporary number only. Availability
+                and supported services may vary.
+              </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -81,24 +96,46 @@ function ChoosePlanPage() {
                       <Zap className="size-3" /> Most popular
                     </span>
                   )}
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{plan.name}</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    {plan.name}
+                  </p>
                   <p className="mt-2 text-3xl font-bold">
                     {formatNgn(getPlanPrice(plan, cycle))}
-                    <span className="text-base font-normal text-muted-foreground">{cycle === "annually" ? "/yr" : "/mo"}</span>
+                    <span className="text-base font-normal text-muted-foreground">
+                      {cycle === "annually" ? "/yr" : "/mo"}
+                    </span>
                   </p>
-                  {cycle === "annually" && <p className="mt-1 text-xs font-medium text-primary">Save {formatNgn(getAnnualSavings(plan))} yearly</p>}
+                  {cycle === "annually" && (
+                    <p className="mt-1 text-xs font-medium text-primary">
+                      Save {formatNgn(getAnnualSavings(plan))} yearly
+                    </p>
+                  )}
                   <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
                   <ul className="mt-4 flex-1 space-y-2">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <Check className="mt-0.5 size-3.5 shrink-0 text-primary" /> {feature}
+                      <li
+                        key={feature}
+                        className="flex items-start gap-2 text-sm text-muted-foreground"
+                      >
+                        <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {feature}
+                          {feature === "1 U.S. temporary number included" && (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
+                              FREE
+                            </span>
+                          )}
+                        </span>
                       </li>
                     ))}
                   </ul>
                   <Button
                     className="mt-6 w-full"
                     variant={plan.highlight ? "hero" : "outline"}
-                    onClick={() => { trackNumberBonusCtaClicked("choose_plan"); goToBilling(); }}
+                    onClick={() => {
+                      trackNumberBonusCtaClicked("choose_plan");
+                      goToBilling();
+                    }}
                   >
                     Get {plan.name}
                   </Button>
@@ -111,7 +148,8 @@ function ChoosePlanPage() {
             <div className="mb-5 text-center">
               <p className="font-semibold">For when you only need leads right now</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Pay once. Your lead credits never expire. A monthly plan is required for Studio and Website Builder.
+                Pay once. Your lead credits never expire. A monthly plan is required for Studio and
+                Website Builder.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -127,18 +165,27 @@ function ChoosePlanPage() {
                       <Zap className="size-3" /> Best value
                     </span>
                   )}
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{pack.name}</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    {pack.name}
+                  </p>
                   <p className="mt-2 text-3xl font-bold">{formatNgn(pack.ngn)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{pack.credits} lead searches, once</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {pack.credits} lead searches, once
+                  </p>
                   <ul className="mt-5 flex-1 space-y-2 text-sm text-muted-foreground">
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 size-3.5 shrink-0 text-primary" /> Leads never expire
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-primary" /> Buy only when you need more
+                      <Check className="mt-0.5 size-3.5 shrink-0 text-primary" /> Buy only when you
+                      need more
                     </li>
                   </ul>
-                  <Button className="mt-6 w-full" variant={pack.highlight ? "hero" : "outline"} onClick={goToBilling}>
+                  <Button
+                    className="mt-6 w-full"
+                    variant={pack.highlight ? "hero" : "outline"}
+                    onClick={goToBilling}
+                  >
                     Buy {pack.name}
                   </Button>
                 </div>
@@ -150,13 +197,18 @@ function ChoosePlanPage() {
         <div className="mt-8 text-center">
           <p className="font-medium">Not ready yet?</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            You can look around Kodarai first.<br />
+            You can look around Kodarai first.
+            <br />
             Some features will stay locked until you choose a plan.
           </p>
-          <Button variant="ghost" className="mt-3" onClick={() => {
-            trackPlanSkipped();
-            navigate({ to: "/dashboard" });
-          }}>
+          <Button
+            variant="ghost"
+            className="mt-3"
+            onClick={() => {
+              trackPlanSkipped();
+              navigate({ to: "/dashboard" });
+            }}
+          >
             I&apos;ll do this later
           </Button>
         </div>
