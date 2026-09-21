@@ -13,7 +13,7 @@ type TourState = "not_started" | "in_progress" | "completed" | "skipped";
 const STEP_STORAGE_KEY = "kodarai_product_tour_step";
 const steps = [
   { target: "dashboard", route: "/dashboard", title: "Welcome to KodarAI", description: "Here's a quick tour to show you how to find businesses, make websites and get paid." },
-  { target: "finder", route: "/dashboard", title: "Find businesses", description: "Search for real businesses in your area that need a website." },
+  { target: "finder", route: "/dashboard", title: "Find businesses", description: "Choose a business type and supported location to find businesses that may need a website." },
   { target: "studio", route: "/studio", title: "Make websites", description: "Use AI to create a professional website for any business in minutes." },
   { target: "leads", route: "/leads", title: "Contact business owners", description: "Get contact details and reach out with ready-to-use messages." },
   { target: "revenue", route: "/revenue", title: "Track your results", description: "See your leads, responses and income all in one place." },

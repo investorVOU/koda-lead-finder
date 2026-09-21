@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 type Tone = "casual" | "professional" | "short";
 function messageFor(lead: Pick<SavedLead, "business_name" | "location" | "address" | "has_website"> | undefined, tone: Tone) {
   const name = lead?.business_name || "your business";
-  const place = lead?.location || lead?.address || "your area";
-  const websiteLine = lead?.has_website ? "I had an idea for how your website could bring in more enquiries." : "I noticed you don’t have a website yet, so I made a quick sample to show what your business could look like online.";
-  if (tone === "short") return `Hi, I came across ${name} in ${place}. ${websiteLine} Can I send it to you?`;
-  if (tone === "professional") return `Hello ${name},\n\nI came across your business while looking at businesses in ${place}. ${websiteLine}\n\nWould you be open to seeing it?`;
-  return `Hi, I came across ${name} while looking for businesses around ${place}. ${websiteLine}\n\nCan I send it to you?`;
+  const websiteLine = lead?.has_website
+    ? "I had an idea for how your website could bring in more enquiries."
+    : "I noticed you don't have a website yet, so I made a quick sample to show what your business could look like online.";
+  if (tone === "short") return `Hi ${name}, I came across your business while researching businesses online. ${websiteLine} Can I send it to you?`;
+  if (tone === "professional") return `Hello ${name},\n\nI came across your business while researching businesses online. ${websiteLine}\n\nWould you be open to seeing it?`;
+  return `Hi ${name}, I came across your business while researching businesses online. ${websiteLine}\n\nCan I send it to you?`;
 }
 
 export function MessageHelper({ lead, compact = false }: { lead?: SavedLead; compact?: boolean }) {
