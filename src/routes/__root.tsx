@@ -1,8 +1,4 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
 import {
   Outlet,
@@ -13,60 +9,39 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 
-import {
-  useEffect,
-  type ReactNode,
-} from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 
-import {
-  reportLovableError,
-} from "../lib/lovable-error-reporting";
+import { reportLovableError } from "../lib/lovable-error-reporting";
 
-import {
-  AuthProvider,
-} from "@/lib/auth";
+import { AuthProvider } from "@/lib/auth";
 
-import {
-  supabase,
-} from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
-import {
-  Toaster,
-} from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
 
-import {
-  InstallPwaPrompt,
-} from "@/components/InstallPwaPrompt";
+import { InstallPwaPrompt } from "@/components/InstallPwaPrompt";
 
-import {
-  AnalyticsProvider,
-} from "@/components/analytics/AnalyticsProvider";
+import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 
-import {
-  AttributionSync,
-} from "@/components/analytics/AttributionSync";
+import { AttributionSync } from "@/components/analytics/AttributionSync";
+
+const adsenseClientId = import.meta.env.VITE_ADSENSE_CLIENT_ID?.trim();
+const verifiedAdSenseClientId = /^ca-pub-[0-9]{10,20}$/.test(adsenseClientId ?? "")
+  ? adsenseClientId
+  : undefined;
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">
-          404
-        </h1>
+        <h1 className="text-7xl font-bold text-foreground">404</h1>
 
-        <h2 className="mt-4 text-xl font-semibold text-foreground">
-          Page not
-          found
-        </h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
 
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're
-          looking for
-          doesn't exist
-          or has been
-          moved.
+          The page you're looking for doesn't exist or has been moved.
         </p>
 
         <div className="mt-6">
@@ -82,45 +57,26 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
-  console.error(
-    error,
-  );
+function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  console.error(error);
 
-  const router =
-    useRouter();
+  const router = useRouter();
 
   useEffect(() => {
-    reportLovableError(
-      error,
-      {
-        boundary:
-          "tanstack_root_error_component",
-      },
-    );
+    reportLovableError(error, {
+      boundary: "tanstack_root_error_component",
+    });
   }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page
-          didn't load
+          This page didn't load
         </h1>
 
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went
-          wrong on our
-          end. You can
-          try refreshing
-          or head back
-          home.
+          Something went wrong on our end. You can try refreshing or head back home.
         </p>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -147,258 +103,204 @@ function ErrorComponent({
   );
 }
 
-export const Route =
-  createRootRouteWithContext<{
-    queryClient:
-      QueryClient;
-  }>()({
-    head: () => ({
-      meta: [
-        {
-          charSet:
-            "utf-8",
-        },
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
+  head: () => ({
+    meta: [
+      {
+        charSet: "utf-8",
+      },
 
-        {
-          name:
-            "viewport",
+      {
+        name: "viewport",
 
-          content:
-            "width=device-width, initial-scale=1",
-        },
+        content: "width=device-width, initial-scale=1",
+      },
 
-        {
-          name:
-            "theme-color",
+      {
+        name: "theme-color",
 
-          content:
-            "#2a9d6f",
-        },
+        content: "#2a9d6f",
+      },
 
-        {
-          title:
-            "Kodarai — Find Businesses Without Websites",
-        },
+      {
+        title: "Kodarai — Find Businesses Without Websites",
+      },
 
-        {
-          name:
-            "description",
+      {
+        name: "description",
 
-          content:
-            "Kodarai helps web designers find high-rated local businesses with no website and close them fast.",
-        },
+        content:
+          "Kodarai helps web designers find high-rated local businesses with no website and close them fast.",
+      },
 
-        {
-          name:
-            "author",
+      {
+        name: "author",
 
-          content:
-            "Kodarai",
-        },
+        content: "Kodarai",
+      },
 
-        {
-          property:
-            "og:title",
+      {
+        property: "og:title",
 
-          content:
-            "Kodarai — Lead Gen for Web Designers",
-        },
+        content: "Kodarai — Lead Gen for Web Designers",
+      },
 
-        {
-          property:
-            "og:description",
+      {
+        property: "og:description",
 
-          content:
-            "Kodarai helps web designers find high-rated local businesses with no website and close them fast.",
-        },
+        content:
+          "Kodarai helps web designers find high-rated local businesses with no website and close them fast.",
+      },
 
-        {
-          property:
-            "og:type",
+      {
+        property: "og:type",
 
-          content:
-            "website",
-        },
+        content: "website",
+      },
 
-        {
-          property:
-            "og:site_name",
+      {
+        property: "og:site_name",
 
-          content:
-            "Kodarai",
-        },
+        content: "Kodarai",
+      },
 
-        {
-          property:
-            "og:image",
+      {
+        property: "og:image",
 
-          content:
-            "https://kodarai.xyz/kodarai-social-preview.png",
-        },
+        content: "https://kodarai.xyz/kodarai-social-preview.png",
+      },
 
-        {
-          property:
-            "og:image:width",
+      {
+        property: "og:image:width",
 
-          content:
-            "1731",
-        },
+        content: "1731",
+      },
 
-        {
-          property:
-            "og:image:height",
+      {
+        property: "og:image:height",
 
-          content:
-            "909",
-        },
+        content: "909",
+      },
 
-        {
-          property:
-            "og:image:type",
+      {
+        property: "og:image:type",
 
-          content:
-            "image/png",
-        },
+        content: "image/png",
+      },
 
-        {
-          name:
-            "twitter:card",
+      {
+        name: "twitter:card",
 
-          content:
-            "summary_large_image",
-        },
+        content: "summary_large_image",
+      },
 
-        {
-          name:
-            "twitter:image",
+      {
+        name: "twitter:image",
 
-          content:
-            "https://kodarai.xyz/kodarai-social-preview.png",
-        },
+        content: "https://kodarai.xyz/kodarai-social-preview.png",
+      },
 
-        {
-          name:
-            "twitter:title",
+      {
+        name: "twitter:title",
 
-          content:
-            "Kodarai — Find Businesses Without Websites",
-        },
+        content: "Kodarai — Find Businesses Without Websites",
+      },
 
-        {
-          name:
-            "twitter:description",
+      {
+        name: "twitter:description",
 
-          content:
-            "Find local businesses without websites, build their site, and send a live link.",
-        },
+        content: "Find local businesses without websites, build their site, and send a live link.",
+      },
 
-        {
-          name:
-            "twitter:site",
+      {
+        name: "twitter:site",
 
-          content:
-            "@kodarai",
-        },
-      ],
+        content: "@kodarai",
+      },
+    ],
 
-      links: [
-        {
-          rel:
-            "icon",
+    scripts: verifiedAdSenseClientId
+      ? [
+          {
+            id: "kodarai-adsense-script",
+            async: true,
+            crossOrigin: "anonymous",
+            src: `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${verifiedAdSenseClientId}`,
+          },
+        ]
+      : [],
 
-          type:
-            "image/svg+xml",
+    links: [
+      {
+        rel: "icon",
 
-          href:
-            "/favicon.svg?v=2",
-        },
+        type: "image/svg+xml",
 
-        {
-          rel:
-            "shortcut icon",
+        href: "/favicon.svg?v=2",
+      },
 
-          type:
-            "image/svg+xml",
+      {
+        rel: "shortcut icon",
 
-          href:
-            "/favicon.svg?v=2",
-        },
+        type: "image/svg+xml",
 
-        {
-          rel:
-            "manifest",
+        href: "/favicon.svg?v=2",
+      },
 
-          href:
-            "/manifest.webmanifest?v=3",
-        },
+      {
+        rel: "manifest",
 
-        {
-          rel:
-            "apple-touch-icon",
+        href: "/manifest.webmanifest?v=3",
+      },
 
-          sizes:
-            "180x180",
+      {
+        rel: "apple-touch-icon",
 
-          href:
-            "/apple-touch-icon.png?v=3",
-        },
+        sizes: "180x180",
 
-        {
-          rel:
-            "preconnect",
+        href: "/apple-touch-icon.png?v=3",
+      },
 
-          href:
-            "https://fonts.googleapis.com",
-        },
+      {
+        rel: "preconnect",
 
-        {
-          rel:
-            "preconnect",
+        href: "https://fonts.googleapis.com",
+      },
 
-          href:
-            "https://fonts.gstatic.com",
+      {
+        rel: "preconnect",
 
-          crossOrigin:
-            "anonymous",
-        },
+        href: "https://fonts.gstatic.com",
 
-        {
-          rel:
-            "stylesheet",
+        crossOrigin: "anonymous",
+      },
 
-          href:
-            "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap",
-        },
+      {
+        rel: "stylesheet",
 
-        {
-          rel:
-            "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap",
+      },
 
-          href:
-            appCss,
-        },
-      ],
-    }),
+      {
+        rel: "stylesheet",
 
-    shellComponent:
-      RootShell,
+        href: appCss,
+      },
+    ],
+  }),
 
-    component:
-      RootComponent,
+  shellComponent: RootShell,
 
-    notFoundComponent:
-      NotFoundComponent,
+  component: RootComponent,
 
-    errorComponent:
-      ErrorComponent,
-  });
+  notFoundComponent: NotFoundComponent,
 
-function RootShell({
-  children,
-}: {
-  children:
-    ReactNode;
-}) {
+  errorComponent: ErrorComponent,
+});
+
+function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -415,48 +317,30 @@ function RootShell({
 }
 
 function AuthInvalidator() {
-  const router =
-    useRouter();
+  const router = useRouter();
 
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const {
-      data: {
-        subscription,
-      },
-    } =
-      supabase.auth.onAuthStateChange(
-        () => {
-          router.invalidate();
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      router.invalidate();
 
-          queryClient.invalidateQueries();
-        },
-      );
+      queryClient.invalidateQueries();
+    });
 
-    return () =>
-      subscription.unsubscribe();
-  }, [
-    router,
-    queryClient,
-  ]);
+    return () => subscription.unsubscribe();
+  }, [router, queryClient]);
 
   return null;
 }
 
 function RootComponent() {
-  const {
-    queryClient,
-  } =
-    Route.useRouteContext();
+  const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider
-      client={
-        queryClient
-      }
-    >
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AuthInvalidator />
 
@@ -469,10 +353,7 @@ function RootComponent() {
 
         <InstallPwaPrompt />
 
-        <Toaster
-          position="top-center"
-          richColors
-        />
+        <Toaster position="top-center" richColors />
       </AuthProvider>
     </QueryClientProvider>
   );

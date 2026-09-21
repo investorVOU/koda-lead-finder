@@ -17,7 +17,7 @@ const SCRIPT_ID = "kodarai-adsense-script";
 function loadAdSenseScript(publisherId: string, onLoad: () => void) {
   const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
   if (existing) {
-    if (existing.dataset.loaded === "true") onLoad();
+    if (existing.dataset.loaded === "true" || window.adsbygoogle) onLoad();
     else existing.addEventListener("load", onLoad, { once: true });
     return;
   }
