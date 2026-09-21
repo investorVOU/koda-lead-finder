@@ -31,6 +31,12 @@ const adsenseClientId = import.meta.env.VITE_ADSENSE_CLIENT_ID?.trim();
 const verifiedAdSenseClientId = /^ca-pub-[0-9]{10,20}$/.test(adsenseClientId ?? "")
   ? adsenseClientId
   : undefined;
+const searchConsoleVerificationToken = import.meta.env.VITE_GOOGLE_SITE_VERIFICATION?.trim();
+const verifiedSearchConsoleToken = /^[A-Za-z0-9_-]{8,512}$/.test(
+  searchConsoleVerificationToken ?? "",
+)
+  ? searchConsoleVerificationToken
+  : undefined;
 
 function NotFoundComponent() {
   return (
@@ -140,6 +146,15 @@ export const Route = createRootRouteWithContext<{
 
         content: "Kodarai",
       },
+
+      ...(verifiedSearchConsoleToken
+        ? [
+            {
+              name: "google-site-verification",
+              content: verifiedSearchConsoleToken,
+            },
+          ]
+        : []),
 
       {
         property: "og:title",
