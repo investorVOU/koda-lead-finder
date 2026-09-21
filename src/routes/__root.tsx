@@ -31,7 +31,9 @@ const adsenseClientId = import.meta.env.VITE_ADSENSE_CLIENT_ID?.trim();
 const verifiedAdSenseClientId = /^ca-pub-[0-9]{10,20}$/.test(adsenseClientId ?? "")
   ? adsenseClientId
   : undefined;
-const searchConsoleVerificationToken = import.meta.env.VITE_GOOGLE_SITE_VERIFICATION?.trim();
+const searchConsoleVerificationToken =
+  import.meta.env.VITE_GOOGLE_SITE_VERIFICATION?.trim() ||
+  "1JltOKd_x2oUG8jv1tJyOx0XOzM47Znd8jNsMIoCtrE";
 const verifiedSearchConsoleToken = /^[A-Za-z0-9_-]{8,512}$/.test(
   searchConsoleVerificationToken ?? "",
 )
