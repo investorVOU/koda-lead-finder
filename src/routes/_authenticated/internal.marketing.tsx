@@ -269,6 +269,9 @@ type VisitorDashboard = {
   visitorsLast30Days: number;
   sources: { source: string; medium: string | null; visitors: number }[];
   googleAnalyticsMeasurementId: string | null;
+  metaPixelId: string | null;
+  tiktokPixelId: string | null;
+  snapchatPixelId: string | null;
 };
 
 function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
@@ -276,6 +279,9 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
   const saveGoogleAnalytics = useServerFn(saveMarketingGoogleAnalyticsSettings);
   const [dashboard, setDashboard] = useState<VisitorDashboard | null>(null);
   const [measurementCode, setMeasurementCode] = useState("");
+  const [metaPixelId, setMetaPixelId] = useState("");
+  const [tiktokPixelId, setTiktokPixelId] = useState("");
+  const [snapchatPixelId, setSnapchatPixelId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -285,6 +291,9 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       const next = await getDashboard({ data: { passcode } });
       setDashboard(next);
       setMeasurementCode(next.googleAnalyticsMeasurementId ?? "");
+      setMetaPixelId(next.metaPixelId ?? "");
+      setTiktokPixelId(next.tiktokPixelId ?? "");
+      setSnapchatPixelId(next.snapchatPixelId ?? "");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load website analytics.");
     } finally {
@@ -300,12 +309,16 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
     event.preventDefault();
     setSaving(true);
     try {
-      const result = await saveGoogleAnalytics({ data: { passcode, measurementCode } });
+      const result = await saveGoogleAnalytics({
+        data: { passcode, measurementCode, metaPixelId, tiktokPixelId, snapchatPixelId },
+      });
       if ("error" in result) throw new Error(result.message);
-      toast.success("Google Analytics is connected.");
+      toast.success("Marketing pixels and analytics are connected.");
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save Google Analytics.");
+      toast.error(
+        error instanceof Error ? error.message : "Could not save marketing analytics settings.",
+      );
     } finally {
       setSaving(false);
     }
@@ -373,25 +386,70 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
           </div>
 
           <form className="mt-7 border-t border-border pt-6" onSubmit={save}>
-            <Label htmlFor="google-analytics-code">
-              Google Analytics measurement ID or Google tag code
-            </Label>
-            <Input
-              id="google-analytics-code"
-              className="mt-2"
-              value={measurementCode}
-              onChange={(event) => setMeasurementCode(event.target.value)}
-              maxLength={10_000}
-              placeholder="G-XXXXXXXXXX or paste your Google tag code"
-              required
-            />
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              KodarAI extracts and validates only the Google Analytics measurement ID. It does not
-              run arbitrary pasted script.
-            </p>
-            <Button className="mt-4" type="submit" disabled={saving || !measurementCode.trim()}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Label htmlFor="google-analytics-code">
+                  Google Analytics measurement ID or Google tag code
+                </Label>
+                <Input
+                  id="google-analytics-code"
+                  className="mt-2"
+                  value={measurementCode}
+                  onChange={(event) => setMeasurementCode(event.target.value)}
+                  maxLength={10_000}
+                  placeholder="G-XXXXXXXXXX or paste your Google tag code"
+                  required
+                />
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  KodarAI extracts and validates only the Google Analytics measurement ID. It does not
+                  run arbitrary pasted script.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="meta-pixel-id">Meta Pixel ID</Label>
+                <Input
+                  id="meta-pixel-id"
+                  className="mt-2"
+                  value={metaPixelId}
+                  onChange={(event) => setMetaPixelId(event.target.value)}
+                  maxLength={64}
+                  placeholder="123456789012345"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="tiktok-pixel-id">TikTok Pixel ID</Label>
+                <Input
+                  id="tiktok-pixel-id"
+                  className="mt-2"
+                  value={tiktokPixelId}
+                  onChange={(event) => setTiktokPixelId(event.target.value)}
+                  maxLength={64}
+                  placeholder="ABC1234567890"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="snapchat-pixel-id">Snapchat Pixel ID</Label>
+                <Input
+                  id="snapchat-pixel-id"
+                  className="mt-2"
+                  value={snapchatPixelId}
+                  onChange={(event) => setSnapchatPixelId(event.target.value)}
+                  maxLength={64}
+                  placeholder="abcdef123456"
+                />
+              </div>
+            </div>
+
+            <Button
+              className="mt-5"
+              type="submit"
+              disabled={saving || !measurementCode.trim()}
+            >
               {saving && <Loader2 className="size-4 animate-spin" />}
-              {saving ? "Saving�" : "Connect Google Analytics"}
+              {saving ? "Saving..." : "Save analytics settings"}
             </Button>
           </form>
         </>

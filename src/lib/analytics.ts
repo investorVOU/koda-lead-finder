@@ -51,12 +51,14 @@ declare global {
   interface Window {
     fbq?: MetaPixel;
     ttq?: TikTokPixel;
+    snaptr?: (...args: unknown[]) => void;
     TiktokAnalyticsObject?: string;
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
     __kodaraiAnalytics?: {
       metaInitialized?: boolean;
       tiktokInitialized?: boolean;
+      snapchatInitialized?: boolean;
       googleAnalyticsMeasurementId?: string;
       lastPageView?: string;
       signupStarted?: boolean;
@@ -213,7 +215,7 @@ export function initializeGoogleAnalytics(measurementId?: string | null) {
   state.googleAnalyticsMeasurementId = normalized;
 }
 
-export function initializePixels(metaPixelId?: string, tiktokPixelId?: string) {
+export function initializePixels(metaPixelId?: string, tiktokPixelId?: string, snapchatPixelId?: string) {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   const state = analyticsState();
   if (!state) return;
@@ -240,6 +242,22 @@ export function initializePixels(metaPixelId?: string, tiktokPixelId?: string) {
         document.head.appendChild(script);
       }
       state.metaInitialized = true;
+    }
+
+    if (snapchatPixelId && !state.snapchatInitialized) {
+      window.snaptr ??= ((...args: unknown[]) => {
+        const queue = (window as Window & { snaptrQueue?: unknown[][] }).snaptrQueue ??= [];
+        queue.push(args);
+      }) as typeof window.snaptr;
+      window.snaptr("init", snapchatPixelId);
+      if (!document.querySelector("script[data-kodarai-snapchat-pixel]")) {
+        const script = document.createElement("script");
+        script.async = true;
+        script.src = "https://sc-static.net/scevent.min.js";
+        script.dataset.kodaraiSnapchatPixel = "true";
+        document.head.appendChild(script);
+      }
+      state.snapchatInitialized = true;
     }
 
     if (tiktokPixelId && !state.tiktokInitialized) {
@@ -306,6 +324,7 @@ export function trackPageView(
   try {
     window.fbq?.("track", "PageView");
     window.ttq?.page?.();
+    window.snaptr?.("track", "PAGE_VIEW");
     window.gtag?.("event", "page_view", { page_path: locationKey.split("?")[0] });
   } catch {
     // Tracking must not affect navigation.
@@ -332,6 +351,7 @@ export function trackEvent(eventName: string, properties?: AnalyticsProperties) 
     if (metaStandardEvents.has(eventName)) window.fbq?.("track", eventName, safeProperties);
     else window.fbq?.("trackCustom", eventName, safeProperties);
     window.ttq?.track?.(tiktokStandardEvents[eventName] ?? eventName, safeProperties);
+    window.snaptr?.("track", eventName, safeProperties);
     window.gtag?.("event", eventName, safeProperties);
     emitInternalEvent(eventName, safeProperties);
   } catch {
@@ -440,6 +460,16 @@ export const trackWebsiteGenerated = (data: {
 export const trackFirstWebsiteGenerated = (userId?: string) =>
   trackOnce(`kodarai_first_website_generated_tracked:${userId ?? "device"}`, () =>
     trackEvent("first_website_generated"),
+  );
+export const trackWebsitePublished = (data: {
+  template?: string;
+  source?: string;
+  url?: string;
+  domain?: string;
+}) => trackEvent("website_published", data);
+export const trackFirstWebsitePublished = (userId?: string) =>
+  trackOnce(`kodarai_first_website_published_tracked:${userId ?? "device"}`, () =>
+    trackEvent("first_website_published"),
   );
 export const trackPlanSkipped = () => trackEvent("plan_skipped");
 export const trackPreviewModeEntered = () =>

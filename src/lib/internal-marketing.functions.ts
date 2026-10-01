@@ -22,6 +22,9 @@ const adsenseSettingsSchema = accessSchema.extend({
 
 const googleAnalyticsSettingsSchema = accessSchema.extend({
   measurementCode: z.string().trim().max(10_000).default(""),
+  metaPixelId: z.string().trim().max(64).default(""),
+  tiktokPixelId: z.string().trim().max(64).default(""),
+  snapchatPixelId: z.string().trim().max(64).default(""),
 });
 
 const visitorDimensionSchema = z
@@ -182,6 +185,9 @@ type AdSenseSettingsRow = {
   publisher_id: string | null;
   landing_ad_slot: string | null;
   google_analytics_measurement_id: string | null;
+  meta_pixel_id: string | null;
+  tiktok_pixel_id: string | null;
+  snapchat_pixel_id: string | null;
 };
 
 function parseAdSenseCode(adCode: string) {
@@ -211,7 +217,9 @@ async function readAdSenseSettings() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabaseAdmin as any)
     .from("marketing_adsense_settings")
-    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id")
+    .select(
+      "is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id, tiktok_pixel_id, snapchat_pixel_id",
+    )
     .eq("singleton", true)
     .maybeSingle();
   if (error) throw new Error("Could not read AdSense settings.");
@@ -244,13 +252,44 @@ function parseGoogleAnalyticsMeasurementId(measurementCode: string) {
   return { measurementId } as const;
 }
 
+function parsePixelId(value: string, platform: "meta" | "tiktok" | "snapchat") {
+  const cleaned = value.trim();
+  if (!cleaned) return { pixelId: null } as const;
+
+  if (platform === "snapchat") {
+    const pixelId = cleaned.match(/^[A-Za-z0-9]{6,64}$/)?.[0];
+    if (!pixelId)
+      return {
+        error: `Paste a valid Snapchat Pixel ID for ${platform}.`,
+      } as const;
+    return { pixelId } as const;
+  }
+
+  const pixelId = cleaned.match(/^\d{6,32}$/)?.[0];
+  if (!pixelId)
+    return {
+      error: `Paste a valid ${platform === "meta" ? "Meta" : "TikTok"} Pixel ID.`,
+    } as const;
+  return { pixelId } as const;
+}
+
 export const getPublicGoogleAnalyticsSettings = createServerFn({ method: "GET" }).handler(
   async () => {
     try {
       const settings = await readAdSenseSettings();
-      return { measurementId: settings?.google_analytics_measurement_id ?? null } as const;
+      return {
+        measurementId: settings?.google_analytics_measurement_id ?? null,
+        metaPixelId: settings?.meta_pixel_id ?? null,
+        tiktokPixelId: settings?.tiktok_pixel_id ?? null,
+        snapchatPixelId: settings?.snapchat_pixel_id ?? null,
+      } as const;
     } catch {
-      return { measurementId: null } as const;
+      return {
+        measurementId: null,
+        metaPixelId: null,
+        tiktokPixelId: null,
+        snapchatPixelId: null,
+      } as const;
     }
   },
 );
@@ -328,6 +367,9 @@ export const getMarketingVisitorDashboard = createServerFn({ method: "POST" })
         .sort((left, right) => right.visitors - left.visitors)
         .slice(0, 8),
       googleAnalyticsMeasurementId: settings?.google_analytics_measurement_id ?? null,
+      metaPixelId: settings?.meta_pixel_id ?? null,
+      tiktokPixelId: settings?.tiktok_pixel_id ?? null,
+      snapchatPixelId: settings?.snapchat_pixel_id ?? null,
     } as const;
   });
 
@@ -336,15 +378,32 @@ export const saveMarketingGoogleAnalyticsSettings = createServerFn({ method: "PO
   .inputValidator((data) => googleAnalyticsSettingsSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requireMarketingAccess(context.userId, data.passcode);
-    const parsed = parseGoogleAnalyticsMeasurementId(data.measurementCode);
-    if ("error" in parsed) return { error: "analytics_error", message: parsed.error } as const;
+
+    const measurement = parseGoogleAnalyticsMeasurementId(data.measurementCode);
+    if ("error" in measurement)
+      return { error: "analytics_error", message: measurement.error } as const;
+
+    const meta = parsePixelId(data.metaPixelId, "meta");
+    if ("error" in meta)
+      return { error: "analytics_error", message: meta.error } as const;
+
+    const tiktok = parsePixelId(data.tiktokPixelId, "tiktok");
+    if ("error" in tiktok)
+      return { error: "analytics_error", message: tiktok.error } as const;
+
+    const snapchat = parsePixelId(data.snapchatPixelId, "snapchat");
+    if ("error" in snapchat)
+      return { error: "analytics_error", message: snapchat.error } as const;
 
     // Supabase types are generated separately; this new migration is not represented yet.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
       {
         singleton: true,
-        google_analytics_measurement_id: parsed.measurementId,
+        google_analytics_measurement_id: measurement.measurementId,
+        meta_pixel_id: meta.pixelId,
+        tiktok_pixel_id: tiktok.pixelId,
+        snapchat_pixel_id: snapchat.pixelId,
         updated_by: context.userId,
       },
       { onConflict: "singleton" },
@@ -352,9 +411,14 @@ export const saveMarketingGoogleAnalyticsSettings = createServerFn({ method: "PO
     if (error)
       return {
         error: "analytics_error",
-        message: "Could not save Google Analytics. Apply the analytics migration first.",
+        message: "Could not save marketing analytics settings. Apply the analytics migration first.",
       } as const;
-    return { measurementId: parsed.measurementId } as const;
+    return {
+      measurementId: measurement.measurementId,
+      metaPixelId: meta.pixelId,
+      tiktokPixelId: tiktok.pixelId,
+      snapchatPixelId: snapchat.pixelId,
+    } as const;
   });
 
 export const getMarketingAdSenseSettings = createServerFn({ method: "POST" })

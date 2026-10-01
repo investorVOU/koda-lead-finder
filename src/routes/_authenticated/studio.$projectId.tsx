@@ -96,7 +96,9 @@ import {
 
 import {
   trackFirstWebsiteGenerated,
+  trackFirstWebsitePublished,
   trackWebsiteGenerated,
+  trackWebsitePublished,
 } from "@/lib/analytics";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
@@ -1165,6 +1167,9 @@ function StudioBuilder() {
           runDeploymentStatus={runDeploymentStatus}
           onClose={() => setShowDeploy(false)}
           onReady={(url) => {
+            trackWebsitePublished({ source: "studio", url });
+            trackFirstWebsitePublished(user?.id);
+
             setDeploymentUrl(url);
 
             setShowDeploy(false);

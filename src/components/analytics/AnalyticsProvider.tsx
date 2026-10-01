@@ -11,10 +11,22 @@ export function AnalyticsProvider() {
   });
 
   useEffect(() => {
-    initializePixels(import.meta.env.VITE_META_PIXEL_ID, import.meta.env.VITE_TIKTOK_PIXEL_ID);
     void getGoogleAnalyticsSettings()
-      .then((settings) => initializeGoogleAnalytics(settings.measurementId))
-      .catch(() => undefined);
+      .then((settings) => {
+        initializePixels(
+          settings.metaPixelId ?? import.meta.env.VITE_META_PIXEL_ID,
+          settings.tiktokPixelId ?? import.meta.env.VITE_TIKTOK_PIXEL_ID,
+          settings.snapchatPixelId ?? import.meta.env.VITE_SNAPCHAT_PIXEL_ID,
+        );
+        initializeGoogleAnalytics(settings.measurementId);
+      })
+      .catch(() => {
+        initializePixels(
+          import.meta.env.VITE_META_PIXEL_ID,
+          import.meta.env.VITE_TIKTOK_PIXEL_ID,
+          import.meta.env.VITE_SNAPCHAT_PIXEL_ID,
+        );
+      });
   }, [getGoogleAnalyticsSettings]);
 
   useEffect(() => {
