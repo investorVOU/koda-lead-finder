@@ -24,6 +24,10 @@ const googleAnalyticsSettingsSchema = accessSchema.extend({
   measurementCode: z.string().trim().max(10_000).default(""),
 });
 
+const metaPixelSettingsSchema = accessSchema.extend({
+  pixelCode: z.string().trim().max(10_000).default(""),
+});
+
 const visitorDimensionSchema = z
   .string()
   .trim()
@@ -182,6 +186,7 @@ type AdSenseSettingsRow = {
   publisher_id: string | null;
   landing_ad_slot: string | null;
   google_analytics_measurement_id: string | null;
+  meta_pixel_id: string | null;
 };
 
 function parseAdSenseCode(adCode: string) {
@@ -211,7 +216,7 @@ async function readAdSenseSettings() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabaseAdmin as any)
     .from("marketing_adsense_settings")
-    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id")
+    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id")
     .eq("singleton", true)
     .maybeSingle();
   if (error) throw new Error("Could not read AdSense settings.");
@@ -254,6 +259,27 @@ export const getPublicGoogleAnalyticsSettings = createServerFn({ method: "GET" }
     }
   },
 );
+
+function parseMetaPixelId(pixelCode: string) {
+  const code = pixelCode.trim();
+  const pixelId = /^[0-9]{10,20}$/.test(code)
+    ? code
+    : code.match(/fbq\(\s*['"]init['"]\s*,\s*['"]?([0-9]{10,20})/i)?.[1];
+  if (!pixelId)
+    return {
+      error: "Paste your Meta Pixel ID (numbers only) or the official Meta Pixel code.",
+    } as const;
+  return { pixelId } as const;
+}
+
+export const getPublicMetaPixelSettings = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const settings = await readAdSenseSettings();
+    return { pixelId: settings?.meta_pixel_id ?? null } as const;
+  } catch {
+    return { pixelId: null } as const;
+  }
+});
 
 async function hashVisitorId(visitorId: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(visitorId));
@@ -328,6 +354,7 @@ export const getMarketingVisitorDashboard = createServerFn({ method: "POST" })
         .sort((left, right) => right.visitors - left.visitors)
         .slice(0, 8),
       googleAnalyticsMeasurementId: settings?.google_analytics_measurement_id ?? null,
+      metaPixelId: settings?.meta_pixel_id ?? null,
     } as const;
   });
 
@@ -355,6 +382,32 @@ export const saveMarketingGoogleAnalyticsSettings = createServerFn({ method: "PO
         message: "Could not save Google Analytics. Apply the analytics migration first.",
       } as const;
     return { measurementId: parsed.measurementId } as const;
+  });
+
+export const saveMarketingMetaPixelSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => metaPixelSettingsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    const parsed = parseMetaPixelId(data.pixelCode);
+    if ("error" in parsed) return { error: "pixel_error", message: parsed.error } as const;
+
+    // Supabase types are generated separately; this new migration is not represented yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
+      {
+        singleton: true,
+        meta_pixel_id: parsed.pixelId,
+        updated_by: context.userId,
+      },
+      { onConflict: "singleton" },
+    );
+    if (error)
+      return {
+        error: "pixel_error",
+        message: "Could not save the Meta Pixel. Apply the meta pixel migration first.",
+      } as const;
+    return { pixelId: parsed.pixelId } as const;
   });
 
 export const getMarketingAdSenseSettings = createServerFn({ method: "POST" })

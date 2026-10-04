@@ -58,7 +58,7 @@ function ChoosePlanPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="packs" className="mt-8 sm:mt-10">
+        <Tabs defaultValue="plans" className="mt-8 sm:mt-10">
           <TabsList className="grid h-auto w-full max-w-md grid-cols-2 gap-1 p-1.5 mx-auto">
             <TabsTrigger value="plans" className="gap-1.5 py-2">
               <CreditCard className="size-4" />

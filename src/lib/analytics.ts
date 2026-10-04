@@ -312,6 +312,17 @@ export function trackPageView(
   }
 }
 
+// The pixel ID is loaded asynchronously (from the founder's marketing settings), so the
+// first PageView can fire before fbq exists. Call once right after initializePixels.
+export function trackInitialPixelPageView() {
+  try {
+    window.fbq?.("track", "PageView");
+    window.ttq?.page?.();
+  } catch {
+    // Tracking must not affect navigation.
+  }
+}
+
 const metaStandardEvents = new Set([
   "CompleteRegistration",
   "Search",

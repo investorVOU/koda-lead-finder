@@ -29,6 +29,7 @@ import {
   runPlanActivationEmails,
   saveMarketingAdSenseSettings,
   saveMarketingGoogleAnalyticsSettings,
+  saveMarketingMetaPixelSettings,
   uploadMarketingAsset,
   verifyMarketingAccess,
 } from "@/lib/internal-marketing.functions";
@@ -269,15 +270,19 @@ type VisitorDashboard = {
   visitorsLast30Days: number;
   sources: { source: string; medium: string | null; visitors: number }[];
   googleAnalyticsMeasurementId: string | null;
+  metaPixelId: string | null;
 };
 
 function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
   const getDashboard = useServerFn(getMarketingVisitorDashboard);
   const saveGoogleAnalytics = useServerFn(saveMarketingGoogleAnalyticsSettings);
+  const saveMetaPixel = useServerFn(saveMarketingMetaPixelSettings);
   const [dashboard, setDashboard] = useState<VisitorDashboard | null>(null);
   const [measurementCode, setMeasurementCode] = useState("");
+  const [pixelCode, setPixelCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingPixel, setSavingPixel] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -285,6 +290,7 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       const next = await getDashboard({ data: { passcode } });
       setDashboard(next);
       setMeasurementCode(next.googleAnalyticsMeasurementId ?? "");
+      setPixelCode(next.metaPixelId ?? "");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load website analytics.");
     } finally {
@@ -308,6 +314,21 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       toast.error(error instanceof Error ? error.message : "Could not save Google Analytics.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const savePixel = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingPixel(true);
+    try {
+      const result = await saveMetaPixel({ data: { passcode, pixelCode } });
+      if ("error" in result) throw new Error(result.message);
+      toast.success("Meta Pixel is connected. Reload the site to start tracking.");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the Meta Pixel.");
+    } finally {
+      setSavingPixel(false);
     }
   };
 
@@ -392,6 +413,28 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
             <Button className="mt-4" type="submit" disabled={saving || !measurementCode.trim()}>
               {saving && <Loader2 className="size-4 animate-spin" />}
               {saving ? "Saving�" : "Connect Google Analytics"}
+            </Button>
+          </form>
+
+          <form className="mt-7 border-t border-border pt-6" onSubmit={savePixel}>
+            <Label htmlFor="meta-pixel-code">Meta Pixel ID or Meta Pixel code</Label>
+            <Input
+              id="meta-pixel-code"
+              className="mt-2"
+              value={pixelCode}
+              onChange={(event) => setPixelCode(event.target.value)}
+              maxLength={10_000}
+              placeholder="1234567890123456 or paste your Meta Pixel code"
+              required
+            />
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              KodarAI extracts and validates only the numeric pixel ID. It does not run arbitrary
+              pasted script. Events sent: PageView, ViewContent, Search, CompleteRegistration,
+              InitiateCheckout and Purchase.
+            </p>
+            <Button className="mt-4" type="submit" disabled={savingPixel || !pixelCode.trim()}>
+              {savingPixel && <Loader2 className="size-4 animate-spin" />}
+              {savingPixel ? "Saving..." : "Connect Meta Pixel"}
             </Button>
           </form>
         </>
