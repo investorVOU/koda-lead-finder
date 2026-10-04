@@ -1,0 +1,190 @@
+From ea92bd51602244a15a0bc7496d8e0dd4569347e0 Mon Sep 17 00:00:00 2001
+From: Kodarai Dev <dev@kodarai.xyz>
+Date: Sun, 4 Oct 2026 10:41:48 +0000
+Subject: [PATCH] Align /start and /choose-plan with paid-from-cold-traffic
+ funnel
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- /start hero: remove misleading 'Free to get started' badge (replaced with
+  'Plans from ₦3,200 · Pay with Paystack')
+- /start hero: primary CTA now starts the quiz (was a scroll-only button);
+  'See how it works' kept as secondary link
+- /start hero: clearer pill and subline (no-website, high-review businesses)
+- /start: fire Meta standard ViewContent after 10s on intro (engaged visitor)
+- /choose-plan: add 'Explore first' skip at top, default tab to lead packs
+- analytics: add trackViewContent, ViewContent as Meta standard event,
+  plan_skipped now carries position (top|bottom)
+---
+ src/lib/analytics.ts                      |  9 ++++-
+ src/routes/_authenticated/choose-plan.tsx | 17 +++++++--
+ src/routes/start.tsx                      | 44 ++++++++++++++++-------
+ 3 files changed, 54 insertions(+), 16 deletions(-)
+
+diff --git a/src/lib/analytics.ts b/src/lib/analytics.ts
+index c3ee0d8..4466c65 100644
+--- a/src/lib/analytics.ts
++++ b/src/lib/analytics.ts
+@@ -315,6 +315,7 @@ export function trackPageView(
+ const metaStandardEvents = new Set([
+   "CompleteRegistration",
+   "Search",
++  "ViewContent",
+   "InitiateCheckout",
+   "Purchase",
+ ]);
+@@ -441,7 +442,13 @@ export const trackFirstWebsiteGenerated = (userId?: string) =>
+   trackOnce(`kodarai_first_website_generated_tracked:${userId ?? "device"}`, () =>
+     trackEvent("first_website_generated"),
+   );
+-export const trackPlanSkipped = () => trackEvent("plan_skipped");
++export const trackPlanSkipped = (position: "top" | "bottom" = "bottom") =>
++  trackEvent("plan_skipped", { position });
++// Standard Meta ViewContent: an engaged visitor (stayed on the page ~10s). Once per device.
++export const trackViewContent = (contentName: string) =>
++  trackOnce(`kodarai_view_content_tracked:${contentName}`, () =>
++    trackEvent("ViewContent", { content_name: contentName }),
++  );
+ export const trackPreviewModeEntered = () =>
+   trackOnce("kodarai_preview_mode_entered", () => trackEvent("preview_mode_entered"));
+ export const trackPreviewLockedAction = (
+diff --git a/src/routes/_authenticated/choose-plan.tsx b/src/routes/_authenticated/choose-plan.tsx
+index 3523fb7..08e5245 100644
+--- a/src/routes/_authenticated/choose-plan.tsx
++++ b/src/routes/_authenticated/choose-plan.tsx
+@@ -33,8 +33,19 @@ function ChoosePlanPage() {
+       <PlanActivationEnrollmentSync />
+ 
+       <div className="mx-auto max-w-5xl">
+-        <div className="flex justify-center">
++        <div className="relative flex justify-center">
+           <Logo />
++          <Button
++            variant="ghost"
++            size="sm"
++            className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground"
++            onClick={() => {
++              trackPlanSkipped("top");
++              navigate({ to: "/dashboard" });
++            }}
++          >
++            Explore first
++          </Button>
+         </div>
+ 
+         <div className="mt-8 text-center">
+@@ -47,7 +58,7 @@ function ChoosePlanPage() {
+           </p>
+         </div>
+ 
+-        <Tabs defaultValue="plans" className="mt-8 sm:mt-10">
++        <Tabs defaultValue="packs" className="mt-8 sm:mt-10">
+           <TabsList className="grid h-auto w-full max-w-md grid-cols-2 gap-1 p-1.5 mx-auto">
+             <TabsTrigger value="plans" className="gap-1.5 py-2">
+               <CreditCard className="size-4" />
+@@ -205,7 +216,7 @@ function ChoosePlanPage() {
+             variant="ghost"
+             className="mt-3"
+             onClick={() => {
+-              trackPlanSkipped();
++              trackPlanSkipped("bottom");
+               navigate({ to: "/dashboard" });
+             }}
+           >
+diff --git a/src/routes/start.tsx b/src/routes/start.tsx
+index 968496b..ded96f6 100644
+--- a/src/routes/start.tsx
++++ b/src/routes/start.tsx
+@@ -60,6 +60,7 @@ import {
+   trackFunnelSituationSelected,
+   trackFunnelStarted,
+   trackFunnelViewed,
++  trackViewContent,
+   trackStartCallScriptDemoViewed,
+   trackStartDemoLinkFeatureViewed,
+   trackStartFinderDemoViewed,
+@@ -722,6 +723,14 @@ function IntroPage({
+       null,
+     );
+ 
++  // Engaged-visitor signal for Meta: fires once after 10s on the intro page.
++  useEffect(() => {
++    const timer = window.setTimeout(() => {
++      trackViewContent("start_intro");
++    }, 10000);
++    return () => window.clearTimeout(timer);
++  }, []);
++
+   const scrollToHow =
+     () => {
+       howRef.current?.scrollIntoView({
+@@ -738,8 +747,9 @@ function IntroPage({
+         <div className="mt-8 lg:grid lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-14">
+           <div>
+             <Pill>
+-              Real businesses.
+-              Real opportunity.
++              Lead finder +
++              website builder
++              for freelancers
+             </Pill>
+ 
+             <h1 className="mt-4 max-w-[680px] text-[44px] font-bold leading-[0.96] tracking-[-0.06em] text-[#111611] sm:text-[58px] lg:text-[72px]">
+@@ -754,13 +764,13 @@ function IntroPage({
+             </h1>
+ 
+             <p className="mt-5 max-w-[560px] text-[15px] leading-6 text-[#536059] sm:text-[17px] sm:leading-7">
+-              Kodarai shows
+-              you businesses
+-              that need
+-              websites. You
+-              can make a
+-              website for
+-              them, show it
++              Find local
++              businesses with
++              great Google
++              reviews and no
++              website. Build
++              them a demo
++              site, show it
+               to the owner
+               and sell it.
+             </p>
+@@ -774,19 +784,29 @@ function IntroPage({
+             <button
+               type="button"
+               onClick={
+-                scrollToHow
++                onStart
+               }
+               className="mt-6 flex min-h-[58px] w-full max-w-[420px] items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white shadow-[0_10px_24px_rgba(7,150,83,0.17)] transition hover:bg-[#078549] active:scale-[0.99]"
+             >
+-              Show me how it works
++              Find my first business
+ 
+               <ArrowRight className="size-4" />
+             </button>
+ 
++            <button
++              type="button"
++              onClick={
++                scrollToHow
++              }
++              className="mt-3 text-[13px] font-semibold text-[#25342b] underline underline-offset-4"
++            >
++              See how it works
++            </button>
++
+             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-[#727d75]">
+               <span className="flex items-center gap-1.5">
+                 <Check className="size-3.5 text-[#0a9451]" />
+-                Free to get started
++                Plans from ₦3,200 · Pay with Paystack
+               </span>
+ 
+               <span className="flex items-center gap-1.5">
+-- 
+2.43.0
+
