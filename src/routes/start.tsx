@@ -32,6 +32,8 @@ import {
 
 import Autoplay from "embla-carousel-autoplay";
 
+import { PACKS, PLANS, formatNgn, getPlanPrice } from "@/lib/billing";
+
 import {
   Carousel,
   CarouselContent,
@@ -59,6 +61,7 @@ import {
   trackFunnelGoalSelected,
   trackFunnelSituationSelected,
   trackFunnelStarted,
+  trackEvent,
   trackFunnelViewed,
   trackViewContent,
   trackStartCallScriptDemoViewed,
@@ -103,6 +106,7 @@ type Experience =
   | "agency";
 
 type Goal =
+  | "50000"
   | "100000"
   | "250000"
   | "500000"
@@ -134,9 +138,9 @@ type FunnelData =
 const EXPERIENCE_OPTIONS = [
   {
     value: "beginner" as const,
-    title: "I don't know how to build websites",
+    title: "I'm a complete beginner",
     description:
-      "I just want a simple way to start and learn as I go.",
+      "I've never built a website. I want a simple way to start.",
     icon: GraduationCap,
   },
   {
@@ -163,6 +167,10 @@ const EXPERIENCE_OPTIONS = [
 ];
 
 const GOAL_OPTIONS = [
+  {
+    value: "50000" as const,
+    title: "₦50,000",
+  },
   {
     value: "100000" as const,
     title: "₦100,000",
@@ -198,19 +206,95 @@ const SITUATION_OPTIONS = [
   },
   {
     value: "no_sales" as const,
-    title: "People don't reply to me",
+    title: "Businesses don't reply to me",
     description:
       "I need a better way to show businesses what I can do.",
     icon: MessageCircle,
   },
   {
     value: "need_more" as const,
-    title: "I just need more customers",
+    title: "I just want more clients",
     description:
       "I understand the business already. I need more opportunities.",
     icon: BarChart3,
   },
 ];
+
+const FIRST_PACK_PRICE = formatNgn(PACKS[0].ngn);
+const FIRST_PLAN_PRICE = formatNgn(getPlanPrice(PLANS[0], "monthly"));
+
+type HeroHook = {
+  before: string;
+  highlight: string;
+  after: string;
+};
+
+// Hero headlines. With no ?h= parameter they rotate with a fade/slide, like the
+// landing page hero. Point a Meta ad at /start?h=<key> (earn | client | find) to pin ONE headline so you
+// can A/B test hooks (a pinned headline does not rotate).
+const HERO_HOOKS: Record<string, HeroHook> = {
+  earn: {
+    before: "Earn money building websites for businesses that don't have one,",
+    highlight: "local or abroad.",
+    after: "",
+  },
+  client: {
+    before: "Get paid to build websites",
+    highlight: "for local businesses",
+    after: "that don't have one.",
+  },
+  find: {
+    before: "Find",
+    highlight: "businesses near you or abroad",
+    after: "that need a website, and sell them one.",
+  },
+};
+
+const HERO_ROTATE_MS = 5000;
+
+function HeroHeadline({ pinned }: { pinned: string | null }) {
+  const hooks = useMemo(
+    () => (pinned && pinned in HERO_HOOKS ? [HERO_HOOKS[pinned]] : Object.values(HERO_HOOKS)),
+    [pinned],
+  );
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (hooks.length < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const interval = window.setInterval(() => {
+      setActive((current) => (current + 1) % hooks.length);
+    }, HERO_ROTATE_MS);
+    return () => window.clearInterval(interval);
+  }, [hooks]);
+
+  // All headlines share one grid cell, so the block is as tall as the longest one
+  // and nothing below it jumps when the text changes.
+  return (
+    <h1 className="mt-4 grid max-w-[680px] text-[34px] font-bold leading-[1] tracking-[-0.05em] text-[#111611] sm:text-[46px] lg:text-[56px]">
+      {hooks.map((hook, index) => {
+        const isActive = index === active;
+        return (
+          <span
+            key={hook.highlight}
+            aria-hidden={!isActive}
+            className="col-start-1 row-start-1"
+            style={{
+              opacity: isActive ? 1 : 0,
+              transform: isActive ? "translateY(0)" : "translateY(10px)",
+              transition: isActive
+                ? "opacity 0.4s ease 0.3s, transform 0.4s ease 0.3s"
+                : "opacity 0.3s ease, transform 0.3s ease",
+            }}
+          >
+            {hook.before} <span className="text-[#079653]">{hook.highlight}</span>
+            {hook.after ? ` ${hook.after}` : ""}
+          </span>
+        );
+      })}
+    </h1>
+  );
+}
 
 function StartPage() {
   const runGetHeroImage =
@@ -266,6 +350,8 @@ function StartPage() {
       PublicMarketingProof[]
     >([]);
 
+  const [hook, setHook] = useState<string | null>(null);
+
   useEffect(() => {
     trackFunnelViewed();
 
@@ -296,6 +382,12 @@ function StartPage() {
     });
 
     setAttribution(values);
+
+    const hookParam = params.get("h");
+    if (hookParam && hookParam in HERO_HOOKS) {
+      setHook(hookParam);
+      trackEvent("start_hook_viewed", { hook: hookParam });
+    }
   }, []);
 
   useEffect(() => {
@@ -506,6 +598,7 @@ function StartPage() {
     <div className="min-h-[100dvh] bg-[#f8f7f1] text-[#10140f]">
       {step === 0 && (
         <IntroPage
+          hook={hook}
           heroImage={
             heroImage
           }
@@ -528,7 +621,7 @@ function StartPage() {
         <QuestionShell
           step={1}
           title="Which one sounds like you?"
-          subtitle="Pick the closest answer. You don't need any experience to start."
+          subtitle="Pick the closest one. No experience needed. Kodarai builds the first draft of the website for you."
           onBack={() =>
             setStep(0)
           }
@@ -568,8 +661,8 @@ function StartPage() {
       {step === 2 && (
         <QuestionShell
           step={2}
-          title="How much would you like to make each month?"
-          subtitle="This is only a target — not a promise or guarantee."
+          title="What would you like to earn each month?"
+          subtitle="Just a target to aim for. Not a promise or guarantee."
           onBack={() =>
             setStep(1)
           }
@@ -622,8 +715,8 @@ function StartPage() {
       {step === 3 && (
         <QuestionShell
           step={3}
-          title="What's stopping you right now?"
-          subtitle="This helps us show you the easiest place to begin."
+          title="What's the hardest part for you right now?"
+          subtitle="This shows you where Kodarai helps most."
           onBack={() =>
             setStep(2)
           }
@@ -697,12 +790,15 @@ function StartPage() {
 }
 
 function IntroPage({
+  hook,
   heroImage,
   heroLoading,
   reviews,
   proofs,
   onStart,
 }: {
+  hook: string | null;
+
   heroImage:
     StartHeroImage | null;
 
@@ -752,33 +848,10 @@ function IntroPage({
               for freelancers
             </Pill>
 
-            <h1 className="mt-4 max-w-[680px] text-[44px] font-bold leading-[0.96] tracking-[-0.06em] text-[#111611] sm:text-[58px] lg:text-[72px]">
-              Find businesses.
-              <br />
-              Make them a
-              website.
-              <br />
-              <span className="text-[#079653]">
-                Get paid.
-              </span>
-            </h1>
+            <HeroHeadline pinned={hook} />
 
             <p className="mt-5 max-w-[560px] text-[15px] leading-6 text-[#536059] sm:text-[17px] sm:leading-7">
-              Find local
-              businesses with
-              great Google
-              reviews and no
-              website. Build
-              them a demo
-              site, show it
-              to the owner
-              and sell it.
-            </p>
-
-            <p className="mt-3 text-[14px] font-semibold text-[#25342b]">
-              You don't need
-              to know how to
-              code.
+              No coding needed. Kodarai finds businesses with great Google reviews and no website, builds a sample website for each one, and helps you sell it to the owner.
             </p>
 
             <button
@@ -806,7 +879,7 @@ function IntroPage({
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-[#727d75]">
               <span className="flex items-center gap-1.5">
                 <Check className="size-3.5 text-[#0a9451]" />
-                Plans from ₦3,200 · Pay with Paystack
+                Plans from {FIRST_PACK_PRICE} · Pay with Paystack
               </span>
 
               <span className="flex items-center gap-1.5">
@@ -829,6 +902,8 @@ function IntroPage({
         </div>
       </section>
 
+      <PlainEnglish />
+
       <div
         ref={
           howRef
@@ -836,6 +911,8 @@ function IntroPage({
       >
         <HowItWorks />
       </div>
+
+      <ExampleCard />
 
       <ProductWorkflowSection onStart={onStart} />
 
@@ -854,6 +931,8 @@ function IntroPage({
         }
       />
 
+      <StartFaq />
+
       <FinalIntroCta
         reviews={
           reviews
@@ -863,6 +942,139 @@ function IntroPage({
         }
       />
     </main>
+  );
+}
+
+function PlainEnglish() {
+  const items = [
+    {
+      label: "The problem",
+      text: "Lots of local businesses have no website. Customers search online, can't find them, and go to a competitor.",
+    },
+    {
+      label: "What Kodarai does",
+      text: "It finds those businesses for you and builds a sample website for each one, so you don't start from nothing.",
+    },
+    {
+      label: "What you do",
+      text: "Send the sample to the owner. If they like it, you agree a price and finish the website for them.",
+    },
+  ];
+
+  return (
+    <section className="bg-[#f5f6f0]">
+      <div className="mx-auto w-full max-w-[960px] px-5 py-10 sm:px-8 sm:py-14">
+        <div className="text-center">
+          <Pill>In plain English</Pill>
+          <h2 className="mx-auto mt-4 max-w-[600px] text-[28px] font-bold leading-[1.05] tracking-[-0.04em] sm:text-[38px]">
+            What is Kodarai, and why would a business pay you?
+          </h2>
+        </div>
+        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          {items.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-[#e0e5df] bg-white p-5"
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#15854d]">
+                {item.label}
+              </p>
+              <p className="mt-2 text-[14px] leading-6 text-[#34413a]">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ExampleCard() {
+  const steps = [
+    "Kodarai lists it as a business with great reviews and no website.",
+    "You click Build Website. Kodarai makes a sample site for the salon.",
+    "You send the owner the link and a short message.",
+    "The owner likes it and agrees a price with you.",
+  ];
+
+  return (
+    <section className="bg-[#f5f6f0]">
+      <div className="mx-auto w-full max-w-[650px] px-5 py-12 sm:px-8 sm:py-16">
+        <div className="text-center">
+          <Pill>Example</Pill>
+          <h2 className="mt-4 text-[28px] font-bold leading-[1.05] tracking-[-0.04em] sm:text-[38px]">
+            How one sale could go
+          </h2>
+        </div>
+        <div className="mt-7 rounded-[22px] border border-[#e0e5df] bg-white p-5 shadow-[0_7px_22px_rgba(24,37,28,0.055)]">
+          <p className="text-[15px] font-bold text-[#172019]">Glow Beauty Salon, Lekki</p>
+          <p className="mt-1 text-[13px] text-[#687169]">
+            4.8 stars · 142 reviews · No website
+          </p>
+          <ol className="mt-4 space-y-3">
+            {steps.map((text, index) => (
+              <li key={text} className="flex gap-3 text-[14px] leading-6 text-[#34413a]">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#e4f4e6] text-[12px] font-bold text-[#15854d]">
+                  {index + 1}
+                </span>
+                <span>{text}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <p className="mt-3 text-center text-[11px] leading-5 text-[#69746c]">
+          Illustrative example, not a real customer. Results are not guaranteed.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function StartFaq() {
+  const items = [
+    {
+      q: "Do I need to know how to code?",
+      a: "No. Kodarai builds the sample website for you and you can change it with simple instructions. If you can already build websites, you can customise it further.",
+    },
+    {
+      q: "How do I contact the business owner?",
+      a: "Kodarai shows each business's details where available, such as phone and address, and writes a message and a call script for you. The free Sales Academy also has short lessons on your first call.",
+    },
+    {
+      q: "How much does it cost and what do I get?",
+      a: `Lead packs start at ${FIRST_PACK_PRICE} for ${PACKS[0].credits} lead searches. Monthly plans start at ${FIRST_PLAN_PRICE} and include the website builder. You pay securely with Paystack and can see all plans before you pay.`,
+    },
+    {
+      q: "What if a business says no?",
+      a: "Some will, and that's normal. Contact more businesses and adjust your message. Kodarai helps you find more businesses to try.",
+    },
+    {
+      q: "Will I definitely make money?",
+      a: "No. Kodarai gives you the tools to find businesses and build samples. What you earn depends on your price, your effort and the deals you close.",
+    },
+  ];
+
+  return (
+    <section className="border-y border-[#e5e6df] bg-white">
+      <div className="mx-auto w-full max-w-[650px] px-5 py-12 sm:px-8 sm:py-16">
+        <div className="text-center">
+          <Pill>Questions</Pill>
+          <h2 className="mt-4 text-[28px] font-bold leading-[1.05] tracking-[-0.04em] sm:text-[38px]">
+            Before you start
+          </h2>
+        </div>
+        <div className="mt-7 divide-y divide-[#e5e6df] overflow-hidden rounded-2xl border border-[#e0e5df]">
+          {items.map((item) => (
+            <details key={item.q} className="group px-4 py-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-semibold text-[#172019]">
+                {item.q}
+                <ChevronRight className="size-4 shrink-0 text-[#687169] transition group-open:rotate-90" />
+              </summary>
+              <p className="mt-3 text-[14px] leading-6 text-[#536059]">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1001,33 +1213,33 @@ function HowItWorks() {
       number: 1,
       icon: Search,
       title:
-        "Find a business",
+        "Find a business (a couple of minutes)",
       text:
-        "We show you businesses in your area that may need a website.",
+        "Pick your city and a type of business, like salons or restaurants. Kodarai lists ones with good reviews and no website.",
     },
     {
       number: 2,
       icon: Laptop,
       title:
-        "Make them a website",
+        "Get a sample website made (a few minutes)",
       text:
-        "Use Kodarai to make something useful to show the business owner.",
+        "Click one button and Kodarai builds a sample website for that business. You can change it before you show anyone.",
     },
     {
       number: 3,
       icon: MessageCircle,
       title:
-        "Show the owner",
+        "Send it to the owner",
       text:
-        "Contact the business and show them what you made.",
+        "Send the link with a ready-made message, or call using the script Kodarai writes for you.",
     },
     {
       number: 4,
       icon: CircleDollarSign,
       title:
-        "Get paid",
+        "Agree a price and get paid",
       text:
-        "If they like it, agree on a price and sell the website.",
+        "If they like it, agree on a price with the owner and finish the website for them.",
     },
   ];
 
@@ -2047,10 +2259,7 @@ function FinalIntroCta({
         </button>
 
         <p className="mt-3 text-[11px] text-[#7a847c]">
-          Free to get
-          started · No
-          credit card
-          required
+          Plans from {FIRST_PACK_PRICE} · Pay securely with Paystack
         </p>
 
         {reviews.length >
@@ -2446,9 +2655,7 @@ function Result({
       </button>
 
       <p className="mt-3 text-center text-[11px] text-[#7b827d]">
-        Create your
-        account and
-        start free
+        Create your account and see plans from {FIRST_PACK_PRICE}
       </p>
 
       <p className="mt-5 text-[10px] leading-4 text-[#818982]">
