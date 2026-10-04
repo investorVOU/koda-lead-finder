@@ -103,9 +103,12 @@ function PrivacyPage() {
 
           <h2>4. Cookies & Tracking</h2>
           <p>
-            We use essential cookies to maintain your session and authentication state. We do not use
-            advertising or tracking cookies. You can disable cookies in your browser settings, though
-            this may affect functionality.
+            We use essential cookies to maintain your session and authentication state. We also use
+            analytics and advertising tools on our public pages: Google Analytics, the Meta Pixel
+            (to measure and improve our ads on Facebook and Instagram), and Microsoft Clarity
+            (anonymous session recordings and heatmaps that help us improve the website; Clarity
+            masks sensitive text and form fields, and recording stops once you enter the app). You
+            can disable cookies in your browser settings, though this may affect functionality.
           </p>
 
           <h2>5. Data Storage & Security</h2>

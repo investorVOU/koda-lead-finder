@@ -29,6 +29,7 @@ import {
   runPlanActivationEmails,
   saveMarketingAdSenseSettings,
   saveMarketingGoogleAnalyticsSettings,
+  saveMarketingClaritySettings,
   saveMarketingMetaPixelSettings,
   uploadMarketingAsset,
   verifyMarketingAccess,
@@ -271,18 +272,22 @@ type VisitorDashboard = {
   sources: { source: string; medium: string | null; visitors: number }[];
   googleAnalyticsMeasurementId: string | null;
   metaPixelId: string | null;
+  clarityProjectId: string | null;
 };
 
 function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
   const getDashboard = useServerFn(getMarketingVisitorDashboard);
   const saveGoogleAnalytics = useServerFn(saveMarketingGoogleAnalyticsSettings);
   const saveMetaPixel = useServerFn(saveMarketingMetaPixelSettings);
+  const saveClarity = useServerFn(saveMarketingClaritySettings);
   const [dashboard, setDashboard] = useState<VisitorDashboard | null>(null);
   const [measurementCode, setMeasurementCode] = useState("");
   const [pixelCode, setPixelCode] = useState("");
+  const [clarityCode, setClarityCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPixel, setSavingPixel] = useState(false);
+  const [savingClarity, setSavingClarity] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -291,6 +296,7 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       setDashboard(next);
       setMeasurementCode(next.googleAnalyticsMeasurementId ?? "");
       setPixelCode(next.metaPixelId ?? "");
+      setClarityCode(next.clarityProjectId ?? "");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load website analytics.");
     } finally {
@@ -329,6 +335,21 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       toast.error(error instanceof Error ? error.message : "Could not save the Meta Pixel.");
     } finally {
       setSavingPixel(false);
+    }
+  };
+
+  const saveClarityProject = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingClarity(true);
+    try {
+      const result = await saveClarity({ data: { passcode, clarityCode } });
+      if ("error" in result) throw new Error(result.message);
+      toast.success("Microsoft Clarity is connected. Reload the site to start recording.");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save Microsoft Clarity.");
+    } finally {
+      setSavingClarity(false);
     }
   };
 
@@ -435,6 +456,27 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
             <Button className="mt-4" type="submit" disabled={savingPixel || !pixelCode.trim()}>
               {savingPixel && <Loader2 className="size-4 animate-spin" />}
               {savingPixel ? "Saving..." : "Connect Meta Pixel"}
+            </Button>
+          </form>
+
+          <form className="mt-7 border-t border-border pt-6" onSubmit={saveClarityProject}>
+            <Label htmlFor="clarity-code">Microsoft Clarity project ID or install code</Label>
+            <Input
+              id="clarity-code"
+              className="mt-2"
+              value={clarityCode}
+              onChange={(event) => setClarityCode(event.target.value)}
+              maxLength={10_000}
+              placeholder="abcd1234ef or paste your Clarity install code"
+              required
+            />
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              KodarAI extracts only the project ID. Recordings run on the public funnel pages
+              (home, /start, signup, login, choose-plan) and stop once a visitor enters the app.
+            </p>
+            <Button className="mt-4" type="submit" disabled={savingClarity || !clarityCode.trim()}>
+              {savingClarity && <Loader2 className="size-4 animate-spin" />}
+              {savingClarity ? "Saving..." : "Connect Microsoft Clarity"}
             </Button>
           </form>
         </>

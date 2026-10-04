@@ -54,6 +54,7 @@ declare global {
     TiktokAnalyticsObject?: string;
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
+    clarity?: ((...args: unknown[]) => void) & { q?: unknown[] };
     __kodaraiAnalytics?: {
       metaInitialized?: boolean;
       tiktokInitialized?: boolean;
@@ -309,6 +310,59 @@ export function trackPageView(
     window.gtag?.("event", "page_view", { page_path: locationKey.split("?")[0] });
   } catch {
     // Tracking must not affect navigation.
+  }
+}
+
+// ---- Microsoft Clarity ----------------------------------------------------
+// Session recordings run only on the public funnel pages. Logged-in app pages (dashboard,
+// billing, internal) hold customer data, so recording is stopped when a visitor moves there.
+const CLARITY_PUBLIC_PATHS = new Set(["/", "/start", "/signup", "/login", "/choose-plan"]);
+let clarityProjectId: string | null = null;
+let clarityLoaded = false;
+const pendingClarityTags: Array<[string, string]> = [];
+
+function loadClarity(projectId: string) {
+  if (clarityLoaded || typeof document === "undefined") return;
+  clarityLoaded = true;
+  if (!window.clarity) {
+    const queue = function (...args: unknown[]) {
+      (queue.q = queue.q || []).push(args);
+    } as NonNullable<Window["clarity"]>;
+    window.clarity = queue;
+  }
+  const script = document.createElement("script");
+  script.async = true;
+  script.src = `https://www.clarity.ms/tag/${projectId}`;
+  document.head.appendChild(script);
+  pendingClarityTags.splice(0).forEach(([key, value]) => window.clarity?.("set", key, value));
+}
+
+export function syncClarityForPath(pathname: string) {
+  if (!clarityProjectId) return;
+  if (CLARITY_PUBLIC_PATHS.has(pathname)) {
+    loadClarity(clarityProjectId);
+  } else if (clarityLoaded) {
+    try {
+      window.clarity?.("stop");
+    } catch {
+      // Analytics must never affect navigation.
+    }
+  }
+}
+
+export function initializeClarity(projectId?: string | null) {
+  if (!projectId || typeof window === "undefined") return;
+  clarityProjectId = projectId;
+  syncClarityForPath(window.location.pathname);
+}
+
+// Filterable tags in Clarity (for example start_variant = lean | full).
+export function setClarityTag(key: string, value: string) {
+  try {
+    if (clarityLoaded) window.clarity?.("set", key, value);
+    else pendingClarityTags.push([key, value]);
+  } catch {
+    // Analytics must never affect navigation.
   }
 }
 

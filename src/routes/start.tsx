@@ -61,6 +61,7 @@ import {
   trackFunnelGoalSelected,
   trackFunnelSituationSelected,
   trackFunnelStarted,
+  setClarityTag,
   trackEvent,
   trackFunnelViewed,
   trackViewContent,
@@ -388,11 +389,13 @@ function StartPage() {
     const pageVariant = params.get("v") === "full" ? "full" : "lean";
     setVariant(pageVariant);
     trackEvent("start_variant_viewed", { variant: pageVariant });
+    setClarityTag("start_variant", pageVariant);
 
     const hookParam = params.get("h");
     if (hookParam && hookParam in HERO_HOOKS) {
       setHook(hookParam);
       trackEvent("start_hook_viewed", { hook: hookParam });
+      setClarityTag("start_hook", hookParam);
     }
   }, []);
 
@@ -969,6 +972,30 @@ function IntroPage({
 // public/start/finder-loop.mp4. Until it exists the browser just shows the poster image.
 const START_FINDER_VIDEO = "/start/finder-loop.mp4";
 
+// Ad creatives shown in the "See it in action" row so the page matches what people saw in
+// the ad. Add files under public/start/ads/ and list them here. Images that fail to load
+// are hidden automatically.
+const START_AD_IMAGES = ["/start/ads/ad-1.jpg"];
+
+function AdImageCard({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div className="w-[78%] shrink-0 snap-center overflow-hidden rounded-[20px] border border-[#dce2db] bg-white p-2 sm:w-[46%]">
+      <img
+        src={src}
+        alt="Kodarai finds businesses with no website and builds a sample site for each"
+        width={1080}
+        height={1350}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="h-auto w-full rounded-[14px]"
+      />
+      <p className="px-1 pt-2 text-[10px] text-[#687169]">Example</p>
+    </div>
+  );
+}
+
 function LeanSteps() {
   const steps = [
     {
@@ -1078,20 +1105,25 @@ function LeanIntro({
           <p className="mt-2 text-center text-[13px] text-[#687169]">
             Search a city, pick a business with no website, tap Build Website.
           </p>
-          <div className="mt-5 overflow-hidden rounded-[20px] border border-[#dce2db] bg-white p-2">
-            <video
-              className="w-full rounded-[14px] bg-[#edf0ea]"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              poster={START_FINDER_IMAGE}
-              aria-label="Kodarai Finder showing businesses with no website and a Build Website button"
-            >
-              <source src={START_FINDER_VIDEO} type="video/mp4" />
-            </video>
-            <p className="px-1 pt-2 text-[10px] text-[#687169]">Real Kodarai Finder interface</p>
+          <div className="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0">
+            <div className="w-[88%] shrink-0 snap-center overflow-hidden rounded-[20px] border border-[#dce2db] bg-white p-2 sm:w-[54%]">
+              <video
+                className="w-full rounded-[14px] bg-[#edf0ea]"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={START_FINDER_IMAGE}
+                aria-label="Kodarai Finder showing businesses with no website and a Build Website button"
+              >
+                <source src={START_FINDER_VIDEO} type="video/mp4" />
+              </video>
+              <p className="px-1 pt-2 text-[10px] text-[#687169]">Real Kodarai Finder interface</p>
+            </div>
+            {START_AD_IMAGES.map((src) => (
+              <AdImageCard key={src} src={src} />
+            ))}
           </div>
         </div>
       </section>

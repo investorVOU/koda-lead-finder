@@ -28,6 +28,10 @@ const metaPixelSettingsSchema = accessSchema.extend({
   pixelCode: z.string().trim().max(10_000).default(""),
 });
 
+const clarityProjectSettingsSchema = accessSchema.extend({
+  clarityCode: z.string().trim().max(10_000).default(""),
+});
+
 const visitorDimensionSchema = z
   .string()
   .trim()
@@ -187,6 +191,7 @@ type AdSenseSettingsRow = {
   landing_ad_slot: string | null;
   google_analytics_measurement_id: string | null;
   meta_pixel_id: string | null;
+  clarity_project_id: string | null;
 };
 
 function parseAdSenseCode(adCode: string) {
@@ -216,7 +221,7 @@ async function readAdSenseSettings() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabaseAdmin as any)
     .from("marketing_adsense_settings")
-    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id")
+    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id, clarity_project_id")
     .eq("singleton", true)
     .maybeSingle();
   if (error) throw new Error("Could not read AdSense settings.");
@@ -278,6 +283,29 @@ export const getPublicMetaPixelSettings = createServerFn({ method: "GET" }).hand
     return { pixelId: settings?.meta_pixel_id ?? null } as const;
   } catch {
     return { pixelId: null } as const;
+  }
+});
+
+function parseClarityProjectId(clarityCode: string) {
+  const code = clarityCode.trim();
+  const projectId = /^[a-z0-9]{6,20}$/.test(code)
+    ? code
+    : (code.match(/["']clarity["']\s*,\s*["']script["']\s*,\s*["']([a-z0-9]{6,20})["']/i)?.[1] ??
+      code.match(/clarity\.ms\/tag\/([a-z0-9]{6,20})/i)?.[1]
+    )?.toLowerCase();
+  if (!projectId)
+    return {
+      error: "Paste your Clarity project ID or the Clarity install code.",
+    } as const;
+  return { projectId } as const;
+}
+
+export const getPublicClaritySettings = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const settings = await readAdSenseSettings();
+    return { projectId: settings?.clarity_project_id ?? null } as const;
+  } catch {
+    return { projectId: null } as const;
   }
 });
 
@@ -355,6 +383,7 @@ export const getMarketingVisitorDashboard = createServerFn({ method: "POST" })
         .slice(0, 8),
       googleAnalyticsMeasurementId: settings?.google_analytics_measurement_id ?? null,
       metaPixelId: settings?.meta_pixel_id ?? null,
+      clarityProjectId: settings?.clarity_project_id ?? null,
     } as const;
   });
 
@@ -408,6 +437,32 @@ export const saveMarketingMetaPixelSettings = createServerFn({ method: "POST" })
         message: "Could not save the Meta Pixel. Apply the meta pixel migration first.",
       } as const;
     return { pixelId: parsed.pixelId } as const;
+  });
+
+export const saveMarketingClaritySettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => clarityProjectSettingsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    const parsed = parseClarityProjectId(data.clarityCode);
+    if ("error" in parsed) return { error: "clarity_error", message: parsed.error } as const;
+
+    // Supabase types are generated separately; this new migration is not represented yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
+      {
+        singleton: true,
+        clarity_project_id: parsed.projectId,
+        updated_by: context.userId,
+      },
+      { onConflict: "singleton" },
+    );
+    if (error)
+      return {
+        error: "clarity_error",
+        message: "Could not save Clarity. Apply the Clarity migration first.",
+      } as const;
+    return { projectId: parsed.projectId } as const;
   });
 
 export const getMarketingAdSenseSettings = createServerFn({ method: "POST" })
