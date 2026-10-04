@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { recordVisitorEvent } from "@/lib/support-visitors.server";
+import { pingVisitor, recordVisitorEvent } from "@/lib/support-visitors.server";
 import { VISITOR_EVENT_TYPES } from "@/lib/visitor-events";
 
 const trackSchema = z.object({
@@ -24,3 +24,10 @@ export const trackVisitor = createServerFn({ method: "POST" })
     await recordVisitorEvent({ ...data, userAgent });
     return { ok: true } as const;
   });
+
+const pingSchema = z.object({ visitorToken: z.string().uuid(), path: z.string().max(300) });
+
+/** Heartbeat: keeps the visitor "online" and returns the newest human reply, if any. */
+export const pingVisitorPresence = createServerFn({ method: "POST" })
+  .inputValidator((data) => pingSchema.parse(data))
+  .handler(async ({ data }) => pingVisitor(data));

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { eventForPath, trackVisitorEvent } from "@/lib/visitor-tracking";
+import { eventForPath, startPresence, trackVisitorEvent } from "@/lib/visitor-tracking";
 
 /** Mounted once in the root. Tracks anonymous visitors only; signed-in users are not tracked. */
 export function VisitorTracker() {
@@ -12,6 +12,11 @@ export function VisitorTracker() {
     if (loading || user) return;
     trackVisitorEvent(eventForPath(pathname));
   }, [pathname, user?.id, loading]);
+
+  useEffect(() => {
+    if (loading || user) return;
+    return startPresence();
+  }, [user?.id, loading]);
 
   // Landing-page pricing section: fire once when it scrolls into view.
   useEffect(() => {

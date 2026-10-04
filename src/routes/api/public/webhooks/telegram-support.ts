@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { operatorChatId, telegramCall, verifyTelegramSecret } from "@/lib/telegram.server";
-import { sendAgentMessageToSession, visitorLabel } from "@/lib/support-visitors.server";
+import { presenceLine, sendAgentMessageToSession, visitorLabel } from "@/lib/support-visitors.server";
 
 const db = supabaseAdmin as any;
 const ok = () => new Response("ok", { status: 200 });
 
-async function labelFor(sessionId: string) {
-  const { data } = await db.from("support_visitor_sessions").select("visitor_token_hash").eq("id", sessionId).maybeSingle();
-  return data ? visitorLabel(data.visitor_token_hash) : "visitor";
+async function sessionInfo(sessionId: string) {
+  const { data } = await db.from("support_visitor_sessions").select("visitor_token_hash,last_seen_at,current_path").eq("id", sessionId).maybeSingle();
+  return data
+    ? { label: visitorLabel(data.visitor_token_hash), presence: presenceLine(data) }
+    : { label: "visitor", presence: "" };
 }
 
 /**
@@ -35,9 +37,10 @@ export const Route = createFileRoute("/api/public/webhooks/telegram-support")({
           if (sessionId) {
             await db.from("support_telegram_operator").upsert({ chat_id: chatId, active_session_id: sessionId, updated_at: new Date().toISOString() });
             await telegramCall("answerCallbackQuery", { callback_query_id: callback.id, text: "Now messaging this visitor" });
+            const info = await sessionInfo(sessionId);
             await telegramCall("sendMessage", {
               chat_id: chatId,
-              text: `✍️ Now messaging Visitor ${await labelFor(sessionId)}. Type your message — it appears in their support chat.`,
+              text: `✍️ Now messaging Visitor ${info.label}\n${info.presence}\nType your message. It pops up on their screen.`,
             });
           }
           return ok();
@@ -65,9 +68,10 @@ export const Route = createFileRoute("/api/public/webhooks/telegram-support")({
         }
 
         const result = await sendAgentMessageToSession(sessionId, text);
+        const info = await sessionInfo(sessionId);
         await telegramCall("sendMessage", {
           chat_id: chatId,
-          text: "error" in result ? `⚠️ Not delivered: ${result.error}` : `✅ Sent to Visitor ${await labelFor(sessionId)}`,
+          text: "error" in result ? `⚠️ Not delivered: ${result.error}` : `✅ Sent to Visitor ${info.label}\n${info.presence}`,
           reply_to_message_id: message.message_id,
         });
         return ok();

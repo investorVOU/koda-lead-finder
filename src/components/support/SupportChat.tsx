@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, LogOut, MessageCircle, Send } from "lucide-react";
+import { Loader2, LogOut, MessageCircle, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -21,13 +21,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { trackVisitorEvent } from "@/lib/visitor-tracking";
+import { AGENT_MESSAGE_EVENT, trackVisitorEvent, type AgentMessageDetail } from "@/lib/visitor-tracking";
 
 function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
   const known = new Set(current.map((message) => message.id));
   return [...current, ...incoming.filter((message) => !known.has(message.id))].sort(
     (a, b) => a.created_at.localeCompare(b.created_at),
   );
+}
+
+function playPing() {
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const start = ctx.currentTime;
+    [[880, 0], [1318, 0.12]].forEach(([frequency, offset]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, start + offset);
+      gain.gain.exponentialRampToValueAtTime(0.15, start + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start + offset);
+      osc.stop(start + offset + 0.3);
+    });
+    window.setTimeout(() => void ctx.close(), 800);
+  } catch {
+    // Browsers may block audio until the visitor has interacted with the page.
+  }
 }
 
 const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
@@ -58,6 +82,9 @@ export function SupportChat() {
   const [savingContact, setSavingContact] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [hasUnread, setHasUnread] = useState(false);
+  const [popup, setPopup] = useState<{ id: string; content: string } | null>(null);
+  const openRef = useRef(false);
+  const lastPoppedRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -148,8 +175,10 @@ export function SupportChat() {
   }, [conversation?.id, user?.id]);
 
   useEffect(() => {
+    openRef.current = open;
     if (open) {
       setHasUnread(false);
+      setPopup(null);
       trackVisitorEvent("chat_opened");
     }
   }, [open]);
@@ -160,24 +189,23 @@ export function SupportChat() {
     if (latestAgent) window.localStorage.setItem(AGENT_SEEN_KEY, latestAgent.created_at);
   }, [messages, open]);
 
-  // Guests have no realtime channel, so while the widget is closed we check quietly for a human reply and show a dot.
+  // Guests have no realtime channel. The visitor heartbeat (VisitorTracker) broadcasts new human replies;
+  // we pop them out like a live-chat bubble when the widget is closed.
   useEffect(() => {
-    if (open || user || authLoading) return;
-    const savedToken = window.localStorage.getItem(GUEST_TOKEN_KEY);
-    if (!savedToken) return;
-    let active = true;
-    const check = async () => {
-      const result = await runGetGuestChat({ data: { visitorToken: savedToken } });
-      if (!active || "error" in result) return;
-      const latestAgent = [...result.messages].reverse().find((message) => message.sender === "agent");
-      if (!latestAgent) return;
+    if (user || authLoading) return;
+    const onAgentMessage = (event: Event) => {
+      const agent = (event as CustomEvent<AgentMessageDetail>).detail;
+      if (!agent || openRef.current || lastPoppedRef.current === agent.id) return;
       const seen = window.localStorage.getItem(AGENT_SEEN_KEY) ?? "";
-      if (latestAgent.created_at > seen) setHasUnread(true);
+      if (agent.created_at <= seen) return;
+      lastPoppedRef.current = agent.id;
+      setHasUnread(true);
+      setPopup({ id: agent.id, content: agent.content });
+      playPing();
     };
-    const first = window.setTimeout(check, 4_000);
-    const interval = window.setInterval(check, 12_000);
-    return () => { active = false; window.clearTimeout(first); window.clearInterval(interval); };
-  }, [open, user?.id, authLoading]);
+    window.addEventListener(AGENT_MESSAGE_EVENT, onAgentMessage);
+    return () => window.removeEventListener(AGENT_MESSAGE_EVENT, onAgentMessage);
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ block: "end" });
@@ -293,6 +321,34 @@ export function SupportChat() {
         <MessageCircle className="size-5" />
         {hasUnread && <span className="absolute right-0.5 top-0.5 size-3 rounded-full border-2 border-background bg-red-500" />}
       </Button>
+
+      {popup && !open && (
+        <div className="fixed bottom-36 right-5 z-40 w-72 max-w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300 md:bottom-20 md:right-6">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="block w-full rounded-2xl border border-border bg-card p-3 pr-8 text-left shadow-xl"
+          >
+            <div className="mb-1 flex items-center gap-2">
+              <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <MessageCircle className="size-3.5" />
+              </span>
+              <span className="text-xs font-semibold">KodarAI Support</span>
+              <span className="text-[10px] text-muted-foreground">just now</span>
+            </div>
+            <p className="line-clamp-3 text-sm text-foreground">{popup.content}</p>
+            <span className="mt-2 block text-xs font-medium text-primary">Tap to reply</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPopup(null)}
+            className="absolute right-1.5 top-1.5 rounded-full p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Dismiss message"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md overflow-hidden p-0 sm:max-w-md">

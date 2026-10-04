@@ -178,3 +178,117 @@ export async function relayVisitorMessageToTelegram(visitorTokenHash: string | n
 }
 
 export { telegramCall };
+
+
+// ───────────────────────── Presence ─────────────────────────
+const ONLINE_WINDOW_MS = 45_000;
+const LEFT_AFTER_MS = 90_000;
+const MAX_NOTIFY_AGE_MS = 60 * 60_000;
+
+function formatDuration(ms: number) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  if (total < 60) return `${total}s`;
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) return `${minutes}m ${total % 60}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+export function presenceLine(session: { last_seen_at: string; current_path?: string | null }) {
+  const idle = Date.now() - new Date(session.last_seen_at).getTime();
+  if (idle <= ONLINE_WINDOW_MS) return `🟢 online now${session.current_path ? ` on ${session.current_path}` : ""}`;
+  return `⚪ offline, last seen ${formatDuration(idle)} ago (your message shows when they return)`;
+}
+
+const EVENT_SHORT: Partial<Record<VisitorEventType, string>> = {
+  finder_opened: "Finder", studio_opened: "Studio", pricing_opened: "Pricing",
+  signup_started: "Signup", checkout_started: "Checkout", chat_opened: "Chat",
+};
+
+let sweeperStarted = false;
+function ensureSweeper() {
+  if (sweeperStarted) return;
+  sweeperStarted = true;
+  // Render runs a long-lived Node process, so a lazy in-process timer is enough; it starts on the first heartbeat.
+  const timer = setInterval(() => { void sweepLeftVisitors(); }, 30_000);
+  (timer as any).unref?.();
+}
+
+/** Marks visitors who stopped sending heartbeats as "left" and tells the operator about the interesting ones. */
+export async function sweepLeftVisitors() {
+  try {
+    if (!telegramConfigured()) return;
+    const cutoff = new Date(Date.now() - LEFT_AFTER_MS).toISOString();
+    const { data: stale } = await db.from("support_visitor_sessions").select("*")
+      .is("left_notified_at", null).lt("last_seen_at", cutoff).limit(20);
+
+    for (const session of stale ?? []) {
+      // Claim atomically so two server instances never notify twice.
+      const { data: claimed } = await db.from("support_visitor_sessions")
+        .update({ left_notified_at: new Date().toISOString() })
+        .eq("id", session.id).is("left_notified_at", null).select("id");
+      if (!claimed?.length) continue;
+
+      const lastSeen = new Date(session.last_seen_at).getTime();
+      if (Date.now() - lastSeen > MAX_NOTIFY_AGE_MS) continue; // old session from before presence existed
+
+      const [{ data: events }, { data: convo }, { data: operator }] = await Promise.all([
+        db.from("support_visitor_events").select("type,path").eq("session_id", session.id).order("created_at", { ascending: true }).limit(100),
+        db.from("support_conversations").select("id").eq("visitor_token_hash", session.visitor_token_hash).maybeSingle(),
+        db.from("support_telegram_operator").select("active_session_id").eq("chat_id", operatorChatId()).maybeSingle(),
+      ]);
+
+      const did = Array.from(new Set((events ?? []).map((e: any) => EVENT_SHORT[e.type as VisitorEventType]).filter(Boolean))) as string[];
+      const pages = Array.from(new Set((events ?? []).map((e: any) => e.path).filter(Boolean))).slice(0, 6) as string[];
+      const stayed = lastSeen - new Date(session.created_at).getTime();
+      const worthTelling = did.length > 0 || Boolean(convo) || stayed >= 60_000 || operator?.active_session_id === session.id;
+      if (!worthTelling) continue;
+
+      const sent = await sendTelegram(
+        [
+          `⚪ Visitor ${visitorLabel(session.visitor_token_hash)} left`,
+          `Time on site: ${formatDuration(stayed)}`,
+          pages.length ? `Pages: ${pages.join(", ")}` : "",
+          did.length ? `Did: ${did.join(", ")}` : "",
+        ].filter(Boolean).join("\n"),
+        messageButton(session.id),
+      );
+      await rememberThread(sent?.message_id, session.id);
+    }
+  } catch (error) {
+    console.error("visitor sweep failed", error instanceof Error ? error.message : error);
+  }
+}
+
+export interface PingResult {
+  agent: { id: string; content: string; created_at: string } | null;
+}
+
+/** Heartbeat from the browser. Updates presence and returns the latest human reply so the widget can pop it out. */
+export async function pingVisitor(input: { visitorToken: string; path: string }): Promise<PingResult> {
+  try {
+    const hash = hashVisitorToken(input.visitorToken);
+    const { data: session } = await db.from("support_visitor_sessions").select("id,left_notified_at").eq("visitor_token_hash", hash).maybeSingle();
+    if (!session) return { agent: null };
+
+    await db.from("support_visitor_sessions")
+      .update({ last_seen_at: new Date().toISOString(), current_path: input.path, left_notified_at: null })
+      .eq("id", session.id);
+    ensureSweeper();
+
+    if (session.left_notified_at && telegramConfigured()) {
+      const { data: operator } = await db.from("support_telegram_operator").select("active_session_id").eq("chat_id", operatorChatId()).maybeSingle();
+      if (operator?.active_session_id === session.id) {
+        await sendTelegram(`🟢 Visitor ${visitorLabel(hash)} is back on ${input.path}`, messageButton(session.id));
+      }
+    }
+
+    const { data: convo } = await db.from("support_conversations").select("id").eq("visitor_token_hash", hash).maybeSingle();
+    if (!convo) return { agent: null };
+    const { data: latest } = await db.from("support_messages").select("id,content,created_at")
+      .eq("conversation_id", convo.id).eq("sender", "agent").order("created_at", { ascending: false }).limit(1);
+    return { agent: latest?.[0] ?? null };
+  } catch (error) {
+    console.error("visitor ping failed", error instanceof Error ? error.message : error);
+    return { agent: null };
+  }
+}
