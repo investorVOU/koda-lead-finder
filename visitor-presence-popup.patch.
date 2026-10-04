@@ -1,0 +1,443 @@
+From bdaf84ca0ed07ec4f5717a95bbde9374270eab7f Mon Sep 17 00:00:00 2001
+From: claude <c@x>
+Date: Sun, 4 Oct 2026 07:52:32 +0000
+Subject: [PATCH] Add visitor presence, left-site alerts and Smartsupp-style
+ pop-out for agent replies
+
+---
+ src/components/analytics/VisitorTracker.tsx   |   7 +-
+ src/components/support/SupportChat.tsx        |  90 +++++++++++---
+ src/lib/support-visitors.functions.ts         |   9 +-
+ src/lib/support-visitors.server.ts            | 114 ++++++++++++++++++
+ src/lib/visitor-tracking.ts                   |  31 ++++-
+ .../api/public/webhooks/telegram-support.ts   |  16 ++-
+ ...0261004130000_support_visitor_presence.sql |   7 ++
+ 7 files changed, 248 insertions(+), 26 deletions(-)
+ create mode 100644 supabase/migrations/20261004130000_support_visitor_presence.sql
+
+diff --git a/src/components/analytics/VisitorTracker.tsx b/src/components/analytics/VisitorTracker.tsx
+index 11a4942..2059bb6 100644
+--- a/src/components/analytics/VisitorTracker.tsx
++++ b/src/components/analytics/VisitorTracker.tsx
+@@ -1,7 +1,7 @@
+ import { useEffect } from "react";
+ import { useLocation } from "@tanstack/react-router";
+ import { useAuth } from "@/lib/auth";
+-import { eventForPath, trackVisitorEvent } from "@/lib/visitor-tracking";
++import { eventForPath, startPresence, trackVisitorEvent } from "@/lib/visitor-tracking";
+ 
+ /** Mounted once in the root. Tracks anonymous visitors only; signed-in users are not tracked. */
+ export function VisitorTracker() {
+@@ -13,6 +13,11 @@ export function VisitorTracker() {
+     trackVisitorEvent(eventForPath(pathname));
+   }, [pathname, user?.id, loading]);
+ 
++  useEffect(() => {
++    if (loading || user) return;
++    return startPresence();
++  }, [user?.id, loading]);
++
+   // Landing-page pricing section: fire once when it scrolls into view.
+   useEffect(() => {
+     if (loading || user) return;
+diff --git a/src/components/support/SupportChat.tsx b/src/components/support/SupportChat.tsx
+index de42d4b..203c68e 100644
+--- a/src/components/support/SupportChat.tsx
++++ b/src/components/support/SupportChat.tsx
+@@ -1,6 +1,6 @@
+ import { useEffect, useRef, useState } from "react";
+ import { useServerFn } from "@tanstack/react-start";
+-import { Loader2, LogOut, MessageCircle, Send } from "lucide-react";
++import { Loader2, LogOut, MessageCircle, Send, X } from "lucide-react";
+ import { toast } from "sonner";
+ import { supabase } from "@/integrations/supabase/client";
+ import { useAuth } from "@/lib/auth";
+@@ -21,7 +21,7 @@ import {
+ import { Button } from "@/components/ui/button";
+ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+ import { Input } from "@/components/ui/input";
+-import { trackVisitorEvent } from "@/lib/visitor-tracking";
++import { AGENT_MESSAGE_EVENT, trackVisitorEvent, type AgentMessageDetail } from "@/lib/visitor-tracking";
+ 
+ function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
+   const known = new Set(current.map((message) => message.id));
+@@ -30,6 +30,30 @@ function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
+   );
+ }
+ 
++function playPing() {
++  try {
++    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
++    if (!Ctx) return;
++    const ctx = new Ctx();
++    const start = ctx.currentTime;
++    [[880, 0], [1318, 0.12]].forEach(([frequency, offset]) => {
++      const osc = ctx.createOscillator();
++      const gain = ctx.createGain();
++      osc.type = "sine";
++      osc.frequency.value = frequency;
++      gain.gain.setValueAtTime(0.0001, start + offset);
++      gain.gain.exponentialRampToValueAtTime(0.15, start + offset + 0.02);
++      gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.25);
++      osc.connect(gain).connect(ctx.destination);
++      osc.start(start + offset);
++      osc.stop(start + offset + 0.3);
++    });
++    window.setTimeout(() => void ctx.close(), 800);
++  } catch {
++    // Browsers may block audio until the visitor has interacted with the page.
++  }
++}
++
+ const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
+ const AGENT_SEEN_KEY = "kodarai_support_agent_seen";
+ 
+@@ -58,6 +82,9 @@ export function SupportChat() {
+   const [savingContact, setSavingContact] = useState(false);
+   const [now, setNow] = useState(Date.now());
+   const [hasUnread, setHasUnread] = useState(false);
++  const [popup, setPopup] = useState<{ id: string; content: string } | null>(null);
++  const openRef = useRef(false);
++  const lastPoppedRef = useRef<string | null>(null);
+   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+ 
+   useEffect(() => {
+@@ -148,8 +175,10 @@ export function SupportChat() {
+   }, [conversation?.id, user?.id]);
+ 
+   useEffect(() => {
++    openRef.current = open;
+     if (open) {
+       setHasUnread(false);
++      setPopup(null);
+       trackVisitorEvent("chat_opened");
+     }
+   }, [open]);
+@@ -160,24 +189,23 @@ export function SupportChat() {
+     if (latestAgent) window.localStorage.setItem(AGENT_SEEN_KEY, latestAgent.created_at);
+   }, [messages, open]);
+ 
+-  // Guests have no realtime channel, so while the widget is closed we check quietly for a human reply and show a dot.
++  // Guests have no realtime channel. The visitor heartbeat (VisitorTracker) broadcasts new human replies;
++  // we pop them out like a live-chat bubble when the widget is closed.
+   useEffect(() => {
+-    if (open || user || authLoading) return;
+-    const savedToken = window.localStorage.getItem(GUEST_TOKEN_KEY);
+-    if (!savedToken) return;
+-    let active = true;
+-    const check = async () => {
+-      const result = await runGetGuestChat({ data: { visitorToken: savedToken } });
+-      if (!active || "error" in result) return;
+-      const latestAgent = [...result.messages].reverse().find((message) => message.sender === "agent");
+-      if (!latestAgent) return;
++    if (user || authLoading) return;
++    const onAgentMessage = (event: Event) => {
++      const agent = (event as CustomEvent<AgentMessageDetail>).detail;
++      if (!agent || openRef.current || lastPoppedRef.current === agent.id) return;
+       const seen = window.localStorage.getItem(AGENT_SEEN_KEY) ?? "";
+-      if (latestAgent.created_at > seen) setHasUnread(true);
++      if (agent.created_at <= seen) return;
++      lastPoppedRef.current = agent.id;
++      setHasUnread(true);
++      setPopup({ id: agent.id, content: agent.content });
++      playPing();
+     };
+-    const first = window.setTimeout(check, 4_000);
+-    const interval = window.setInterval(check, 12_000);
+-    return () => { active = false; window.clearTimeout(first); window.clearInterval(interval); };
+-  }, [open, user?.id, authLoading]);
++    window.addEventListener(AGENT_MESSAGE_EVENT, onAgentMessage);
++    return () => window.removeEventListener(AGENT_MESSAGE_EVENT, onAgentMessage);
++  }, [user?.id, authLoading]);
+ 
+   useEffect(() => {
+     if (open) messagesEndRef.current?.scrollIntoView({ block: "end" });
+@@ -294,6 +322,34 @@ export function SupportChat() {
+         {hasUnread && <span className="absolute right-0.5 top-0.5 size-3 rounded-full border-2 border-background bg-red-500" />}
+       </Button>
+ 
++      {popup && !open && (
++        <div className="fixed bottom-36 right-5 z-40 w-72 max-w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300 md:bottom-20 md:right-6">
++          <button
++            type="button"
++            onClick={() => setOpen(true)}
++            className="block w-full rounded-2xl border border-border bg-card p-3 pr-8 text-left shadow-xl"
++          >
++            <div className="mb-1 flex items-center gap-2">
++              <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
++                <MessageCircle className="size-3.5" />
++              </span>
++              <span className="text-xs font-semibold">KodarAI Support</span>
++              <span className="text-[10px] text-muted-foreground">just now</span>
++            </div>
++            <p className="line-clamp-3 text-sm text-foreground">{popup.content}</p>
++            <span className="mt-2 block text-xs font-medium text-primary">Tap to reply</span>
++          </button>
++          <button
++            type="button"
++            onClick={() => setPopup(null)}
++            className="absolute right-1.5 top-1.5 rounded-full p-1 text-muted-foreground hover:bg-muted"
++            aria-label="Dismiss message"
++          >
++            <X className="size-3.5" />
++          </button>
++        </div>
++      )}
++
+       <Dialog open={open} onOpenChange={setOpen}>
+         <DialogContent className="max-w-md overflow-hidden p-0 sm:max-w-md">
+           <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left">
+diff --git a/src/lib/support-visitors.functions.ts b/src/lib/support-visitors.functions.ts
+index 3dc9e32..0b5f451 100644
+--- a/src/lib/support-visitors.functions.ts
++++ b/src/lib/support-visitors.functions.ts
+@@ -1,7 +1,7 @@
+ import { createServerFn } from "@tanstack/react-start";
+ import { getRequest } from "@tanstack/react-start/server";
+ import { z } from "zod";
+-import { recordVisitorEvent } from "@/lib/support-visitors.server";
++import { pingVisitor, recordVisitorEvent } from "@/lib/support-visitors.server";
+ import { VISITOR_EVENT_TYPES } from "@/lib/visitor-events";
+ 
+ const trackSchema = z.object({
+@@ -24,3 +24,10 @@ export const trackVisitor = createServerFn({ method: "POST" })
+     await recordVisitorEvent({ ...data, userAgent });
+     return { ok: true } as const;
+   });
++
++const pingSchema = z.object({ visitorToken: z.string().uuid(), path: z.string().max(300) });
++
++/** Heartbeat: keeps the visitor "online" and returns the newest human reply, if any. */
++export const pingVisitorPresence = createServerFn({ method: "POST" })
++  .inputValidator((data) => pingSchema.parse(data))
++  .handler(async ({ data }) => pingVisitor(data));
+diff --git a/src/lib/support-visitors.server.ts b/src/lib/support-visitors.server.ts
+index dcd654c..e831082 100644
+--- a/src/lib/support-visitors.server.ts
++++ b/src/lib/support-visitors.server.ts
+@@ -178,3 +178,117 @@ export async function relayVisitorMessageToTelegram(visitorTokenHash: string | n
+ }
+ 
+ export { telegramCall };
++
++
++// ───────────────────────── Presence ─────────────────────────
++const ONLINE_WINDOW_MS = 45_000;
++const LEFT_AFTER_MS = 90_000;
++const MAX_NOTIFY_AGE_MS = 60 * 60_000;
++
++function formatDuration(ms: number) {
++  const total = Math.max(0, Math.round(ms / 1000));
++  if (total < 60) return `${total}s`;
++  const minutes = Math.floor(total / 60);
++  if (minutes < 60) return `${minutes}m ${total % 60}s`;
++  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
++}
++
++export function presenceLine(session: { last_seen_at: string; current_path?: string | null }) {
++  const idle = Date.now() - new Date(session.last_seen_at).getTime();
++  if (idle <= ONLINE_WINDOW_MS) return `🟢 online now${session.current_path ? ` on ${session.current_path}` : ""}`;
++  return `⚪ offline, last seen ${formatDuration(idle)} ago (your message shows when they return)`;
++}
++
++const EVENT_SHORT: Partial<Record<VisitorEventType, string>> = {
++  finder_opened: "Finder", studio_opened: "Studio", pricing_opened: "Pricing",
++  signup_started: "Signup", checkout_started: "Checkout", chat_opened: "Chat",
++};
++
++let sweeperStarted = false;
++function ensureSweeper() {
++  if (sweeperStarted) return;
++  sweeperStarted = true;
++  // Render runs a long-lived Node process, so a lazy in-process timer is enough; it starts on the first heartbeat.
++  const timer = setInterval(() => { void sweepLeftVisitors(); }, 30_000);
++  (timer as any).unref?.();
++}
++
++/** Marks visitors who stopped sending heartbeats as "left" and tells the operator about the interesting ones. */
++export async function sweepLeftVisitors() {
++  try {
++    if (!telegramConfigured()) return;
++    const cutoff = new Date(Date.now() - LEFT_AFTER_MS).toISOString();
++    const { data: stale } = await db.from("support_visitor_sessions").select("*")
++      .is("left_notified_at", null).lt("last_seen_at", cutoff).limit(20);
++
++    for (const session of stale ?? []) {
++      // Claim atomically so two server instances never notify twice.
++      const { data: claimed } = await db.from("support_visitor_sessions")
++        .update({ left_notified_at: new Date().toISOString() })
++        .eq("id", session.id).is("left_notified_at", null).select("id");
++      if (!claimed?.length) continue;
++
++      const lastSeen = new Date(session.last_seen_at).getTime();
++      if (Date.now() - lastSeen > MAX_NOTIFY_AGE_MS) continue; // old session from before presence existed
++
++      const [{ data: events }, { data: convo }, { data: operator }] = await Promise.all([
++        db.from("support_visitor_events").select("type,path").eq("session_id", session.id).order("created_at", { ascending: true }).limit(100),
++        db.from("support_conversations").select("id").eq("visitor_token_hash", session.visitor_token_hash).maybeSingle(),
++        db.from("support_telegram_operator").select("active_session_id").eq("chat_id", operatorChatId()).maybeSingle(),
++      ]);
++
++      const did = Array.from(new Set((events ?? []).map((e: any) => EVENT_SHORT[e.type as VisitorEventType]).filter(Boolean))) as string[];
++      const pages = Array.from(new Set((events ?? []).map((e: any) => e.path).filter(Boolean))).slice(0, 6) as string[];
++      const stayed = lastSeen - new Date(session.created_at).getTime();
++      const worthTelling = did.length > 0 || Boolean(convo) || stayed >= 60_000 || operator?.active_session_id === session.id;
++      if (!worthTelling) continue;
++
++      const sent = await sendTelegram(
++        [
++          `⚪ Visitor ${visitorLabel(session.visitor_token_hash)} left`,
++          `Time on site: ${formatDuration(stayed)}`,
++          pages.length ? `Pages: ${pages.join(", ")}` : "",
++          did.length ? `Did: ${did.join(", ")}` : "",
++        ].filter(Boolean).join("\n"),
++        messageButton(session.id),
++      );
++      await rememberThread(sent?.message_id, session.id);
++    }
++  } catch (error) {
++    console.error("visitor sweep failed", error instanceof Error ? error.message : error);
++  }
++}
++
++export interface PingResult {
++  agent: { id: string; content: string; created_at: string } | null;
++}
++
++/** Heartbeat from the browser. Updates presence and returns the latest human reply so the widget can pop it out. */
++export async function pingVisitor(input: { visitorToken: string; path: string }): Promise<PingResult> {
++  try {
++    const hash = hashVisitorToken(input.visitorToken);
++    const { data: session } = await db.from("support_visitor_sessions").select("id,left_notified_at").eq("visitor_token_hash", hash).maybeSingle();
++    if (!session) return { agent: null };
++
++    await db.from("support_visitor_sessions")
++      .update({ last_seen_at: new Date().toISOString(), current_path: input.path, left_notified_at: null })
++      .eq("id", session.id);
++    ensureSweeper();
++
++    if (session.left_notified_at && telegramConfigured()) {
++      const { data: operator } = await db.from("support_telegram_operator").select("active_session_id").eq("chat_id", operatorChatId()).maybeSingle();
++      if (operator?.active_session_id === session.id) {
++        await sendTelegram(`🟢 Visitor ${visitorLabel(hash)} is back on ${input.path}`, messageButton(session.id));
++      }
++    }
++
++    const { data: convo } = await db.from("support_conversations").select("id").eq("visitor_token_hash", hash).maybeSingle();
++    if (!convo) return { agent: null };
++    const { data: latest } = await db.from("support_messages").select("id,content,created_at")
++      .eq("conversation_id", convo.id).eq("sender", "agent").order("created_at", { ascending: false }).limit(1);
++    return { agent: latest?.[0] ?? null };
++  } catch (error) {
++    console.error("visitor ping failed", error instanceof Error ? error.message : error);
++    return { agent: null };
++  }
++}
+diff --git a/src/lib/visitor-tracking.ts b/src/lib/visitor-tracking.ts
+index df38aa5..61d73c6 100644
+--- a/src/lib/visitor-tracking.ts
++++ b/src/lib/visitor-tracking.ts
+@@ -1,4 +1,4 @@
+-import { trackVisitor } from "@/lib/support-visitors.functions";
++import { pingVisitorPresence, trackVisitor } from "@/lib/support-visitors.functions";
+ import type { VisitorEventType } from "@/lib/visitor-events";
+ 
+ // Same key the support widget uses, so the visitor session and the guest chat share one identity.
+@@ -47,3 +47,32 @@ export function eventForPath(pathname: string): ClientEvent {
+   if (pathname.startsWith("/signup")) return "signup_started";
+   return "page_viewed";
+ }
++
++export const AGENT_MESSAGE_EVENT = "kodarai:agent-message";
++export type AgentMessageDetail = { id: string; content: string; created_at: string };
++
++const HEARTBEAT_MS = 10_000;
++
++/**
++ * Heartbeat while the tab is visible. Tells the server the visitor is still here and
++ * broadcasts any new human reply so the chat widget can pop it out. Returns a cleanup function.
++ */
++export function startPresence(): () => void {
++  if (typeof window === "undefined") return () => undefined;
++  const ping = async () => {
++    if (document.visibilityState !== "visible") return;
++    const visitorToken = getOrCreateToken();
++    if (!visitorToken) return;
++    try {
++      const result = await pingVisitorPresence({ data: { visitorToken, path: window.location.pathname } });
++      if (result?.agent) window.dispatchEvent(new CustomEvent<AgentMessageDetail>(AGENT_MESSAGE_EVENT, { detail: result.agent }));
++    } catch {
++      // Presence is best-effort.
++    }
++  };
++  const onVisible = () => { if (document.visibilityState === "visible") void ping(); };
++  void ping();
++  const interval = window.setInterval(ping, HEARTBEAT_MS);
++  document.addEventListener("visibilitychange", onVisible);
++  return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
++}
+diff --git a/src/routes/api/public/webhooks/telegram-support.ts b/src/routes/api/public/webhooks/telegram-support.ts
+index c30b6b8..dedc640 100644
+--- a/src/routes/api/public/webhooks/telegram-support.ts
++++ b/src/routes/api/public/webhooks/telegram-support.ts
+@@ -1,14 +1,16 @@
+ import { createFileRoute } from "@tanstack/react-router";
+ import { supabaseAdmin } from "@/integrations/supabase/client.server";
+ import { operatorChatId, telegramCall, verifyTelegramSecret } from "@/lib/telegram.server";
+-import { sendAgentMessageToSession, visitorLabel } from "@/lib/support-visitors.server";
++import { presenceLine, sendAgentMessageToSession, visitorLabel } from "@/lib/support-visitors.server";
+ 
+ const db = supabaseAdmin as any;
+ const ok = () => new Response("ok", { status: 200 });
+ 
+-async function labelFor(sessionId: string) {
+-  const { data } = await db.from("support_visitor_sessions").select("visitor_token_hash").eq("id", sessionId).maybeSingle();
+-  return data ? visitorLabel(data.visitor_token_hash) : "visitor";
++async function sessionInfo(sessionId: string) {
++  const { data } = await db.from("support_visitor_sessions").select("visitor_token_hash,last_seen_at,current_path").eq("id", sessionId).maybeSingle();
++  return data
++    ? { label: visitorLabel(data.visitor_token_hash), presence: presenceLine(data) }
++    : { label: "visitor", presence: "" };
+ }
+ 
+ /**
+@@ -35,9 +37,10 @@ export const Route = createFileRoute("/api/public/webhooks/telegram-support")({
+           if (sessionId) {
+             await db.from("support_telegram_operator").upsert({ chat_id: chatId, active_session_id: sessionId, updated_at: new Date().toISOString() });
+             await telegramCall("answerCallbackQuery", { callback_query_id: callback.id, text: "Now messaging this visitor" });
++            const info = await sessionInfo(sessionId);
+             await telegramCall("sendMessage", {
+               chat_id: chatId,
+-              text: `✍️ Now messaging Visitor ${await labelFor(sessionId)}. Type your message — it appears in their support chat.`,
++              text: `✍️ Now messaging Visitor ${info.label}\n${info.presence}\nType your message. It pops up on their screen.`,
+             });
+           }
+           return ok();
+@@ -65,9 +68,10 @@ export const Route = createFileRoute("/api/public/webhooks/telegram-support")({
+         }
+ 
+         const result = await sendAgentMessageToSession(sessionId, text);
++        const info = await sessionInfo(sessionId);
+         await telegramCall("sendMessage", {
+           chat_id: chatId,
+-          text: "error" in result ? `⚠️ Not delivered: ${result.error}` : `✅ Sent to Visitor ${await labelFor(sessionId)}`,
++          text: "error" in result ? `⚠️ Not delivered: ${result.error}` : `✅ Sent to Visitor ${info.label}\n${info.presence}`,
+           reply_to_message_id: message.message_id,
+         });
+         return ok();
+diff --git a/supabase/migrations/20261004130000_support_visitor_presence.sql b/supabase/migrations/20261004130000_support_visitor_presence.sql
+new file mode 100644
+index 0000000..8bfaaf5
+--- /dev/null
++++ b/supabase/migrations/20261004130000_support_visitor_presence.sql
+@@ -0,0 +1,7 @@
++-- Presence tracking: lets the server tell when a visitor has left.
++ALTER TABLE public.support_visitor_sessions
++  ADD COLUMN IF NOT EXISTS left_notified_at timestamptz;
++
++CREATE INDEX IF NOT EXISTS support_visitor_sessions_active_idx
++  ON public.support_visitor_sessions (last_seen_at)
++  WHERE left_notified_at IS NULL;
+-- 
+2.43.0
+
