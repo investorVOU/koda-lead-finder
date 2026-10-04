@@ -1,0 +1,870 @@
+From da978f0938171c0a92407373f776f8515bc98368 Mon Sep 17 00:00:00 2001
+From: claude <c@x>
+Date: Sun, 4 Oct 2026 06:40:55 +0000
+Subject: [PATCH] Add instant visitor tracking, Telegram operator notifications
+ and Telegram replies into SupportChat
+
+---
+ .env.example                                  |   8 +
+ src/components/analytics/VisitorTracker.tsx   |  32 ++++
+ src/components/support/SupportChat.tsx        |  40 +++-
+ src/lib/support-chat.functions.ts             |  36 ++--
+ src/lib/support-visitors.functions.ts         |  26 +++
+ src/lib/support-visitors.server.ts            | 180 ++++++++++++++++++
+ src/lib/telegram.server.ts                    |  44 +++++
+ src/lib/visitor-events.ts                     |   5 +
+ src/lib/visitor-tracking.ts                   |  49 +++++
+ src/routeTree.gen.ts                          |  22 +++
+ src/routes/__root.tsx                         |   4 +
+ .../api/public/webhooks/telegram-support.ts   |  77 ++++++++
+ ...0261004120000_support_visitor_tracking.sql |  59 ++++++
+ 13 files changed, 567 insertions(+), 15 deletions(-)
+ create mode 100644 src/components/analytics/VisitorTracker.tsx
+ create mode 100644 src/lib/support-visitors.functions.ts
+ create mode 100644 src/lib/support-visitors.server.ts
+ create mode 100644 src/lib/telegram.server.ts
+ create mode 100644 src/lib/visitor-events.ts
+ create mode 100644 src/lib/visitor-tracking.ts
+ create mode 100644 src/routes/api/public/webhooks/telegram-support.ts
+ create mode 100644 supabase/migrations/20261004120000_support_visitor_tracking.sql
+
+diff --git a/.env.example b/.env.example
+index 39b9b42..dba3068 100644
+--- a/.env.example
++++ b/.env.example
+@@ -84,3 +84,11 @@ GROQ_API_KEY=
+ VERCEL_TOKEN=
+ # Optional when the managed Vercel projects belong to a Vercel team.
+ VERCEL_TEAM_ID=
++
++# ── Telegram operator bridge (support visitors) ───────────────────────────────
++# Create a bot with @BotFather. Chat ID: message the bot, then open
++# https://api.telegram.org/bot<TOKEN>/getUpdates and copy message.chat.id.
++TELEGRAM_BOT_TOKEN=
++TELEGRAM_OPERATOR_CHAT_ID=
++# Any long random string; also pass it as secret_token when calling setWebhook.
++TELEGRAM_WEBHOOK_SECRET=
+diff --git a/src/components/analytics/VisitorTracker.tsx b/src/components/analytics/VisitorTracker.tsx
+new file mode 100644
+index 0000000..11a4942
+--- /dev/null
++++ b/src/components/analytics/VisitorTracker.tsx
+@@ -0,0 +1,32 @@
++import { useEffect } from "react";
++import { useLocation } from "@tanstack/react-router";
++import { useAuth } from "@/lib/auth";
++import { eventForPath, trackVisitorEvent } from "@/lib/visitor-tracking";
++
++/** Mounted once in the root. Tracks anonymous visitors only; signed-in users are not tracked. */
++export function VisitorTracker() {
++  const { user, loading } = useAuth();
++  const pathname = useLocation({ select: (location) => location.pathname });
++
++  useEffect(() => {
++    if (loading || user) return;
++    trackVisitorEvent(eventForPath(pathname));
++  }, [pathname, user?.id, loading]);
++
++  // Landing-page pricing section: fire once when it scrolls into view.
++  useEffect(() => {
++    if (loading || user) return;
++    const section = document.getElementById("pricing");
++    if (!section || !("IntersectionObserver" in window)) return;
++    const observer = new IntersectionObserver((entries) => {
++      if (entries.some((entry) => entry.isIntersecting)) {
++        trackVisitorEvent("pricing_opened");
++        observer.disconnect();
++      }
++    }, { threshold: 0.4 });
++    observer.observe(section);
++    return () => observer.disconnect();
++  }, [pathname, user?.id, loading]);
++
++  return null;
++}
+diff --git a/src/components/support/SupportChat.tsx b/src/components/support/SupportChat.tsx
+index 6d24e56..de42d4b 100644
+--- a/src/components/support/SupportChat.tsx
++++ b/src/components/support/SupportChat.tsx
+@@ -21,6 +21,7 @@ import {
+ import { Button } from "@/components/ui/button";
+ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+ import { Input } from "@/components/ui/input";
++import { trackVisitorEvent } from "@/lib/visitor-tracking";
+ 
+ function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
+   const known = new Set(current.map((message) => message.id));
+@@ -30,6 +31,7 @@ function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
+ }
+ 
+ const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
++const AGENT_SEEN_KEY = "kodarai_support_agent_seen";
+ 
+ export function SupportChat() {
+   const { user, loading: authLoading } = useAuth();
+@@ -55,6 +57,7 @@ export function SupportChat() {
+   const [contactEmail, setContactEmail] = useState("");
+   const [savingContact, setSavingContact] = useState(false);
+   const [now, setNow] = useState(Date.now());
++  const [hasUnread, setHasUnread] = useState(false);
+   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+ 
+   useEffect(() => {
+@@ -71,7 +74,7 @@ export function SupportChat() {
+             const existing = await runGetGuestChat({ data: { visitorToken: savedToken } });
+             if (!("error" in existing)) return { ...existing, visitorToken: savedToken };
+           }
+-          const created = await runStartGuestChat();
++          const created = await runStartGuestChat({ data: { visitorToken: savedToken ?? undefined } });
+           if (!("error" in created)) window.localStorage.setItem(GUEST_TOKEN_KEY, created.visitorToken);
+           return created;
+         })();
+@@ -144,6 +147,38 @@ export function SupportChat() {
+     return () => { supabase.removeChannel(channel); };
+   }, [conversation?.id, user?.id]);
+ 
++  useEffect(() => {
++    if (open) {
++      setHasUnread(false);
++      trackVisitorEvent("chat_opened");
++    }
++  }, [open]);
++
++  useEffect(() => {
++    if (!open) return;
++    const latestAgent = [...messages].reverse().find((message) => message.sender === "agent");
++    if (latestAgent) window.localStorage.setItem(AGENT_SEEN_KEY, latestAgent.created_at);
++  }, [messages, open]);
++
++  // Guests have no realtime channel, so while the widget is closed we check quietly for a human reply and show a dot.
++  useEffect(() => {
++    if (open || user || authLoading) return;
++    const savedToken = window.localStorage.getItem(GUEST_TOKEN_KEY);
++    if (!savedToken) return;
++    let active = true;
++    const check = async () => {
++      const result = await runGetGuestChat({ data: { visitorToken: savedToken } });
++      if (!active || "error" in result) return;
++      const latestAgent = [...result.messages].reverse().find((message) => message.sender === "agent");
++      if (!latestAgent) return;
++      const seen = window.localStorage.getItem(AGENT_SEEN_KEY) ?? "";
++      if (latestAgent.created_at > seen) setHasUnread(true);
++    };
++    const first = window.setTimeout(check, 4_000);
++    const interval = window.setInterval(check, 12_000);
++    return () => { active = false; window.clearTimeout(first); window.clearInterval(interval); };
++  }, [open, user?.id, authLoading]);
++
+   useEffect(() => {
+     if (open) messagesEndRef.current?.scrollIntoView({ block: "end" });
+   }, [messages, open]);
+@@ -253,9 +288,10 @@ export function SupportChat() {
+         size="icon"
+         onClick={() => setOpen(true)}
+         className="fixed bottom-20 right-5 z-40 size-12 rounded-full shadow-lg md:bottom-6 md:right-6"
+-        aria-label="Open support chat"
++        aria-label={hasUnread ? "Open support chat (new reply)" : "Open support chat"}
+       >
+         <MessageCircle className="size-5" />
++        {hasUnread && <span className="absolute right-0.5 top-0.5 size-3 rounded-full border-2 border-background bg-red-500" />}
+       </Button>
+ 
+       <Dialog open={open} onOpenChange={setOpen}>
+diff --git a/src/lib/support-chat.functions.ts b/src/lib/support-chat.functions.ts
+index 1d17948..91d9ecb 100644
+--- a/src/lib/support-chat.functions.ts
++++ b/src/lib/support-chat.functions.ts
+@@ -5,11 +5,13 @@ import { z } from "zod";
+ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+ import { supabaseAdmin } from "@/integrations/supabase/client.server";
+ import { sendTransactionalEmail } from "@/lib/email.server";
++import { relayVisitorMessageToTelegram } from "@/lib/support-visitors.server";
+ 
+ const db = supabaseAdmin as any;
+ 
+ export interface SupportConversation {
+   id: string;
++  visitor_token_hash?: string | null;
+   user_id: string | null;
+   status: "bot" | "human" | "closed";
+   human_requested_at: string | null;
+@@ -139,8 +141,8 @@ async function getGuestConversation(visitorToken: string) {
+   return data as SupportConversation | null;
+ }
+ 
+-async function createGuestConversation() {
+-  const visitorToken = randomUUID();
++async function createGuestConversation(existingToken?: string) {
++  const visitorToken = existingToken ?? randomUUID();
+   const { data, error } = await db
+     .from("support_conversations")
+     .insert({ visitor_token_hash: hashVisitorToken(visitorToken) })
+@@ -229,18 +231,24 @@ async function appendCustomerMessage(conversation: SupportConversation, content:
+   if (customerError) throw new Error(customerError.message);
+ 
+   const now = new Date().toISOString();
+-  const reply = await generateSupportReply(conversation, content);
+-  const { data: botMessage, error: botError } = await db
+-    .from("support_messages")
+-    .insert({ conversation_id: conversation.id, sender: "bot", content: reply.content })
+-    .select("*")
+-    .single();
+-  if (botError) throw new Error(botError.message);
++  // Once a person has answered, the AI stays quiet so the human conversation (including Telegram replies) isn't interrupted.
++  const humanIsHandling = conversation.status === "human" && Boolean(conversation.agent_replied_at);
++  const reply: SupportReply | null = humanIsHandling ? null : await generateSupportReply(conversation, content);
++  let botMessage: SupportMessage | null = null;
++  if (reply) {
++    const { data, error: botError } = await db
++      .from("support_messages")
++      .insert({ conversation_id: conversation.id, sender: "bot", content: reply.content })
++      .select("*")
++      .single();
++    if (botError) throw new Error(botError.message);
++    botMessage = data as SupportMessage;
++  }
+ 
+   const staysInHumanQueue = conversation.status === "human";
+   const conversationUpdate = staysInHumanQueue
+     ? { status: "human", updated_at: now }
+-    : reply.status === "human"
++    : reply?.status === "human"
+     ? { status: "human", updated_at: now, human_requested_at: now, agent_replied_at: null }
+     : { status: "bot", updated_at: now };
+   await db
+@@ -254,10 +262,11 @@ async function appendCustomerMessage(conversation: SupportConversation, content:
+       emailSupportAdmin({ ...conversation, ...conversationUpdate } as SupportConversation, content),
+     ]);
+   }
++  await relayVisitorMessageToTelegram(conversation.visitor_token_hash, content);
+ 
+   return {
+     conversation: { ...conversation, ...conversationUpdate } as SupportConversation,
+-    messages: [customerMessage, botMessage] as SupportMessage[],
++    messages: [customerMessage, ...(botMessage ? [botMessage] : [])] as SupportMessage[],
+   };
+ }
+ 
+@@ -307,9 +316,10 @@ export const sendSupportMessage = createServerFn({ method: "POST" })
+   });
+ 
+ export const startGuestSupportChat = createServerFn({ method: "POST" })
+-  .handler(async () => {
++  .inputValidator((data) => z.object({ visitorToken: z.string().uuid().optional() }).optional().parse(data))
++  .handler(async ({ data }) => {
+     try {
+-      const { conversation, visitorToken } = await createGuestConversation();
++      const { conversation, visitorToken } = await createGuestConversation(data?.visitorToken);
+       return { conversation, visitorToken, messages: [] as SupportMessage[] } as const;
+     } catch (error) {
+       return { error: error instanceof Error ? error.message : "Unable to start guest chat." } as const;
+diff --git a/src/lib/support-visitors.functions.ts b/src/lib/support-visitors.functions.ts
+new file mode 100644
+index 0000000..3dc9e32
+--- /dev/null
++++ b/src/lib/support-visitors.functions.ts
+@@ -0,0 +1,26 @@
++import { createServerFn } from "@tanstack/react-start";
++import { getRequest } from "@tanstack/react-start/server";
++import { z } from "zod";
++import { recordVisitorEvent } from "@/lib/support-visitors.server";
++import { VISITOR_EVENT_TYPES } from "@/lib/visitor-events";
++
++const trackSchema = z.object({
++  visitorToken: z.string().uuid(),
++  event: z.enum(VISITOR_EVENT_TYPES),
++  path: z.string().max(300),
++  referrer: z.string().max(500).optional(),
++  utm: z.object({
++    source: z.string().max(100).optional(),
++    medium: z.string().max(100).optional(),
++    campaign: z.string().max(100).optional(),
++  }).optional(),
++});
++
++/** Public, fire-and-forget. Always resolves ok so tracking can never break the page. */
++export const trackVisitor = createServerFn({ method: "POST" })
++  .inputValidator((data) => trackSchema.parse(data))
++  .handler(async ({ data }) => {
++    const userAgent = getRequest()?.headers.get("user-agent") ?? "";
++    await recordVisitorEvent({ ...data, userAgent });
++    return { ok: true } as const;
++  });
+diff --git a/src/lib/support-visitors.server.ts b/src/lib/support-visitors.server.ts
+new file mode 100644
+index 0000000..dcd654c
+--- /dev/null
++++ b/src/lib/support-visitors.server.ts
+@@ -0,0 +1,180 @@
++import { supabaseAdmin } from "@/integrations/supabase/client.server";
++import { createHash } from "node:crypto";
++import type { VisitorEventType } from "@/lib/visitor-events";
++import { sendTelegram, telegramConfigured, telegramCall, operatorChatId } from "@/lib/telegram.server";
++
++const db = supabaseAdmin as any;
++
++// Must match hashVisitorToken() in support-chat.functions.ts.
++const hashVisitorToken = (token: string) => createHash("sha256").update(token).digest("hex");
++
++
++const NOTIFY_LABEL: Partial<Record<VisitorEventType, string>> = {
++  finder_opened: "🔎 opened Finder",
++  studio_opened: "🛠️ opened Studio",
++  pricing_opened: "💰 looked at Pricing",
++  signup_started: "👤 started signup",
++  checkout_started: "💳 started checkout",
++  chat_opened: "💬 opened the support chat",
++};
++
++const BOT_RE = /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|pingdom|uptime/i;
++const MAX_NEW_VISITOR_PINGS_PER_MINUTE = 30;
++
++export function isBot(userAgent: string) {
++  return !userAgent || BOT_RE.test(userAgent);
++}
++
++export function parseDevice(ua: string) {
++  const os = /iPhone|iPad/.test(ua) ? "iPhone/iPad" : /Android/.test(ua) ? "Android"
++    : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "Unknown";
++  const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Chrome\//.test(ua) ? "Chrome"
++    : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Browser";
++  return `${os} · ${browser}`;
++}
++
++function sourceLabel(s: { utm_source?: string | null; referrer?: string | null }) {
++  if (s.utm_source) return s.utm_source;
++  if (s.referrer) {
++    try { return new URL(s.referrer).hostname.replace(/^www\./, ""); } catch { /* fall through */ }
++  }
++  return "Direct";
++}
++
++export const visitorLabel = (hash: string) => hash.slice(0, 4).toUpperCase();
++
++const messageButton = (sessionId: string) => ({
++  reply_markup: { inline_keyboard: [[{ text: "💬 Message visitor", callback_data: `msg:${sessionId}` }]] },
++});
++
++async function rememberThread(messageId: number | undefined, sessionId: string) {
++  if (!messageId) return;
++  await db.from("support_telegram_threads").upsert({ chat_id: operatorChatId(), message_id: messageId, session_id: sessionId });
++}
++
++export interface TrackInput {
++  visitorToken: string;
++  event: VisitorEventType;
++  path: string;
++  referrer?: string;
++  utm?: { source?: string; medium?: string; campaign?: string };
++  userAgent: string;
++}
++
++/** Records the event and pings Telegram. Never throws to the caller. */
++export async function recordVisitorEvent(input: TrackInput) {
++  try {
++    if (isBot(input.userAgent)) return;
++    const hash = hashVisitorToken(input.visitorToken);
++    const now = new Date().toISOString();
++
++    const { data: existing } = await db.from("support_visitor_sessions").select("*").eq("visitor_token_hash", hash).maybeSingle();
++    let session = existing;
++    let isNew = false;
++
++    if (!session) {
++      const { data: created, error } = await db.from("support_visitor_sessions").insert({
++        visitor_token_hash: hash,
++        landing_path: input.path,
++        current_path: input.path,
++        referrer: input.referrer?.slice(0, 500) || null,
++        utm_source: input.utm?.source?.slice(0, 100) || null,
++        utm_medium: input.utm?.medium?.slice(0, 100) || null,
++        utm_campaign: input.utm?.campaign?.slice(0, 100) || null,
++        device: parseDevice(input.userAgent),
++      }).select("*").single();
++      if (error) {
++        // Lost a race with a parallel request; reload and treat as existing.
++        const { data: again } = await db.from("support_visitor_sessions").select("*").eq("visitor_token_hash", hash).maybeSingle();
++        if (!again) return;
++        session = again;
++      } else {
++        session = created;
++        isNew = true;
++      }
++    } else {
++      await db.from("support_visitor_sessions").update({ current_path: input.path, last_seen_at: now }).eq("id", session.id);
++    }
++
++    const type: VisitorEventType = isNew ? "visitor_started" : input.event;
++    if (type === "visitor_started" && !isNew) return;
++
++    if (type !== "page_viewed" && type !== "visitor_started") {
++      const { data: seen } = await db.from("support_visitor_events").select("id").eq("session_id", session.id).eq("type", type).limit(1);
++      if (seen?.length) return; // each milestone notifies once per visitor
++    }
++    if (type === "page_viewed" && session.current_path === input.path && !isNew) return;
++
++    await db.from("support_visitor_events").insert({ session_id: session.id, type, path: input.path });
++    if (!telegramConfigured() || type === "page_viewed") return;
++
++    const who = `Visitor ${visitorLabel(hash)}`;
++    if (type === "visitor_started") {
++      const since = new Date(Date.now() - 60_000).toISOString();
++      const { count } = await db.from("support_visitor_sessions").select("id", { count: "exact", head: true }).gte("created_at", since);
++      if ((count ?? 0) > MAX_NEW_VISITOR_PINGS_PER_MINUTE) return;
++      const sent = await sendTelegram(
++        `🟢 NEW VISITOR\n\nPage: ${session.landing_path}\nSource: ${sourceLabel(session)}\nDevice: ${session.device}\nVisitor: ${visitorLabel(hash)}`,
++        messageButton(session.id),
++      );
++      await rememberThread(sent?.message_id, session.id);
++      return;
++    }
++
++    const { data: first } = await db.from("support_telegram_threads").select("message_id").eq("session_id", session.id).order("created_at", { ascending: true }).limit(1);
++    const sent = await sendTelegram(
++      `${who} ${NOTIFY_LABEL[type] ?? type}\n${input.path}`,
++      { ...messageButton(session.id), ...(first?.[0] ? { reply_to_message_id: first[0].message_id, allow_sending_without_reply: true } : {}) },
++    );
++    await rememberThread(sent?.message_id, session.id);
++  } catch (error) {
++    console.error("visitor tracking failed", error instanceof Error ? error.message : error);
++  }
++}
++
++/** Finds or creates the guest conversation for a visitor session so Telegram can write into the existing chat. */
++export async function getOrCreateConversationForSession(sessionId: string) {
++  const { data: session } = await db.from("support_visitor_sessions").select("visitor_token_hash").eq("id", sessionId).maybeSingle();
++  if (!session) return null;
++  const { data: existing } = await db.from("support_conversations").select("*").eq("visitor_token_hash", session.visitor_token_hash).maybeSingle();
++  if (existing) return existing;
++  const { data: created, error } = await db.from("support_conversations")
++    .insert({ visitor_token_hash: session.visitor_token_hash, status: "human", human_requested_at: new Date().toISOString() })
++    .select("*").single();
++  if (error) {
++    const { data: again } = await db.from("support_conversations").select("*").eq("visitor_token_hash", session.visitor_token_hash).maybeSingle();
++    return again ?? null;
++  }
++  return created;
++}
++
++/** Inserts an operator message exactly like the admin inbox reply does (sender "agent"). */
++export async function sendAgentMessageToSession(sessionId: string, content: string) {
++  const conversation = await getOrCreateConversationForSession(sessionId);
++  if (!conversation) return { error: "Visitor session not found." } as const;
++  const now = new Date().toISOString();
++  const { error } = await db.from("support_messages").insert({ conversation_id: conversation.id, sender: "agent", content: content.slice(0, 2000) });
++  if (error) return { error: error.message } as const;
++  await db.from("support_conversations")
++    .update({ status: "human", agent_replied_at: now, updated_at: now })
++    .eq("id", conversation.id);
++  return { ok: true } as const;
++}
++
++/** Called when a visitor writes in the chat: relays to Telegram so the operator can answer there. */
++export async function relayVisitorMessageToTelegram(visitorTokenHash: string | null | undefined, content: string) {
++  try {
++    if (!visitorTokenHash || !telegramConfigured()) return;
++    const { data: session } = await db.from("support_visitor_sessions").select("id").eq("visitor_token_hash", visitorTokenHash).maybeSingle();
++    if (!session) return;
++    const sent = await sendTelegram(
++      `💬 Visitor ${visitorLabel(visitorTokenHash)}:\n${content.slice(0, 1500)}\n\n(reply to this message to answer)`,
++      messageButton(session.id),
++    );
++    await rememberThread(sent?.message_id, session.id);
++  } catch (error) {
++    console.error("telegram relay failed", error instanceof Error ? error.message : error);
++  }
++}
++
++export { telegramCall };
+diff --git a/src/lib/telegram.server.ts b/src/lib/telegram.server.ts
+new file mode 100644
+index 0000000..e44559a
+--- /dev/null
++++ b/src/lib/telegram.server.ts
+@@ -0,0 +1,44 @@
++import { timingSafeEqual } from "node:crypto";
++
++const API = "https://api.telegram.org";
++
++export function telegramConfigured() {
++  return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_OPERATOR_CHAT_ID);
++}
++
++export function operatorChatId() {
++  return Number(process.env.TELEGRAM_OPERATOR_CHAT_ID);
++}
++
++export function verifyTelegramSecret(header: string | null) {
++  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
++  if (!secret || !header) return false;
++  const a = Buffer.from(header);
++  const b = Buffer.from(secret);
++  return a.length === b.length && timingSafeEqual(a, b);
++}
++
++export async function telegramCall<T = any>(method: string, body: Record<string, unknown>): Promise<T | null> {
++  const token = process.env.TELEGRAM_BOT_TOKEN;
++  if (!token) return null;
++  try {
++    const res = await fetch(`${API}/bot${token}/${method}`, {
++      method: "POST",
++      headers: { "Content-Type": "application/json" },
++      body: JSON.stringify(body),
++    });
++    const json = (await res.json()) as { ok: boolean; result?: T };
++    return json.ok ? (json.result ?? null) : null;
++  } catch {
++    return null;
++  }
++}
++
++export function sendTelegram(text: string, extra: Record<string, unknown> = {}) {
++  return telegramCall<{ message_id: number }>("sendMessage", {
++    chat_id: operatorChatId(),
++    text,
++    disable_web_page_preview: true,
++    ...extra,
++  });
++}
+diff --git a/src/lib/visitor-events.ts b/src/lib/visitor-events.ts
+new file mode 100644
+index 0000000..bc6c5c5
+--- /dev/null
++++ b/src/lib/visitor-events.ts
+@@ -0,0 +1,5 @@
++export const VISITOR_EVENT_TYPES = [
++  "visitor_started", "page_viewed", "finder_opened", "studio_opened",
++  "pricing_opened", "signup_started", "checkout_started", "chat_opened",
++] as const;
++export type VisitorEventType = (typeof VISITOR_EVENT_TYPES)[number];
+diff --git a/src/lib/visitor-tracking.ts b/src/lib/visitor-tracking.ts
+new file mode 100644
+index 0000000..df38aa5
+--- /dev/null
++++ b/src/lib/visitor-tracking.ts
+@@ -0,0 +1,49 @@
++import { trackVisitor } from "@/lib/support-visitors.functions";
++import type { VisitorEventType } from "@/lib/visitor-events";
++
++// Same key the support widget uses, so the visitor session and the guest chat share one identity.
++const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
++
++type ClientEvent = Exclude<VisitorEventType, "visitor_started">;
++
++function getOrCreateToken(): string | null {
++  try {
++    let token = window.localStorage.getItem(GUEST_TOKEN_KEY);
++    if (!token || !/^[0-9a-f-]{36}$/i.test(token)) {
++      token = crypto.randomUUID();
++      window.localStorage.setItem(GUEST_TOKEN_KEY, token);
++    }
++    return token;
++  } catch {
++    return null;
++  }
++}
++
++/** Fire-and-forget. Never throws, never blocks rendering. */
++export function trackVisitorEvent(event: ClientEvent) {
++  if (typeof window === "undefined") return;
++  const visitorToken = getOrCreateToken();
++  if (!visitorToken) return;
++  const params = new URLSearchParams(window.location.search);
++  void trackVisitor({
++    data: {
++      visitorToken,
++      event,
++      path: window.location.pathname,
++      referrer: document.referrer || undefined,
++      utm: {
++        source: params.get("utm_source") ?? undefined,
++        medium: params.get("utm_medium") ?? undefined,
++        campaign: params.get("utm_campaign") ?? undefined,
++      },
++    },
++  }).catch(() => undefined);
++}
++
++export function eventForPath(pathname: string): ClientEvent {
++  if (pathname.startsWith("/leads")) return "finder_opened";
++  if (pathname.startsWith("/studio")) return "studio_opened";
++  if (pathname.startsWith("/choose-plan") || pathname.startsWith("/billing")) return "pricing_opened";
++  if (pathname.startsWith("/signup")) return "signup_started";
++  return "page_viewed";
++}
+diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
+index a24129c..6a8732b 100644
+--- a/src/routeTree.gen.ts
++++ b/src/routeTree.gen.ts
+@@ -53,6 +53,7 @@ import { Route as AuthenticatedInternalMarketingRouteImport } from './routes/_au
+ import { Route as AuthenticatedClientPackLeadIdRouteImport } from './routes/_authenticated/client-pack.$leadId'
+ import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool/poll.$numberId'
+ import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
++import { Route as ApiPublicWebhooksTelegramSupportRouteImport } from './routes/api/public/webhooks/telegram-support'
+ import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
+ import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
+ import { Route as ApiPublicNumbersRenewalsRouteImport } from './routes/api/public/numbers/renewals'
+@@ -294,6 +295,12 @@ const ApiPublicWebhooksTelnyxVoiceRoute =
+     path: '/api/public/webhooks/telnyx-voice',
+     getParentRoute: () => rootRouteImport,
+   } as any)
++const ApiPublicWebhooksTelegramSupportRoute =
++  ApiPublicWebhooksTelegramSupportRouteImport.update({
++    id: '/api/public/webhooks/telegram-support',
++    path: '/api/public/webhooks/telegram-support',
++    getParentRoute: () => rootRouteImport,
++  } as any)
+ const ApiPublicWebhooksSmsIncomingRoute =
+   ApiPublicWebhooksSmsIncomingRouteImport.update({
+     id: '/api/public/webhooks/sms-incoming',
+@@ -399,6 +406,7 @@ export interface FileRoutesByFullPath {
+   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
+   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
+   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
++  '/api/public/webhooks/telegram-support': typeof ApiPublicWebhooksTelegramSupportRoute
+   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
+   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
+ }
+@@ -452,6 +460,7 @@ export interface FileRoutesByTo {
+   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
+   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
+   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
++  '/api/public/webhooks/telegram-support': typeof ApiPublicWebhooksTelegramSupportRoute
+   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
+   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
+ }
+@@ -508,6 +517,7 @@ export interface FileRoutesById {
+   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
+   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
+   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
++  '/api/public/webhooks/telegram-support': typeof ApiPublicWebhooksTelegramSupportRoute
+   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
+   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
+ }
+@@ -564,6 +574,7 @@ export interface FileRouteTypes {
+     | '/api/public/numbers/renewals'
+     | '/api/public/webhooks/paystack'
+     | '/api/public/webhooks/sms-incoming'
++    | '/api/public/webhooks/telegram-support'
+     | '/api/public/webhooks/telnyx-voice'
+     | '/api/smspool/poll/$numberId'
+   fileRoutesByTo: FileRoutesByTo
+@@ -617,6 +628,7 @@ export interface FileRouteTypes {
+     | '/api/public/numbers/renewals'
+     | '/api/public/webhooks/paystack'
+     | '/api/public/webhooks/sms-incoming'
++    | '/api/public/webhooks/telegram-support'
+     | '/api/public/webhooks/telnyx-voice'
+     | '/api/smspool/poll/$numberId'
+   id:
+@@ -672,6 +684,7 @@ export interface FileRouteTypes {
+     | '/api/public/numbers/renewals'
+     | '/api/public/webhooks/paystack'
+     | '/api/public/webhooks/sms-incoming'
++    | '/api/public/webhooks/telegram-support'
+     | '/api/public/webhooks/telnyx-voice'
+     | '/api/smspool/poll/$numberId'
+   fileRoutesById: FileRoutesById
+@@ -702,6 +715,7 @@ export interface RootRouteChildren {
+   ApiPublicNumbersRenewalsRoute: typeof ApiPublicNumbersRenewalsRoute
+   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
+   ApiPublicWebhooksSmsIncomingRoute: typeof ApiPublicWebhooksSmsIncomingRoute
++  ApiPublicWebhooksTelegramSupportRoute: typeof ApiPublicWebhooksTelegramSupportRoute
+   ApiPublicWebhooksTelnyxVoiceRoute: typeof ApiPublicWebhooksTelnyxVoiceRoute
+   ApiSmspoolPollNumberIdRoute: typeof ApiSmspoolPollNumberIdRoute
+ }
+@@ -1016,6 +1030,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof ApiPublicWebhooksTelnyxVoiceRouteImport
+       parentRoute: typeof rootRouteImport
+     }
++    '/api/public/webhooks/telegram-support': {
++      id: '/api/public/webhooks/telegram-support'
++      path: '/api/public/webhooks/telegram-support'
++      fullPath: '/api/public/webhooks/telegram-support'
++      preLoaderRoute: typeof ApiPublicWebhooksTelegramSupportRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+     '/api/public/webhooks/sms-incoming': {
+       id: '/api/public/webhooks/sms-incoming'
+       path: '/api/public/webhooks/sms-incoming'
+@@ -1180,6 +1201,7 @@ const rootRouteChildren: RootRouteChildren = {
+   ApiPublicNumbersRenewalsRoute: ApiPublicNumbersRenewalsRoute,
+   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
+   ApiPublicWebhooksSmsIncomingRoute: ApiPublicWebhooksSmsIncomingRoute,
++  ApiPublicWebhooksTelegramSupportRoute: ApiPublicWebhooksTelegramSupportRoute,
+   ApiPublicWebhooksTelnyxVoiceRoute: ApiPublicWebhooksTelnyxVoiceRoute,
+   ApiSmspoolPollNumberIdRoute: ApiSmspoolPollNumberIdRoute,
+ }
+diff --git a/src/routes/__root.tsx b/src/routes/__root.tsx
+index 859d913..38c0e88 100644
+--- a/src/routes/__root.tsx
++++ b/src/routes/__root.tsx
+@@ -27,6 +27,8 @@ import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+ 
+ import { AttributionSync } from "@/components/analytics/AttributionSync";
+ 
++import { VisitorTracker } from "@/components/analytics/VisitorTracker";
++
+ const adsenseClientId = import.meta.env.VITE_ADSENSE_CLIENT_ID?.trim();
+ const verifiedAdSenseClientId = /^ca-pub-[0-9]{10,20}$/.test(adsenseClientId ?? "")
+   ? adsenseClientId
+@@ -365,6 +367,8 @@ function RootComponent() {
+ 
+         <AttributionSync />
+ 
++        <VisitorTracker />
++
+         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+         <Outlet />
+ 
+diff --git a/src/routes/api/public/webhooks/telegram-support.ts b/src/routes/api/public/webhooks/telegram-support.ts
+new file mode 100644
+index 0000000..c30b6b8
+--- /dev/null
++++ b/src/routes/api/public/webhooks/telegram-support.ts
+@@ -0,0 +1,77 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { supabaseAdmin } from "@/integrations/supabase/client.server";
++import { operatorChatId, telegramCall, verifyTelegramSecret } from "@/lib/telegram.server";
++import { sendAgentMessageToSession, visitorLabel } from "@/lib/support-visitors.server";
++
++const db = supabaseAdmin as any;
++const ok = () => new Response("ok", { status: 200 });
++
++async function labelFor(sessionId: string) {
++  const { data } = await db.from("support_visitor_sessions").select("visitor_token_hash").eq("id", sessionId).maybeSingle();
++  return data ? visitorLabel(data.visitor_token_hash) : "visitor";
++}
++
++/**
++ * Telegram bot webhook. Register with:
++ *   https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://kodarai.xyz/api/public/webhooks/telegram-support&secret_token=<TELEGRAM_WEBHOOK_SECRET>
++ * Only the configured operator chat is ever served.
++ */
++export const Route = createFileRoute("/api/public/webhooks/telegram-support")({
++  server: {
++    handlers: {
++      POST: async ({ request }) => {
++        if (!verifyTelegramSecret(request.headers.get("x-telegram-bot-api-secret-token"))) {
++          return new Response("Unauthorized", { status: 401 });
++        }
++        let update: any;
++        try { update = await request.json(); } catch { return ok(); }
++        const chatId = operatorChatId();
++
++        // "💬 Message visitor" button
++        const callback = update?.callback_query;
++        if (callback) {
++          if (callback.message?.chat?.id !== chatId) return ok();
++          const sessionId = String(callback.data ?? "").startsWith("msg:") ? String(callback.data).slice(4) : null;
++          if (sessionId) {
++            await db.from("support_telegram_operator").upsert({ chat_id: chatId, active_session_id: sessionId, updated_at: new Date().toISOString() });
++            await telegramCall("answerCallbackQuery", { callback_query_id: callback.id, text: "Now messaging this visitor" });
++            await telegramCall("sendMessage", {
++              chat_id: chatId,
++              text: `✍️ Now messaging Visitor ${await labelFor(sessionId)}. Type your message — it appears in their support chat.`,
++            });
++          }
++          return ok();
++        }
++
++        const message = update?.message;
++        if (!message || message.chat?.id !== chatId || typeof message.text !== "string") return ok();
++        const text = message.text.trim();
++        if (!text || text.startsWith("/")) return ok();
++
++        // Replying to a notification targets that visitor; otherwise use the visitor chosen via the button.
++        let sessionId: string | null = null;
++        const repliedTo = message.reply_to_message?.message_id;
++        if (repliedTo) {
++          const { data } = await db.from("support_telegram_threads").select("session_id").eq("chat_id", chatId).eq("message_id", repliedTo).maybeSingle();
++          sessionId = data?.session_id ?? null;
++        }
++        if (!sessionId) {
++          const { data } = await db.from("support_telegram_operator").select("active_session_id").eq("chat_id", chatId).maybeSingle();
++          sessionId = data?.active_session_id ?? null;
++        }
++        if (!sessionId) {
++          await telegramCall("sendMessage", { chat_id: chatId, text: "Tap “💬 Message visitor” on a notification first, or reply directly to one." });
++          return ok();
++        }
++
++        const result = await sendAgentMessageToSession(sessionId, text);
++        await telegramCall("sendMessage", {
++          chat_id: chatId,
++          text: "error" in result ? `⚠️ Not delivered: ${result.error}` : `✅ Sent to Visitor ${await labelFor(sessionId)}`,
++          reply_to_message_id: message.message_id,
++        });
++        return ok();
++      },
++    },
++  },
++});
+diff --git a/supabase/migrations/20261004120000_support_visitor_tracking.sql b/supabase/migrations/20261004120000_support_visitor_tracking.sql
+new file mode 100644
+index 0000000..20e5dcf
+--- /dev/null
++++ b/supabase/migrations/20261004120000_support_visitor_tracking.sql
+@@ -0,0 +1,59 @@
++-- Anonymous visitor tracking + Telegram operator bridge for the existing support chat.
++-- Additive only. All access is through server functions using the service role.
++
++CREATE TABLE public.support_visitor_sessions (
++  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++  visitor_token_hash text NOT NULL UNIQUE,
++  landing_path text,
++  current_path text,
++  referrer text,
++  utm_source text,
++  utm_medium text,
++  utm_campaign text,
++  device text,
++  created_at timestamptz NOT NULL DEFAULT now(),
++  last_seen_at timestamptz NOT NULL DEFAULT now()
++);
++
++CREATE TABLE public.support_visitor_events (
++  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++  session_id uuid NOT NULL REFERENCES public.support_visitor_sessions(id) ON DELETE CASCADE,
++  type text NOT NULL CHECK (type IN (
++    'visitor_started','page_viewed','finder_opened','studio_opened',
++    'pricing_opened','signup_started','checkout_started','chat_opened'
++  )),
++  path text,
++  created_at timestamptz NOT NULL DEFAULT now()
++);
++CREATE INDEX support_visitor_events_session_idx
++  ON public.support_visitor_events (session_id, created_at DESC);
++
++-- Maps Telegram messages back to visitor sessions so operator replies route correctly.
++CREATE TABLE public.support_telegram_threads (
++  chat_id bigint NOT NULL,
++  message_id bigint NOT NULL,
++  session_id uuid NOT NULL REFERENCES public.support_visitor_sessions(id) ON DELETE CASCADE,
++  created_at timestamptz NOT NULL DEFAULT now(),
++  PRIMARY KEY (chat_id, message_id)
++);
++
++-- The visitor the operator is currently talking to (set by the "Message visitor" button).
++CREATE TABLE public.support_telegram_operator (
++  chat_id bigint PRIMARY KEY,
++  active_session_id uuid REFERENCES public.support_visitor_sessions(id) ON DELETE SET NULL,
++  updated_at timestamptz NOT NULL DEFAULT now()
++);
++
++ALTER TABLE public.support_visitor_sessions ENABLE ROW LEVEL SECURITY;
++ALTER TABLE public.support_visitor_events ENABLE ROW LEVEL SECURITY;
++ALTER TABLE public.support_telegram_threads ENABLE ROW LEVEL SECURITY;
++ALTER TABLE public.support_telegram_operator ENABLE ROW LEVEL SECURITY;
++
++REVOKE ALL ON TABLE public.support_visitor_sessions FROM anon, authenticated;
++REVOKE ALL ON TABLE public.support_visitor_events FROM anon, authenticated;
++REVOKE ALL ON TABLE public.support_telegram_threads FROM anon, authenticated;
++REVOKE ALL ON TABLE public.support_telegram_operator FROM anon, authenticated;
++GRANT ALL ON TABLE public.support_visitor_sessions TO service_role;
++GRANT ALL ON TABLE public.support_visitor_events TO service_role;
++GRANT ALL ON TABLE public.support_telegram_threads TO service_role;
++GRANT ALL ON TABLE public.support_telegram_operator TO service_role;
+-- 
+2.43.0
+
