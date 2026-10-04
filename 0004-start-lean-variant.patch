@@ -1,0 +1,241 @@
+From ebf96e0e56e0a1da9b647dc87136f549c7ea8ec3 Mon Sep 17 00:00:00 2001
+From: Kodarai Dev <dev@kodarai.xyz>
+Date: Sun, 4 Oct 2026 23:35:34 +0000
+Subject: [PATCH] /start: lean landing variant (default); full page kept at
+ ?v=full
+
+- Lean page: rotating headline, short subline, first quiz question inline
+  (tapping an option starts the quiz and fires funnel_started), proof video
+  slot with Finder screenshot as poster, plain-English strip, 3 short steps,
+  collapsed FAQ, final CTA, sticky mobile CTA after 520px scroll
+- Trimmed from lean: how-it-works, example card, workflow, reviews and proof
+  gallery sections (still on /start?v=full)
+- Fires start_variant_viewed {variant: lean|full}
+- Optional: add public/start/finder-loop.mp4 (muted 6-10s Finder recording)
+---
+ src/routes/start.tsx | 174 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 173 insertions(+), 1 deletion(-)
+
+diff --git a/src/routes/start.tsx b/src/routes/start.tsx
+index 6fd6102..4403cbe 100644
+--- a/src/routes/start.tsx
++++ b/src/routes/start.tsx
+@@ -351,6 +351,8 @@ function StartPage() {
+     >([]);
+ 
+   const [hook, setHook] = useState<string | null>(null);
++  // "lean" is the default; /start?v=full shows the original long page.
++  const [variant, setVariant] = useState<"lean" | "full">("lean");
+ 
+   useEffect(() => {
+     trackFunnelViewed();
+@@ -383,6 +385,10 @@ function StartPage() {
+ 
+     setAttribution(values);
+ 
++    const pageVariant = params.get("v") === "full" ? "full" : "lean";
++    setVariant(pageVariant);
++    trackEvent("start_variant_viewed", { variant: pageVariant });
++
+     const hookParam = params.get("h");
+     if (hookParam && hookParam in HERO_HOOKS) {
+       setHook(hookParam);
+@@ -516,6 +522,12 @@ function StartPage() {
+     );
+   };
+ 
++  // Lean page: the first question is on the landing screen itself.
++  const pickExperienceFromIntro = (value: Experience) => {
++    trackFunnelStarted();
++    chooseExperience(value);
++  };
++
+   const chooseGoal = (
+     value: Goal,
+   ) => {
+@@ -596,7 +608,7 @@ function StartPage() {
+ 
+   return (
+     <div className="min-h-[100dvh] bg-[#f8f7f1] text-[#10140f]">
+-      {step === 0 && (
++      {step === 0 && variant === "full" && (
+         <IntroPage
+           hook={hook}
+           heroImage={
+@@ -616,6 +628,14 @@ function StartPage() {
+           }
+         />
+       )}
++      {step === 0 && variant !== "full" && (
++        <LeanIntro
++          hook={hook}
++          reviews={reviews}
++          onStart={beginQuestions}
++          onPickExperience={pickExperienceFromIntro}
++        />
++      )}
+ 
+       {step === 1 && (
+         <QuestionShell
+@@ -945,6 +965,158 @@ function IntroPage({
+   );
+ }
+ 
++// Optional 6-10s muted screen recording of the Finder. Drop the file at
++// public/start/finder-loop.mp4. Until it exists the browser just shows the poster image.
++const START_FINDER_VIDEO = "/start/finder-loop.mp4";
++
++function LeanSteps() {
++  const steps = [
++    {
++      title: "Find",
++      text: "Pick a city and a type of business. Kodarai lists ones with good reviews and no website.",
++    },
++    {
++      title: "Build",
++      text: "One tap builds a sample website for that business.",
++    },
++    {
++      title: "Send and get paid",
++      text: "Send the owner the link with a ready-made message. If they like it, agree a price.",
++    },
++  ];
++
++  return (
++    <section className="bg-[#f8f7f1]">
++      <div className="mx-auto w-full max-w-[640px] px-5 py-10 sm:px-8">
++        <ol className="space-y-4">
++          {steps.map((step, index) => (
++            <li key={step.title} className="flex gap-3">
++              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e4f4e6] text-[13px] font-bold text-[#15854d]">
++                {index + 1}
++              </span>
++              <div>
++                <p className="text-[15px] font-bold text-[#172019]">{step.title}</p>
++                <p className="mt-0.5 text-[14px] leading-6 text-[#4d5a52]">{step.text}</p>
++              </div>
++            </li>
++          ))}
++        </ol>
++      </div>
++    </section>
++  );
++}
++
++// Lean /start: one promise, the first quiz question right under it, one proof,
++// then only the sections that answer a beginner's doubts. The full page stays
++// available at /start?v=full for comparison.
++function LeanIntro({
++  hook,
++  reviews,
++  onStart,
++  onPickExperience,
++}: {
++  hook: string | null;
++  reviews: PublicMarketingReview[];
++  onStart: () => void;
++  onPickExperience: (value: Experience) => void;
++}) {
++  const [showSticky, setShowSticky] = useState(false);
++
++  useEffect(() => {
++    const timer = window.setTimeout(() => {
++      trackViewContent("start_intro");
++    }, 10000);
++    const onScroll = () => setShowSticky(window.scrollY > 520);
++    window.addEventListener("scroll", onScroll, { passive: true });
++    return () => {
++      window.clearTimeout(timer);
++      window.removeEventListener("scroll", onScroll);
++    };
++  }, []);
++
++  return (
++    <main className="overflow-hidden pb-24 lg:pb-0">
++      <section className="mx-auto w-full max-w-[640px] px-5 pb-10 pt-6 sm:px-8">
++        <Brand />
++
++        <div className="mt-7">
++          <HeroHeadline pinned={hook} />
++
++          <p className="mt-4 max-w-[560px] text-[15px] leading-7 text-[#4d5a52] sm:text-[16px]">
++            No coding needed. Kodarai finds businesses with great Google reviews and no website,
++            builds a sample site for each one, and helps you sell it.
++          </p>
++
++          <p className="mt-6 text-[13px] font-bold text-[#172019]">
++            Which one sounds like you? Tap to start.
++          </p>
++
++          <div className="mt-3 space-y-2.5">
++            {EXPERIENCE_OPTIONS.map((option) => (
++              <ChoiceCard
++                key={option.value}
++                title={option.title}
++                description={option.description}
++                icon={option.icon}
++                selected={false}
++                onClick={() => onPickExperience(option.value)}
++              />
++            ))}
++          </div>
++
++          <p className="mt-3 text-[12px] leading-5 text-[#687169]">
++            Takes about 30 seconds · Plans from {FIRST_PACK_PRICE} · Pay with Paystack
++          </p>
++        </div>
++      </section>
++
++      <section className="bg-[#f5f6f0]">
++        <div className="mx-auto w-full max-w-[640px] px-5 py-10 sm:px-8">
++          <h2 className="text-center text-[22px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-[28px]">
++            See it in action
++          </h2>
++          <p className="mt-2 text-center text-[13px] text-[#687169]">
++            Search a city, pick a business with no website, tap Build Website.
++          </p>
++          <div className="mt-5 overflow-hidden rounded-[20px] border border-[#dce2db] bg-white p-2">
++            <video
++              className="w-full rounded-[14px] bg-[#edf0ea]"
++              autoPlay
++              muted
++              loop
++              playsInline
++              preload="metadata"
++              poster={START_FINDER_IMAGE}
++              aria-label="Kodarai Finder showing businesses with no website and a Build Website button"
++            >
++              <source src={START_FINDER_VIDEO} type="video/mp4" />
++            </video>
++            <p className="px-1 pt-2 text-[10px] text-[#687169]">Real Kodarai Finder interface</p>
++          </div>
++        </div>
++      </section>
++
++      <PlainEnglish />
++      <LeanSteps />
++      <StartFaq />
++      <FinalIntroCta reviews={reviews} onStart={onStart} />
++
++      {showSticky && (
++        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e0e5df] bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur lg:hidden">
++          <button
++            type="button"
++            onClick={onStart}
++            className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white active:scale-[0.99]"
++          >
++            Find my first business
++            <ArrowRight className="size-4" />
++          </button>
++        </div>
++      )}
++    </main>
++  );
++}
++
+ function PlainEnglish() {
+   const items = [
+     {
+-- 
+2.43.0
+
