@@ -1,0 +1,318 @@
+From ec9e0b0ffc4571365622b91134e9ed9e28818f3b Mon Sep 17 00:00:00 2001
+From: Kodarai Dev <dev@kodarai.xyz>
+Date: Sun, 4 Oct 2026 10:47:28 +0000
+Subject: [PATCH] Manage Meta Pixel ID from /internal/marketing; keep Monthly
+ plans as default tab
+
+- choose-plan: default tab back to Monthly plans
+- Meta Pixel ID is now stored in marketing_adsense_settings.meta_pixel_id and
+  edited in /internal/marketing > Website analytics (accepts the numeric ID or
+  pasted Meta Pixel code; only the ID is extracted)
+- AnalyticsProvider loads the ID from settings (VITE_META_PIXEL_ID is only a
+  fallback) and fires the first PageView after the async init
+- SQL: supabase/migrations/20261004140000_add_meta_pixel_id.sql
+---
+ .../analytics/AnalyticsProvider.tsx           | 26 +++++++--
+ src/lib/analytics.ts                          | 11 ++++
+ src/lib/internal-marketing.functions.ts       | 55 ++++++++++++++++++-
+ src/routes/_authenticated/choose-plan.tsx     |  2 +-
+ .../_authenticated/internal.marketing.tsx     | 43 +++++++++++++++
+ .../20261004140000_add_meta_pixel_id.sql      | 11 ++++
+ 6 files changed, 142 insertions(+), 6 deletions(-)
+ create mode 100644 supabase/migrations/20261004140000_add_meta_pixel_id.sql
+
+diff --git a/src/components/analytics/AnalyticsProvider.tsx b/src/components/analytics/AnalyticsProvider.tsx
+index 8621dfa..3537ed0 100644
+--- a/src/components/analytics/AnalyticsProvider.tsx
++++ b/src/components/analytics/AnalyticsProvider.tsx
+@@ -1,21 +1,39 @@
+ import { useEffect } from "react";
+ import { useRouterState } from "@tanstack/react-router";
+ import { useServerFn } from "@tanstack/react-start";
+-import { initializeGoogleAnalytics, initializePixels, trackPageView } from "@/lib/analytics";
+-import { getPublicGoogleAnalyticsSettings } from "@/lib/internal-marketing.functions";
++import {
++  initializeGoogleAnalytics,
++  initializePixels,
++  trackInitialPixelPageView,
++  trackPageView,
++} from "@/lib/analytics";
++import {
++  getPublicGoogleAnalyticsSettings,
++  getPublicMetaPixelSettings,
++} from "@/lib/internal-marketing.functions";
+ 
+ export function AnalyticsProvider() {
+   const getGoogleAnalyticsSettings = useServerFn(getPublicGoogleAnalyticsSettings);
++  const getMetaPixelSettings = useServerFn(getPublicMetaPixelSettings);
+   const locationKey = useRouterState({
+     select: (state) => `${state.location.pathname}${state.location.searchStr}`,
+   });
+ 
+   useEffect(() => {
+-    initializePixels(import.meta.env.VITE_META_PIXEL_ID, import.meta.env.VITE_TIKTOK_PIXEL_ID);
++    // The Meta Pixel ID is managed in /internal/marketing; the env var is only a fallback.
++    const envMetaPixelId = import.meta.env.VITE_META_PIXEL_ID;
++    const tiktokPixelId = import.meta.env.VITE_TIKTOK_PIXEL_ID;
++    void getMetaPixelSettings()
++      .then((settings) => settings.pixelId ?? envMetaPixelId)
++      .catch(() => envMetaPixelId)
++      .then((metaPixelId) => {
++        initializePixels(metaPixelId, tiktokPixelId);
++        trackInitialPixelPageView();
++      });
+     void getGoogleAnalyticsSettings()
+       .then((settings) => initializeGoogleAnalytics(settings.measurementId))
+       .catch(() => undefined);
+-  }, [getGoogleAnalyticsSettings]);
++  }, [getGoogleAnalyticsSettings, getMetaPixelSettings]);
+ 
+   useEffect(() => {
+     trackPageView(locationKey);
+diff --git a/src/lib/analytics.ts b/src/lib/analytics.ts
+index 4466c65..ad3de1f 100644
+--- a/src/lib/analytics.ts
++++ b/src/lib/analytics.ts
+@@ -312,6 +312,17 @@ export function trackPageView(
+   }
+ }
+ 
++// The pixel ID is loaded asynchronously (from the founder's marketing settings), so the
++// first PageView can fire before fbq exists. Call once right after initializePixels.
++export function trackInitialPixelPageView() {
++  try {
++    window.fbq?.("track", "PageView");
++    window.ttq?.page?.();
++  } catch {
++    // Tracking must not affect navigation.
++  }
++}
++
+ const metaStandardEvents = new Set([
+   "CompleteRegistration",
+   "Search",
+diff --git a/src/lib/internal-marketing.functions.ts b/src/lib/internal-marketing.functions.ts
+index 16a4fab..b126181 100644
+--- a/src/lib/internal-marketing.functions.ts
++++ b/src/lib/internal-marketing.functions.ts
+@@ -24,6 +24,10 @@ const googleAnalyticsSettingsSchema = accessSchema.extend({
+   measurementCode: z.string().trim().max(10_000).default(""),
+ });
+ 
++const metaPixelSettingsSchema = accessSchema.extend({
++  pixelCode: z.string().trim().max(10_000).default(""),
++});
++
+ const visitorDimensionSchema = z
+   .string()
+   .trim()
+@@ -182,6 +186,7 @@ type AdSenseSettingsRow = {
+   publisher_id: string | null;
+   landing_ad_slot: string | null;
+   google_analytics_measurement_id: string | null;
++  meta_pixel_id: string | null;
+ };
+ 
+ function parseAdSenseCode(adCode: string) {
+@@ -211,7 +216,7 @@ async function readAdSenseSettings() {
+   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   const { data, error } = await (supabaseAdmin as any)
+     .from("marketing_adsense_settings")
+-    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id")
++    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id")
+     .eq("singleton", true)
+     .maybeSingle();
+   if (error) throw new Error("Could not read AdSense settings.");
+@@ -255,6 +260,27 @@ export const getPublicGoogleAnalyticsSettings = createServerFn({ method: "GET" }
+   },
+ );
+ 
++function parseMetaPixelId(pixelCode: string) {
++  const code = pixelCode.trim();
++  const pixelId = /^[0-9]{10,20}$/.test(code)
++    ? code
++    : code.match(/fbq\(\s*['"]init['"]\s*,\s*['"]?([0-9]{10,20})/i)?.[1];
++  if (!pixelId)
++    return {
++      error: "Paste your Meta Pixel ID (numbers only) or the official Meta Pixel code.",
++    } as const;
++  return { pixelId } as const;
++}
++
++export const getPublicMetaPixelSettings = createServerFn({ method: "GET" }).handler(async () => {
++  try {
++    const settings = await readAdSenseSettings();
++    return { pixelId: settings?.meta_pixel_id ?? null } as const;
++  } catch {
++    return { pixelId: null } as const;
++  }
++});
++
+ async function hashVisitorId(visitorId: string) {
+   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(visitorId));
+   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+@@ -328,6 +354,7 @@ export const getMarketingVisitorDashboard = createServerFn({ method: "POST" })
+         .sort((left, right) => right.visitors - left.visitors)
+         .slice(0, 8),
+       googleAnalyticsMeasurementId: settings?.google_analytics_measurement_id ?? null,
++      metaPixelId: settings?.meta_pixel_id ?? null,
+     } as const;
+   });
+ 
+@@ -357,6 +384,32 @@ export const saveMarketingGoogleAnalyticsSettings = createServerFn({ method: "PO
+     return { measurementId: parsed.measurementId } as const;
+   });
+ 
++export const saveMarketingMetaPixelSettings = createServerFn({ method: "POST" })
++  .middleware([requireSupabaseAuth])
++  .inputValidator((data) => metaPixelSettingsSchema.parse(data))
++  .handler(async ({ data, context }) => {
++    await requireMarketingAccess(context.userId, data.passcode);
++    const parsed = parseMetaPixelId(data.pixelCode);
++    if ("error" in parsed) return { error: "pixel_error", message: parsed.error } as const;
++
++    // Supabase types are generated separately; this new migration is not represented yet.
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
++    const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
++      {
++        singleton: true,
++        meta_pixel_id: parsed.pixelId,
++        updated_by: context.userId,
++      },
++      { onConflict: "singleton" },
++    );
++    if (error)
++      return {
++        error: "pixel_error",
++        message: "Could not save the Meta Pixel. Apply the meta pixel migration first.",
++      } as const;
++    return { pixelId: parsed.pixelId } as const;
++  });
++
+ export const getMarketingAdSenseSettings = createServerFn({ method: "POST" })
+   .middleware([requireSupabaseAuth])
+   .inputValidator((data) => accessSchema.parse(data))
+diff --git a/src/routes/_authenticated/choose-plan.tsx b/src/routes/_authenticated/choose-plan.tsx
+index 08e5245..bb20c8a 100644
+--- a/src/routes/_authenticated/choose-plan.tsx
++++ b/src/routes/_authenticated/choose-plan.tsx
+@@ -58,7 +58,7 @@ function ChoosePlanPage() {
+           </p>
+         </div>
+ 
+-        <Tabs defaultValue="packs" className="mt-8 sm:mt-10">
++        <Tabs defaultValue="plans" className="mt-8 sm:mt-10">
+           <TabsList className="grid h-auto w-full max-w-md grid-cols-2 gap-1 p-1.5 mx-auto">
+             <TabsTrigger value="plans" className="gap-1.5 py-2">
+               <CreditCard className="size-4" />
+diff --git a/src/routes/_authenticated/internal.marketing.tsx b/src/routes/_authenticated/internal.marketing.tsx
+index 34c1a05..71537dc 100644
+--- a/src/routes/_authenticated/internal.marketing.tsx
++++ b/src/routes/_authenticated/internal.marketing.tsx
+@@ -29,6 +29,7 @@ import {
+   runPlanActivationEmails,
+   saveMarketingAdSenseSettings,
+   saveMarketingGoogleAnalyticsSettings,
++  saveMarketingMetaPixelSettings,
+   uploadMarketingAsset,
+   verifyMarketingAccess,
+ } from "@/lib/internal-marketing.functions";
+@@ -269,15 +270,19 @@ type VisitorDashboard = {
+   visitorsLast30Days: number;
+   sources: { source: string; medium: string | null; visitors: number }[];
+   googleAnalyticsMeasurementId: string | null;
++  metaPixelId: string | null;
+ };
+ 
+ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
+   const getDashboard = useServerFn(getMarketingVisitorDashboard);
+   const saveGoogleAnalytics = useServerFn(saveMarketingGoogleAnalyticsSettings);
++  const saveMetaPixel = useServerFn(saveMarketingMetaPixelSettings);
+   const [dashboard, setDashboard] = useState<VisitorDashboard | null>(null);
+   const [measurementCode, setMeasurementCode] = useState("");
++  const [pixelCode, setPixelCode] = useState("");
+   const [loading, setLoading] = useState(true);
+   const [saving, setSaving] = useState(false);
++  const [savingPixel, setSavingPixel] = useState(false);
+ 
+   const refresh = useCallback(async () => {
+     setLoading(true);
+@@ -285,6 +290,7 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
+       const next = await getDashboard({ data: { passcode } });
+       setDashboard(next);
+       setMeasurementCode(next.googleAnalyticsMeasurementId ?? "");
++      setPixelCode(next.metaPixelId ?? "");
+     } catch (error) {
+       toast.error(error instanceof Error ? error.message : "Could not load website analytics.");
+     } finally {
+@@ -311,6 +317,21 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
+     }
+   };
+ 
++  const savePixel = async (event: React.FormEvent) => {
++    event.preventDefault();
++    setSavingPixel(true);
++    try {
++      const result = await saveMetaPixel({ data: { passcode, pixelCode } });
++      if ("error" in result) throw new Error(result.message);
++      toast.success("Meta Pixel is connected. Reload the site to start tracking.");
++      await refresh();
++    } catch (error) {
++      toast.error(error instanceof Error ? error.message : "Could not save the Meta Pixel.");
++    } finally {
++      setSavingPixel(false);
++    }
++  };
++
+   return (
+     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+@@ -394,6 +415,28 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
+               {saving ? "Saving�" : "Connect Google Analytics"}
+             </Button>
+           </form>
++
++          <form className="mt-7 border-t border-border pt-6" onSubmit={savePixel}>
++            <Label htmlFor="meta-pixel-code">Meta Pixel ID or Meta Pixel code</Label>
++            <Input
++              id="meta-pixel-code"
++              className="mt-2"
++              value={pixelCode}
++              onChange={(event) => setPixelCode(event.target.value)}
++              maxLength={10_000}
++              placeholder="1234567890123456 or paste your Meta Pixel code"
++              required
++            />
++            <p className="mt-2 text-xs leading-5 text-muted-foreground">
++              KodarAI extracts and validates only the numeric pixel ID. It does not run arbitrary
++              pasted script. Events sent: PageView, ViewContent, Search, CompleteRegistration,
++              InitiateCheckout and Purchase.
++            </p>
++            <Button className="mt-4" type="submit" disabled={savingPixel || !pixelCode.trim()}>
++              {savingPixel && <Loader2 className="size-4 animate-spin" />}
++              {savingPixel ? "Saving..." : "Connect Meta Pixel"}
++            </Button>
++          </form>
+         </>
+       )}
+     </section>
+diff --git a/supabase/migrations/20261004140000_add_meta_pixel_id.sql b/supabase/migrations/20261004140000_add_meta_pixel_id.sql
+new file mode 100644
+index 0000000..bc67a57
+--- /dev/null
++++ b/supabase/migrations/20261004140000_add_meta_pixel_id.sql
+@@ -0,0 +1,11 @@
++-- Meta Pixel ID is managed from /internal/marketing alongside Google Analytics.
++-- A pixel ID is public once rendered to visitors; the table itself stays private.
++ALTER TABLE public.marketing_adsense_settings
++  ADD COLUMN IF NOT EXISTS meta_pixel_id text;
++
++ALTER TABLE public.marketing_adsense_settings
++  DROP CONSTRAINT IF EXISTS marketing_adsense_settings_meta_pixel_id_check;
++
++ALTER TABLE public.marketing_adsense_settings
++  ADD CONSTRAINT marketing_adsense_settings_meta_pixel_id_check
++  CHECK (meta_pixel_id IS NULL OR meta_pixel_id ~ '^[0-9]{10,20}$');
+-- 
+2.43.0
+
