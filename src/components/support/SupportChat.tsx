@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { trackVisitorEvent } from "@/lib/visitor-tracking";
 
 function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
   const known = new Set(current.map((message) => message.id));
@@ -30,6 +31,7 @@ function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
 }
 
 const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
+const AGENT_SEEN_KEY = "kodarai_support_agent_seen";
 
 export function SupportChat() {
   const { user, loading: authLoading } = useAuth();
@@ -55,6 +57,7 @@ export function SupportChat() {
   const [contactEmail, setContactEmail] = useState("");
   const [savingContact, setSavingContact] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [hasUnread, setHasUnread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -71,7 +74,7 @@ export function SupportChat() {
             const existing = await runGetGuestChat({ data: { visitorToken: savedToken } });
             if (!("error" in existing)) return { ...existing, visitorToken: savedToken };
           }
-          const created = await runStartGuestChat();
+          const created = await runStartGuestChat({ data: { visitorToken: savedToken ?? undefined } });
           if (!("error" in created)) window.localStorage.setItem(GUEST_TOKEN_KEY, created.visitorToken);
           return created;
         })();
@@ -143,6 +146,38 @@ export function SupportChat() {
 
     return () => { supabase.removeChannel(channel); };
   }, [conversation?.id, user?.id]);
+
+  useEffect(() => {
+    if (open) {
+      setHasUnread(false);
+      trackVisitorEvent("chat_opened");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const latestAgent = [...messages].reverse().find((message) => message.sender === "agent");
+    if (latestAgent) window.localStorage.setItem(AGENT_SEEN_KEY, latestAgent.created_at);
+  }, [messages, open]);
+
+  // Guests have no realtime channel, so while the widget is closed we check quietly for a human reply and show a dot.
+  useEffect(() => {
+    if (open || user || authLoading) return;
+    const savedToken = window.localStorage.getItem(GUEST_TOKEN_KEY);
+    if (!savedToken) return;
+    let active = true;
+    const check = async () => {
+      const result = await runGetGuestChat({ data: { visitorToken: savedToken } });
+      if (!active || "error" in result) return;
+      const latestAgent = [...result.messages].reverse().find((message) => message.sender === "agent");
+      if (!latestAgent) return;
+      const seen = window.localStorage.getItem(AGENT_SEEN_KEY) ?? "";
+      if (latestAgent.created_at > seen) setHasUnread(true);
+    };
+    const first = window.setTimeout(check, 4_000);
+    const interval = window.setInterval(check, 12_000);
+    return () => { active = false; window.clearTimeout(first); window.clearInterval(interval); };
+  }, [open, user?.id, authLoading]);
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ block: "end" });
@@ -253,9 +288,10 @@ export function SupportChat() {
         size="icon"
         onClick={() => setOpen(true)}
         className="fixed bottom-20 right-5 z-40 size-12 rounded-full shadow-lg md:bottom-6 md:right-6"
-        aria-label="Open support chat"
+        aria-label={hasUnread ? "Open support chat (new reply)" : "Open support chat"}
       >
         <MessageCircle className="size-5" />
+        {hasUnread && <span className="absolute right-0.5 top-0.5 size-3 rounded-full border-2 border-background bg-red-500" />}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

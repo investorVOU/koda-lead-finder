@@ -53,6 +53,7 @@ import { Route as AuthenticatedInternalMarketingRouteImport } from './routes/_au
 import { Route as AuthenticatedClientPackLeadIdRouteImport } from './routes/_authenticated/client-pack.$leadId'
 import { Route as ApiSmspoolPollNumberIdRouteImport } from './routes/api/smspool/poll.$numberId'
 import { Route as ApiPublicWebhooksTelnyxVoiceRouteImport } from './routes/api/public/webhooks/telnyx-voice'
+import { Route as ApiPublicWebhooksTelegramSupportRouteImport } from './routes/api/public/webhooks/telegram-support'
 import { Route as ApiPublicWebhooksSmsIncomingRouteImport } from './routes/api/public/webhooks/sms-incoming'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 import { Route as ApiPublicNumbersRenewalsRouteImport } from './routes/api/public/numbers/renewals'
@@ -294,6 +295,12 @@ const ApiPublicWebhooksTelnyxVoiceRoute =
     path: '/api/public/webhooks/telnyx-voice',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWebhooksTelegramSupportRoute =
+  ApiPublicWebhooksTelegramSupportRouteImport.update({
+    id: '/api/public/webhooks/telegram-support',
+    path: '/api/public/webhooks/telegram-support',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksSmsIncomingRoute =
   ApiPublicWebhooksSmsIncomingRouteImport.update({
     id: '/api/public/webhooks/sms-incoming',
@@ -399,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
+  '/api/public/webhooks/telegram-support': typeof ApiPublicWebhooksTelegramSupportRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
@@ -452,6 +460,7 @@ export interface FileRoutesByTo {
   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
+  '/api/public/webhooks/telegram-support': typeof ApiPublicWebhooksTelegramSupportRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
@@ -508,6 +517,7 @@ export interface FileRoutesById {
   '/api/public/numbers/renewals': typeof ApiPublicNumbersRenewalsRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
   '/api/public/webhooks/sms-incoming': typeof ApiPublicWebhooksSmsIncomingRoute
+  '/api/public/webhooks/telegram-support': typeof ApiPublicWebhooksTelegramSupportRoute
   '/api/public/webhooks/telnyx-voice': typeof ApiPublicWebhooksTelnyxVoiceRoute
   '/api/smspool/poll/$numberId': typeof ApiSmspoolPollNumberIdRoute
 }
@@ -564,6 +574,7 @@ export interface FileRouteTypes {
     | '/api/public/numbers/renewals'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
+    | '/api/public/webhooks/telegram-support'
     | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   fileRoutesByTo: FileRoutesByTo
@@ -617,6 +628,7 @@ export interface FileRouteTypes {
     | '/api/public/numbers/renewals'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
+    | '/api/public/webhooks/telegram-support'
     | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   id:
@@ -672,6 +684,7 @@ export interface FileRouteTypes {
     | '/api/public/numbers/renewals'
     | '/api/public/webhooks/paystack'
     | '/api/public/webhooks/sms-incoming'
+    | '/api/public/webhooks/telegram-support'
     | '/api/public/webhooks/telnyx-voice'
     | '/api/smspool/poll/$numberId'
   fileRoutesById: FileRoutesById
@@ -702,6 +715,7 @@ export interface RootRouteChildren {
   ApiPublicNumbersRenewalsRoute: typeof ApiPublicNumbersRenewalsRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
   ApiPublicWebhooksSmsIncomingRoute: typeof ApiPublicWebhooksSmsIncomingRoute
+  ApiPublicWebhooksTelegramSupportRoute: typeof ApiPublicWebhooksTelegramSupportRoute
   ApiPublicWebhooksTelnyxVoiceRoute: typeof ApiPublicWebhooksTelnyxVoiceRoute
   ApiSmspoolPollNumberIdRoute: typeof ApiSmspoolPollNumberIdRoute
 }
@@ -1016,6 +1030,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksTelnyxVoiceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/telegram-support': {
+      id: '/api/public/webhooks/telegram-support'
+      path: '/api/public/webhooks/telegram-support'
+      fullPath: '/api/public/webhooks/telegram-support'
+      preLoaderRoute: typeof ApiPublicWebhooksTelegramSupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/sms-incoming': {
       id: '/api/public/webhooks/sms-incoming'
       path: '/api/public/webhooks/sms-incoming'
@@ -1180,6 +1201,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNumbersRenewalsRoute: ApiPublicNumbersRenewalsRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
   ApiPublicWebhooksSmsIncomingRoute: ApiPublicWebhooksSmsIncomingRoute,
+  ApiPublicWebhooksTelegramSupportRoute: ApiPublicWebhooksTelegramSupportRoute,
   ApiPublicWebhooksTelnyxVoiceRoute: ApiPublicWebhooksTelnyxVoiceRoute,
   ApiSmspoolPollNumberIdRoute: ApiSmspoolPollNumberIdRoute,
 }

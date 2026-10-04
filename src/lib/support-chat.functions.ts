@@ -5,11 +5,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendTransactionalEmail } from "@/lib/email.server";
+import { relayVisitorMessageToTelegram } from "@/lib/support-visitors.server";
 
 const db = supabaseAdmin as any;
 
 export interface SupportConversation {
   id: string;
+  visitor_token_hash?: string | null;
   user_id: string | null;
   status: "bot" | "human" | "closed";
   human_requested_at: string | null;
@@ -139,8 +141,8 @@ async function getGuestConversation(visitorToken: string) {
   return data as SupportConversation | null;
 }
 
-async function createGuestConversation() {
-  const visitorToken = randomUUID();
+async function createGuestConversation(existingToken?: string) {
+  const visitorToken = existingToken ?? randomUUID();
   const { data, error } = await db
     .from("support_conversations")
     .insert({ visitor_token_hash: hashVisitorToken(visitorToken) })
@@ -229,18 +231,24 @@ async function appendCustomerMessage(conversation: SupportConversation, content:
   if (customerError) throw new Error(customerError.message);
 
   const now = new Date().toISOString();
-  const reply = await generateSupportReply(conversation, content);
-  const { data: botMessage, error: botError } = await db
-    .from("support_messages")
-    .insert({ conversation_id: conversation.id, sender: "bot", content: reply.content })
-    .select("*")
-    .single();
-  if (botError) throw new Error(botError.message);
+  // Once a person has answered, the AI stays quiet so the human conversation (including Telegram replies) isn't interrupted.
+  const humanIsHandling = conversation.status === "human" && Boolean(conversation.agent_replied_at);
+  const reply: SupportReply | null = humanIsHandling ? null : await generateSupportReply(conversation, content);
+  let botMessage: SupportMessage | null = null;
+  if (reply) {
+    const { data, error: botError } = await db
+      .from("support_messages")
+      .insert({ conversation_id: conversation.id, sender: "bot", content: reply.content })
+      .select("*")
+      .single();
+    if (botError) throw new Error(botError.message);
+    botMessage = data as SupportMessage;
+  }
 
   const staysInHumanQueue = conversation.status === "human";
   const conversationUpdate = staysInHumanQueue
     ? { status: "human", updated_at: now }
-    : reply.status === "human"
+    : reply?.status === "human"
     ? { status: "human", updated_at: now, human_requested_at: now, agent_replied_at: null }
     : { status: "bot", updated_at: now };
   await db
@@ -254,10 +262,11 @@ async function appendCustomerMessage(conversation: SupportConversation, content:
       emailSupportAdmin({ ...conversation, ...conversationUpdate } as SupportConversation, content),
     ]);
   }
+  await relayVisitorMessageToTelegram(conversation.visitor_token_hash, content);
 
   return {
     conversation: { ...conversation, ...conversationUpdate } as SupportConversation,
-    messages: [customerMessage, botMessage] as SupportMessage[],
+    messages: [customerMessage, ...(botMessage ? [botMessage] : [])] as SupportMessage[],
   };
 }
 
@@ -307,9 +316,10 @@ export const sendSupportMessage = createServerFn({ method: "POST" })
   });
 
 export const startGuestSupportChat = createServerFn({ method: "POST" })
-  .handler(async () => {
+  .inputValidator((data) => z.object({ visitorToken: z.string().uuid().optional() }).optional().parse(data))
+  .handler(async ({ data }) => {
     try {
-      const { conversation, visitorToken } = await createGuestConversation();
+      const { conversation, visitorToken } = await createGuestConversation(data?.visitorToken);
       return { conversation, visitorToken, messages: [] as SupportMessage[] } as const;
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Unable to start guest chat." } as const;

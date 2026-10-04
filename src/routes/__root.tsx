@@ -27,6 +27,8 @@ import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 
 import { AttributionSync } from "@/components/analytics/AttributionSync";
 
+import { VisitorTracker } from "@/components/analytics/VisitorTracker";
+
 const adsenseClientId = import.meta.env.VITE_ADSENSE_CLIENT_ID?.trim();
 const verifiedAdSenseClientId = /^ca-pub-[0-9]{10,20}$/.test(adsenseClientId ?? "")
   ? adsenseClientId
@@ -364,6 +366,8 @@ function RootComponent() {
         <AnalyticsProvider />
 
         <AttributionSync />
+
+        <VisitorTracker />
 
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
