@@ -60,6 +60,7 @@ import {
   trackFunnelSituationSelected,
   trackFunnelStarted,
   trackFunnelViewed,
+  trackViewContent,
   trackStartCallScriptDemoViewed,
   trackStartDemoLinkFeatureViewed,
   trackStartFinderDemoViewed,
@@ -722,6 +723,14 @@ function IntroPage({
       null,
     );
 
+  // Engaged-visitor signal for Meta: fires once after 10s on the intro page.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      trackViewContent("start_intro");
+    }, 10000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const scrollToHow =
     () => {
       howRef.current?.scrollIntoView({
@@ -738,8 +747,9 @@ function IntroPage({
         <div className="mt-8 lg:grid lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-14">
           <div>
             <Pill>
-              Real businesses.
-              Real opportunity.
+              Lead finder +
+              website builder
+              for freelancers
             </Pill>
 
             <h1 className="mt-4 max-w-[680px] text-[44px] font-bold leading-[0.96] tracking-[-0.06em] text-[#111611] sm:text-[58px] lg:text-[72px]">
@@ -754,13 +764,13 @@ function IntroPage({
             </h1>
 
             <p className="mt-5 max-w-[560px] text-[15px] leading-6 text-[#536059] sm:text-[17px] sm:leading-7">
-              Kodarai shows
-              you businesses
-              that need
-              websites. You
-              can make a
-              website for
-              them, show it
+              Find local
+              businesses with
+              great Google
+              reviews and no
+              website. Build
+              them a demo
+              site, show it
               to the owner
               and sell it.
             </p>
@@ -774,19 +784,29 @@ function IntroPage({
             <button
               type="button"
               onClick={
-                scrollToHow
+                onStart
               }
               className="mt-6 flex min-h-[58px] w-full max-w-[420px] items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white shadow-[0_10px_24px_rgba(7,150,83,0.17)] transition hover:bg-[#078549] active:scale-[0.99]"
             >
-              Show me how it works
+              Find my first business
 
               <ArrowRight className="size-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                scrollToHow
+              }
+              className="mt-3 text-[13px] font-semibold text-[#25342b] underline underline-offset-4"
+            >
+              See how it works
             </button>
 
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-[#727d75]">
               <span className="flex items-center gap-1.5">
                 <Check className="size-3.5 text-[#0a9451]" />
-                Free to get started
+                Plans from ₦3,200 · Pay with Paystack
               </span>
 
               <span className="flex items-center gap-1.5">

@@ -33,8 +33,19 @@ function ChoosePlanPage() {
       <PlanActivationEnrollmentSync />
 
       <div className="mx-auto max-w-5xl">
-        <div className="flex justify-center">
+        <div className="relative flex justify-center">
           <Logo />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground"
+            onClick={() => {
+              trackPlanSkipped("top");
+              navigate({ to: "/dashboard" });
+            }}
+          >
+            Explore first
+          </Button>
         </div>
 
         <div className="mt-8 text-center">
@@ -47,7 +58,7 @@ function ChoosePlanPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="plans" className="mt-8 sm:mt-10">
+        <Tabs defaultValue="packs" className="mt-8 sm:mt-10">
           <TabsList className="grid h-auto w-full max-w-md grid-cols-2 gap-1 p-1.5 mx-auto">
             <TabsTrigger value="plans" className="gap-1.5 py-2">
               <CreditCard className="size-4" />
@@ -205,7 +216,7 @@ function ChoosePlanPage() {
             variant="ghost"
             className="mt-3"
             onClick={() => {
-              trackPlanSkipped();
+              trackPlanSkipped("bottom");
               navigate({ to: "/dashboard" });
             }}
           >

@@ -315,6 +315,7 @@ export function trackPageView(
 const metaStandardEvents = new Set([
   "CompleteRegistration",
   "Search",
+  "ViewContent",
   "InitiateCheckout",
   "Purchase",
 ]);
@@ -441,7 +442,13 @@ export const trackFirstWebsiteGenerated = (userId?: string) =>
   trackOnce(`kodarai_first_website_generated_tracked:${userId ?? "device"}`, () =>
     trackEvent("first_website_generated"),
   );
-export const trackPlanSkipped = () => trackEvent("plan_skipped");
+export const trackPlanSkipped = (position: "top" | "bottom" = "bottom") =>
+  trackEvent("plan_skipped", { position });
+// Standard Meta ViewContent: an engaged visitor (stayed on the page ~10s). Once per device.
+export const trackViewContent = (contentName: string) =>
+  trackOnce(`kodarai_view_content_tracked:${contentName}`, () =>
+    trackEvent("ViewContent", { content_name: contentName }),
+  );
 export const trackPreviewModeEntered = () =>
   trackOnce("kodarai_preview_mode_entered", () => trackEvent("preview_mode_entered"));
 export const trackPreviewLockedAction = (
