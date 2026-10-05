@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { AGENT_MESSAGE_EVENT, trackVisitorEvent, type AgentMessageDetail } from "@/lib/visitor-tracking";
+import { AGENT_MESSAGE_EVENT, WELCOME_MESSAGE_EVENT, trackVisitorEvent, type AgentMessageDetail, type WelcomeMessageDetail } from "@/lib/visitor-tracking";
 
 function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
   const known = new Set(current.map((message) => message.id));
@@ -56,8 +56,10 @@ function playPing() {
 
 const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
 const AGENT_SEEN_KEY = "kodarai_support_agent_seen";
+const WELCOME_KEY = "kodarai_support_welcome";
 
-export function SupportChat() {
+/** `raised` lifts the bubble on mobile for pages with a fixed bottom CTA bar (e.g. /start). */
+export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
   const { user, loading: authLoading } = useAuth();
   const runGetChat = useServerFn(getSupportChat);
   const runSendMessage = useServerFn(sendSupportMessage);
@@ -83,6 +85,7 @@ export function SupportChat() {
   const [now, setNow] = useState(Date.now());
   const [hasUnread, setHasUnread] = useState(false);
   const [popup, setPopup] = useState<{ id: string; content: string } | null>(null);
+  const [welcome, setWelcome] = useState<string | null>(null);
   const openRef = useRef(false);
   const lastPoppedRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -207,6 +210,24 @@ export function SupportChat() {
     return () => window.removeEventListener(AGENT_MESSAGE_EVENT, onAgentMessage);
   }, [user?.id, authLoading]);
 
+  // Automatic welcome for new guests: pop it out like a live-chat bubble and keep it as the first message in the chat.
+  useEffect(() => {
+    if (user || authLoading) return;
+    try { setWelcome(window.localStorage.getItem(WELCOME_KEY)); } catch { /* storage unavailable */ }
+    const onWelcome = (event: Event) => {
+      const detail = (event as CustomEvent<WelcomeMessageDetail>).detail;
+      if (!detail?.content) return;
+      try { window.localStorage.setItem(WELCOME_KEY, detail.content); } catch { /* storage unavailable */ }
+      setWelcome(detail.content);
+      if (openRef.current) return;
+      setHasUnread(true);
+      setPopup({ id: detail.id, content: detail.content });
+      playPing();
+    };
+    window.addEventListener(WELCOME_MESSAGE_EVENT, onWelcome);
+    return () => window.removeEventListener(WELCOME_MESSAGE_EVENT, onWelcome);
+  }, [user?.id, authLoading]);
+
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [messages, open]);
@@ -315,7 +336,7 @@ export function SupportChat() {
         variant="hero"
         size="icon"
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-5 z-40 size-12 rounded-full shadow-lg md:bottom-6 md:right-6"
+        className={`fixed ${raised ? "bottom-28" : "bottom-20"} right-5 z-40 size-12 rounded-full shadow-lg md:bottom-6 md:right-6`}
         aria-label={hasUnread ? "Open support chat (new reply)" : "Open support chat"}
       >
         <MessageCircle className="size-5" />
@@ -323,7 +344,7 @@ export function SupportChat() {
       </Button>
 
       {popup && !open && (
-        <div className="fixed bottom-36 right-5 z-40 w-72 max-w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300 md:bottom-20 md:right-6">
+        <div className={`fixed ${raised ? "bottom-44" : "bottom-36"} right-5 z-40 w-72 max-w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300 md:bottom-20 md:right-6`}>
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -336,7 +357,7 @@ export function SupportChat() {
               <span className="text-xs font-semibold">KodarAI Support</span>
               <span className="text-[10px] text-muted-foreground">just now</span>
             </div>
-            <p className="line-clamp-3 text-sm text-foreground">{popup.content}</p>
+            <p className="line-clamp-5 text-sm text-foreground">{popup.content}</p>
             <span className="mt-2 block text-xs font-medium text-primary">Tap to reply</span>
           </button>
           <button
@@ -382,7 +403,12 @@ export function SupportChat() {
                 {!user && messages.length === 0 && (
                   <p className="text-center text-xs text-muted-foreground">You are chatting as a guest.</p>
                 )}
-                {messages.length === 0 && (
+                {!user && welcome && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">{welcome}</div>
+                  </div>
+                )}
+                {messages.length === 0 && !(welcome && !user) && (
                   <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
                     Ask about finding leads, billing, Studio, or virtual numbers. Say "human" to request a reply from the team.
                   </div>

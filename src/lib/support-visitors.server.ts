@@ -261,14 +261,33 @@ export async function sweepLeftVisitors() {
 
 export interface PingResult {
   agent: { id: string; content: string; created_at: string } | null;
+  /** Automatic welcome, returned at most once per visitor. */
+  welcome: { id: string; content: string; created_at: string } | null;
+}
+
+// ───────────────────────── Automatic welcome ─────────────────────────
+const WELCOME_DELAY_MS = 8_000; // let the visitor look around first; the 10s heartbeat delivers it
+const NO_WELCOME_PATHS = /^\/(login|signup|privacy|terms|trial-welcome|welcome|onboarding)/;
+
+function welcomeMessage(path: string) {
+  if (path.startsWith("/start")) {
+    return "Hey 👋 New here? You don't need to know how to code. KodarAI finds businesses that need a website and helps you build a sample to send them. Ask me anything.";
+  }
+  if (path.startsWith("/studio")) {
+    return "Hey 👋 Building a website for a business? Tell me who it's for and I'll help you get the first version ready.";
+  }
+  if (path.startsWith("/numbers")) {
+    return "Hey 👋 Need a virtual number? Tell me the country and what it's for and I'll help you pick one.";
+  }
+  return "Hey 👋 I'm the KodarAI assistant. Tell me if you've built websites before and I'll point you to the right first step.";
 }
 
 /** Heartbeat from the browser. Updates presence and returns the latest human reply so the widget can pop it out. */
 export async function pingVisitor(input: { visitorToken: string; path: string }): Promise<PingResult> {
   try {
     const hash = hashVisitorToken(input.visitorToken);
-    const { data: session } = await db.from("support_visitor_sessions").select("id,left_notified_at").eq("visitor_token_hash", hash).maybeSingle();
-    if (!session) return { agent: null };
+    const { data: session } = await db.from("support_visitor_sessions").select("id,left_notified_at,created_at,welcome_sent_at").eq("visitor_token_hash", hash).maybeSingle();
+    if (!session) return { agent: null, welcome: null };
 
     await db.from("support_visitor_sessions")
       .update({ last_seen_at: new Date().toISOString(), current_path: input.path, left_notified_at: null })
@@ -283,12 +302,24 @@ export async function pingVisitor(input: { visitorToken: string; path: string })
     }
 
     const { data: convo } = await db.from("support_conversations").select("id").eq("visitor_token_hash", hash).maybeSingle();
-    if (!convo) return { agent: null };
+
+    // Welcome each visitor once, only if they have not already started a chat.
+    let welcome: PingResult["welcome"] = null;
+    const longEnough = Date.now() - new Date(session.created_at).getTime() >= WELCOME_DELAY_MS;
+    if (!convo && !session.welcome_sent_at && longEnough && !NO_WELCOME_PATHS.test(input.path)) {
+      const sentAt = new Date().toISOString();
+      // Claim atomically so two heartbeats or server instances never send it twice.
+      const { data: claimed } = await db.from("support_visitor_sessions")
+        .update({ welcome_sent_at: sentAt }).eq("id", session.id).is("welcome_sent_at", null).select("id");
+      if (claimed?.length) welcome = { id: `welcome-${session.id}`, content: welcomeMessage(input.path), created_at: sentAt };
+    }
+
+    if (!convo) return { agent: null, welcome };
     const { data: latest } = await db.from("support_messages").select("id,content,created_at")
       .eq("conversation_id", convo.id).eq("sender", "agent").order("created_at", { ascending: false }).limit(1);
-    return { agent: latest?.[0] ?? null };
+    return { agent: latest?.[0] ?? null, welcome };
   } catch (error) {
     console.error("visitor ping failed", error instanceof Error ? error.message : error);
-    return { agent: null };
+    return { agent: null, welcome: null };
   }
 }

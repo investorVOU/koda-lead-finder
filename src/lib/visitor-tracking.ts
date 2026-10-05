@@ -51,6 +51,9 @@ export function eventForPath(pathname: string): ClientEvent {
 export const AGENT_MESSAGE_EVENT = "kodarai:agent-message";
 export type AgentMessageDetail = { id: string; content: string; created_at: string };
 
+export const WELCOME_MESSAGE_EVENT = "kodarai:welcome-message";
+export type WelcomeMessageDetail = { id: string; content: string; created_at: string };
+
 const HEARTBEAT_MS = 10_000;
 
 /**
@@ -65,6 +68,7 @@ export function startPresence(): () => void {
     if (!visitorToken) return;
     try {
       const result = await pingVisitorPresence({ data: { visitorToken, path: window.location.pathname } });
+      if (result?.welcome) window.dispatchEvent(new CustomEvent<WelcomeMessageDetail>(WELCOME_MESSAGE_EVENT, { detail: result.welcome }));
       if (result?.agent) window.dispatchEvent(new CustomEvent<AgentMessageDetail>(AGENT_MESSAGE_EVENT, { detail: result.agent }));
     } catch {
       // Presence is best-effort.

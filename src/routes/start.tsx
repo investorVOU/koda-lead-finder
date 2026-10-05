@@ -32,6 +32,8 @@ import {
 
 import Autoplay from "embla-carousel-autoplay";
 
+import { SupportChat } from "@/components/support/SupportChat";
+
 import { PACKS, PLANS, formatNgn, getPlanPrice } from "@/lib/billing";
 
 import {
@@ -611,6 +613,7 @@ function StartPage() {
 
   return (
     <div className="min-h-[100dvh] bg-[#f8f7f1] text-[#10140f]">
+      <SupportChat raised />
       {step === 0 && variant === "full" && (
         <IntroPage
           hook={hook}
