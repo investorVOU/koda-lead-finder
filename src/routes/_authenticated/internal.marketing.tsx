@@ -31,6 +31,7 @@ import {
   saveMarketingGoogleAnalyticsSettings,
   saveMarketingClaritySettings,
   saveMarketingMetaPixelSettings,
+  saveMarketingTikTokPixelSettings,
   uploadMarketingAsset,
   verifyMarketingAccess,
 } from "@/lib/internal-marketing.functions";
@@ -272,6 +273,7 @@ type VisitorDashboard = {
   sources: { source: string; medium: string | null; visitors: number }[];
   googleAnalyticsMeasurementId: string | null;
   metaPixelId: string | null;
+  tiktokPixelId: string | null;
   clarityProjectId: string | null;
 };
 
@@ -279,14 +281,17 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
   const getDashboard = useServerFn(getMarketingVisitorDashboard);
   const saveGoogleAnalytics = useServerFn(saveMarketingGoogleAnalyticsSettings);
   const saveMetaPixel = useServerFn(saveMarketingMetaPixelSettings);
+  const saveTikTokPixelSettingsFn = useServerFn(saveMarketingTikTokPixelSettings);
   const saveClarity = useServerFn(saveMarketingClaritySettings);
   const [dashboard, setDashboard] = useState<VisitorDashboard | null>(null);
   const [measurementCode, setMeasurementCode] = useState("");
   const [pixelCode, setPixelCode] = useState("");
+  const [tiktokPixelCode, setTiktokPixelCode] = useState("");
   const [clarityCode, setClarityCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPixel, setSavingPixel] = useState(false);
+  const [savingTikTokPixel, setSavingTikTokPixel] = useState(false);
   const [savingClarity, setSavingClarity] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -296,6 +301,7 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       setDashboard(next);
       setMeasurementCode(next.googleAnalyticsMeasurementId ?? "");
       setPixelCode(next.metaPixelId ?? "");
+      setTiktokPixelCode(next.tiktokPixelId ?? "");
       setClarityCode(next.clarityProjectId ?? "");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load website analytics.");
@@ -335,6 +341,21 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       toast.error(error instanceof Error ? error.message : "Could not save the Meta Pixel.");
     } finally {
       setSavingPixel(false);
+    }
+  };
+
+  const saveTikTokPixel = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingTikTokPixel(true);
+    try {
+      const result = await saveTikTokPixelSettingsFn({ data: { passcode, pixelCode: tiktokPixelCode } });
+      if ("error" in result) throw new Error(result.message);
+      toast.success("TikTok Pixel is connected. Reload the site to start tracking.");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the TikTok Pixel.");
+    } finally {
+      setSavingTikTokPixel(false);
     }
   };
 
@@ -456,6 +477,27 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
             <Button className="mt-4" type="submit" disabled={savingPixel || !pixelCode.trim()}>
               {savingPixel && <Loader2 className="size-4 animate-spin" />}
               {savingPixel ? "Saving..." : "Connect Meta Pixel"}
+            </Button>
+          </form>
+
+          <form className="mt-7 border-t border-border pt-6" onSubmit={saveTikTokPixel}>
+            <Label htmlFor="tiktok-pixel-code">TikTok Pixel ID or TikTok pixel code</Label>
+            <Input
+              id="tiktok-pixel-code"
+              className="mt-2"
+              value={tiktokPixelCode}
+              onChange={(event) => setTiktokPixelCode(event.target.value)}
+              maxLength={10_000}
+              placeholder="DB1KSURC77U5HCCK5B7G or paste your TikTok pixel code"
+              required
+            />
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              KodarAI extracts and validates only the pixel ID. It does not run arbitrary pasted
+              script. Events sent: PageView and the standard tracked conversion events.
+            </p>
+            <Button className="mt-4" type="submit" disabled={savingTikTokPixel || !tiktokPixelCode.trim()}>
+              {savingTikTokPixel && <Loader2 className="size-4 animate-spin" />}
+              {savingTikTokPixel ? "Saving..." : "Connect TikTok Pixel"}
             </Button>
           </form>
 

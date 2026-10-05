@@ -28,6 +28,10 @@ const metaPixelSettingsSchema = accessSchema.extend({
   pixelCode: z.string().trim().max(10_000).default(""),
 });
 
+const tiktokPixelSettingsSchema = accessSchema.extend({
+  pixelCode: z.string().trim().max(10_000).default(""),
+});
+
 const clarityProjectSettingsSchema = accessSchema.extend({
   clarityCode: z.string().trim().max(10_000).default(""),
 });
@@ -191,6 +195,7 @@ type AdSenseSettingsRow = {
   landing_ad_slot: string | null;
   google_analytics_measurement_id: string | null;
   meta_pixel_id: string | null;
+  tiktok_pixel_id: string | null;
   clarity_project_id: string | null;
 };
 
@@ -221,7 +226,7 @@ async function readAdSenseSettings() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabaseAdmin as any)
     .from("marketing_adsense_settings")
-    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id, clarity_project_id")
+    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id, tiktok_pixel_id, clarity_project_id")
     .eq("singleton", true)
     .maybeSingle();
   if (error) throw new Error("Could not read AdSense settings.");
@@ -281,6 +286,30 @@ export const getPublicMetaPixelSettings = createServerFn({ method: "GET" }).hand
   try {
     const settings = await readAdSenseSettings();
     return { pixelId: settings?.meta_pixel_id ?? null } as const;
+  } catch {
+    return { pixelId: null } as const;
+  }
+});
+
+function parseTikTokPixelId(pixelCode: string) {
+  const code = pixelCode.trim();
+  const pixelId = /^[A-Za-z0-9]{10,40}$/.test(code)
+    ? code
+    : code.match(/ttq\.load\(\s*['"]?([A-Za-z0-9]{10,40})['"]?\s*\)/i)?.[1]
+      ?? code.match(/sdkid=([A-Za-z0-9]{10,40})/i)?.[1]
+      ?? code.match(/['"]([A-Za-z0-9]{10,40})['"]/i)?.[1];
+  if (!pixelId) {
+    return {
+      error: "Paste your TikTok Pixel ID (letters/numbers only) or the official TikTok pixel code.",
+    } as const;
+  }
+  return { pixelId } as const;
+}
+
+export const getPublicTikTokPixelSettings = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const settings = await readAdSenseSettings();
+    return { pixelId: settings?.tiktok_pixel_id ?? null } as const;
   } catch {
     return { pixelId: null } as const;
   }
@@ -383,6 +412,7 @@ export const getMarketingVisitorDashboard = createServerFn({ method: "POST" })
         .slice(0, 8),
       googleAnalyticsMeasurementId: settings?.google_analytics_measurement_id ?? null,
       metaPixelId: settings?.meta_pixel_id ?? null,
+      tiktokPixelId: settings?.tiktok_pixel_id ?? null,
       clarityProjectId: settings?.clarity_project_id ?? null,
     } as const;
   });
@@ -435,6 +465,32 @@ export const saveMarketingMetaPixelSettings = createServerFn({ method: "POST" })
       return {
         error: "pixel_error",
         message: "Could not save the Meta Pixel. Apply the meta pixel migration first.",
+      } as const;
+    return { pixelId: parsed.pixelId } as const;
+  });
+
+export const saveMarketingTikTokPixelSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => tiktokPixelSettingsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    const parsed = parseTikTokPixelId(data.pixelCode);
+    if ("error" in parsed) return { error: "tiktok_pixel_error", message: parsed.error } as const;
+
+    // Supabase types are generated separately; this new migration is not represented yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
+      {
+        singleton: true,
+        tiktok_pixel_id: parsed.pixelId,
+        updated_by: context.userId,
+      },
+      { onConflict: "singleton" },
+    );
+    if (error)
+      return {
+        error: "tiktok_pixel_error",
+        message: "Could not save the TikTok Pixel. Apply the TikTok pixel migration first.",
       } as const;
     return { pixelId: parsed.pixelId } as const;
   });

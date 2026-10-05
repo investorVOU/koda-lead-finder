@@ -44,18 +44,21 @@ function ChoosePlanPage() {
               navigate({ to: "/dashboard" });
             }}
           >
-            Skip
+            Maybe later
             <ArrowRight className="size-4" />
           </Button>
         </div>
 
         <div className="mt-8 text-center">
+          <div className="mx-auto mb-4 inline-flex rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+            Next step: choose a plan
+          </div>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Choose how you want to find clients
+            Pick the plan that fits your first client pipeline
           </h1>
-          <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-            Start a monthly plan for the full Kodarai workflow, or buy leads once and use them
-            whenever you are ready.
+          <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
+            Unlock Studio, lead searches, and the rest of the workflow. Most new customers start
+            with the Starter plan, then upgrade once they are ready for more volume.
           </p>
         </div>
 
@@ -207,11 +210,10 @@ function ChoosePlanPage() {
         </Tabs>
 
         <div className="mt-8 text-center">
-          <p className="font-medium">Not ready yet?</p>
+          <p className="font-medium">Need more time?</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            You can look around Kodarai first.
-            <br />
-            Some features will stay locked until you choose a plan.
+            You can still explore the app first, but the full lead-finder workflow unlocks once you
+            choose a plan.
           </p>
           <Button
             variant="ghost"
@@ -221,7 +223,7 @@ function ChoosePlanPage() {
               navigate({ to: "/dashboard" });
             }}
           >
-            I&apos;ll do this later
+            Keep exploring
           </Button>
         </div>
       </div>

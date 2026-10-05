@@ -334,15 +334,15 @@ const NO_WELCOME_PATHS = /^\/(login|signup|privacy|terms|trial-welcome|welcome|o
 
 function welcomeMessage(path: string) {
   if (path.startsWith("/start")) {
-    return "Hey 👋 New here? You don't need to know how to code. KodarAI finds businesses that need a website and helps you build a sample to send them. Ask me anything.";
+    return "Hey 👋 You’re in the right place. Pick a plan to unlock the full workflow, then tell me what kind of business you want to help and I’ll guide you from there.";
   }
   if (path.startsWith("/studio")) {
-    return "Hey 👋 Building a website for a business? Tell me who it's for and I'll help you get the first version ready.";
+    return "Hey 👋 Want to build a website for a business? Pick a plan and tell me who it’s for, and I’ll help you get the first version ready.";
   }
   if (path.startsWith("/numbers")) {
-    return "Hey 👋 Need a virtual number? Tell me the country and what it's for and I'll help you pick one.";
+    return "Hey 👋 Need a virtual number? Pick a plan and tell me the country and use case, and I’ll help you pick the right option.";
   }
-  return "Hey 👋 I'm the KodarAI assistant. Tell me if you've built websites before and I'll point you to the right first step.";
+  return "Hey 👋 I'm the KodarAI assistant. The fastest next step is to pick a plan, then tell me what business you want to help and I’ll guide you.";
 }
 
 /** Heartbeat from the browser. Updates presence and returns the latest human reply so the widget can pop it out. */
