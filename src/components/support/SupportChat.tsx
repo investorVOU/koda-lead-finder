@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, LogOut, MessageCircle, Send, X } from "lucide-react";
 import { toast } from "sonner";
@@ -57,9 +58,12 @@ function playPing() {
 const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
 const AGENT_SEEN_KEY = "kodarai_support_agent_seen";
 const WELCOME_KEY = "kodarai_support_welcome";
+const START_WELCOME_KEY = "kodarai_start_welcome_v1_seen";
+const START_WELCOME = "Hey 👋 New here? You don't need to know how to code. KodarAI finds businesses that need a website and helps you build a sample to send them. Ask me anything.";
 
 /** `raised` lifts the bubble on mobile for pages with a fixed bottom CTA bar (e.g. /start). */
 export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { user, loading: authLoading } = useAuth();
   const runGetChat = useServerFn(getSupportChat);
   const runSendMessage = useServerFn(sendSupportMessage);
@@ -213,20 +217,51 @@ export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
   // Automatic welcome for new guests: pop it out like a live-chat bubble and keep it as the first message in the chat.
   useEffect(() => {
     if (user || authLoading) return;
-    try { setWelcome(window.localStorage.getItem(WELCOME_KEY)); } catch { /* storage unavailable */ }
+    const isStartPage = pathname === "/start";
+    try {
+      setWelcome(isStartPage ? START_WELCOME : window.localStorage.getItem(WELCOME_KEY));
+    } catch {
+      if (isStartPage) setWelcome(START_WELCOME);
+    }
+    if (isStartPage) {
+      let shouldShowStartPopup = true;
+      try {
+        if (window.localStorage.getItem(START_WELCOME_KEY)) {
+          shouldShowStartPopup = false;
+        } else {
+          window.localStorage.setItem(START_WELCOME_KEY, "true");
+        }
+      } catch { /* storage unavailable */ }
+      if (shouldShowStartPopup && !openRef.current) {
+        lastPoppedRef.current = START_WELCOME_KEY;
+        setHasUnread(true);
+        setPopup({ id: START_WELCOME_KEY, content: START_WELCOME });
+        playPing();
+      }
+    }
     const onWelcome = (event: Event) => {
       const detail = (event as CustomEvent<WelcomeMessageDetail>).detail;
       if (!detail?.content) return;
-      try { window.localStorage.setItem(WELCOME_KEY, detail.content); } catch { /* storage unavailable */ }
-      setWelcome(detail.content);
+      const content = isStartPage ? START_WELCOME : detail.content;
+      if (isStartPage && lastPoppedRef.current === START_WELCOME_KEY) {
+        setWelcome(content);
+        return;
+      }
+      try {
+        window.localStorage.setItem(WELCOME_KEY, content);
+        if (isStartPage && window.localStorage.getItem(START_WELCOME_KEY)) return;
+        if (isStartPage) window.localStorage.setItem(START_WELCOME_KEY, "true");
+      } catch { /* storage unavailable */ }
+      setWelcome(content);
       if (openRef.current) return;
+      if (isStartPage) lastPoppedRef.current = START_WELCOME_KEY;
       setHasUnread(true);
-      setPopup({ id: detail.id, content: detail.content });
+      setPopup({ id: isStartPage ? START_WELCOME_KEY : detail.id, content });
       playPing();
     };
     window.addEventListener(WELCOME_MESSAGE_EVENT, onWelcome);
     return () => window.removeEventListener(WELCOME_MESSAGE_EVENT, onWelcome);
-  }, [user?.id, authLoading]);
+  }, [user?.id, authLoading, pathname]);
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ block: "end" });

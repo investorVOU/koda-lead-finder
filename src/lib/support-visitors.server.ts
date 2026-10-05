@@ -334,7 +334,7 @@ const NO_WELCOME_PATHS = /^\/(login|signup|privacy|terms|trial-welcome|welcome|o
 
 function welcomeMessage(path: string) {
   if (path.startsWith("/start")) {
-    return "Hey 👋 You’re in the right place. Pick a plan to unlock the full workflow, then tell me what kind of business you want to help and I’ll guide you from there.";
+    return "Hey 👋 New here? You don't need to know how to code. KodarAI finds businesses that need a website and helps you build a sample to send them. Ask me anything.";
   }
   if (path.startsWith("/studio")) {
     return "Hey 👋 Want to build a website for a business? Pick a plan and tell me who it’s for, and I’ll help you get the first version ready.";
