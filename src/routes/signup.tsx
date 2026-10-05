@@ -38,6 +38,7 @@ import {
   AuthShell,
   GoogleButton,
 } from "@/components/auth/AuthShell";
+import { SupportChat } from "@/components/support/SupportChat";
 
 import {
   supabase,
@@ -605,6 +606,7 @@ function SignupPage() {
           )}
         </Button>
       </form>
+      <SupportChat />
     </AuthShell>
   );
 }

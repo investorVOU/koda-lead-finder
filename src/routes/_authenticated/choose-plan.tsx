@@ -13,6 +13,7 @@ import {
 } from "@/lib/billing";
 import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { Logo } from "@/components/landing/Logo";
+import { SupportChat } from "@/components/support/SupportChat";
 import { WelcomeEmailSync } from "@/components/auth/WelcomeEmailSync";
 import { PlanActivationEnrollmentSync } from "@/components/marketing/PlanActivationEnrollmentSync";
 import { trackNumberBonusCtaClicked, trackPlanSkipped } from "@/lib/analytics";
@@ -227,6 +228,7 @@ function ChoosePlanPage() {
           </Button>
         </div>
       </div>
+      <SupportChat />
     </div>
   );
 }
