@@ -1,0 +1,39 @@
+From 8b1bf579e8cb237a8a3549b24db16f4863f41c06 Mon Sep 17 00:00:00 2001
+From: Kodarai Dev <dev@kodarai.xyz>
+Date: Mon, 5 Oct 2026 05:52:22 +0000
+Subject: [PATCH] choose-plan: add a Skip button at the top (goes to dashboard)
+
+---
+ src/routes/_authenticated/choose-plan.tsx | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/routes/_authenticated/choose-plan.tsx b/src/routes/_authenticated/choose-plan.tsx
+index 3523fb7..701eb92 100644
+--- a/src/routes/_authenticated/choose-plan.tsx
++++ b/src/routes/_authenticated/choose-plan.tsx
+@@ -2,3 +2,3 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
+ import { useState } from "react";
+-import { Check, CreditCard, Zap } from "lucide-react";
++import { ArrowRight, Check, CreditCard, Zap } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+@@ -35,4 +35,16 @@ function ChoosePlanPage() {
+       <div className="mx-auto max-w-5xl">
+-        <div className="flex justify-center">
++        <div className="flex items-center justify-between gap-3">
+           <Logo />
++          <Button
++            type="button"
++            variant="outline"
++            className="h-10 gap-1.5 rounded-full px-5 font-semibold"
++            onClick={() => {
++              trackPlanSkipped();
++              navigate({ to: "/dashboard" });
++            }}
++          >
++            Skip
++            <ArrowRight className="size-4" />
++          </Button>
+         </div>
+-- 
+2.43.0
+
