@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, CreditCard, Zap } from "lucide-react";
+import { ArrowRight, Check, CreditCard, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -33,18 +33,19 @@ function ChoosePlanPage() {
       <PlanActivationEnrollmentSync />
 
       <div className="mx-auto max-w-5xl">
-        <div className="relative flex justify-center">
+        <div className="flex items-center justify-between gap-3">
           <Logo />
           <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground"
+            type="button"
+            variant="outline"
+            className="h-10 gap-1.5 rounded-full px-5 font-semibold"
             onClick={() => {
               trackPlanSkipped("top");
               navigate({ to: "/dashboard" });
             }}
           >
-            Explore first
+            Skip
+            <ArrowRight className="size-4" />
           </Button>
         </div>
 
