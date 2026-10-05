@@ -1,0 +1,35 @@
+From aa42aaae02cf5577620c2cca94204f91d0501171 Mon Sep 17 00:00:00 2001
+From: Kodarai Dev <dev@kodarai.xyz>
+Date: Mon, 5 Oct 2026 05:44:59 +0000
+Subject: [PATCH] /choose-plan: top 'Explore first' button becomes 'Skip'
+
+---
+ src/routes/_authenticated/choose-plan.tsx | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/routes/_authenticated/choose-plan.tsx b/src/routes/_authenticated/choose-plan.tsx
+index da8ce63..96ba93d 100644
+--- a/src/routes/_authenticated/choose-plan.tsx
++++ b/src/routes/_authenticated/choose-plan.tsx
+@@ -36,15 +36,15 @@ function ChoosePlanPage() {
+         <div className="flex items-center justify-between gap-3">
+           <Logo />
+           <Button
++            type="button"
+             variant="outline"
+-            size="sm"
+-            className="gap-1.5"
++            className="h-10 gap-1.5 rounded-full px-5 font-semibold"
+             onClick={() => {
+               trackPlanSkipped("top");
+               navigate({ to: "/dashboard" });
+             }}
+           >
+-            Explore first
++            Skip
+             <ArrowRight className="size-4" />
+           </Button>
+         </div>
+-- 
+2.43.0
+
