@@ -1,0 +1,219 @@
+diff --git a/src/components/support/SupportChat.tsx b/src/components/support/SupportChat.tsx
+index 203c68e..6c09631 100644
+--- a/src/components/support/SupportChat.tsx
++++ b/src/components/support/SupportChat.tsx
+@@ -21,7 +21,7 @@ import {
+ import { Button } from "@/components/ui/button";
+ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+ import { Input } from "@/components/ui/input";
+-import { AGENT_MESSAGE_EVENT, trackVisitorEvent, type AgentMessageDetail } from "@/lib/visitor-tracking";
++import { AGENT_MESSAGE_EVENT, WELCOME_MESSAGE_EVENT, trackVisitorEvent, type AgentMessageDetail, type WelcomeMessageDetail } from "@/lib/visitor-tracking";
+ 
+ function addMessages(current: SupportMessage[], incoming: SupportMessage[]) {
+   const known = new Set(current.map((message) => message.id));
+@@ -56,8 +56,10 @@ function playPing() {
+ 
+ const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
+ const AGENT_SEEN_KEY = "kodarai_support_agent_seen";
++const WELCOME_KEY = "kodarai_support_welcome";
+ 
+-export function SupportChat() {
++/** `raised` lifts the bubble on mobile for pages with a fixed bottom CTA bar (e.g. /start). */
++export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
+   const { user, loading: authLoading } = useAuth();
+   const runGetChat = useServerFn(getSupportChat);
+   const runSendMessage = useServerFn(sendSupportMessage);
+@@ -83,6 +85,7 @@ export function SupportChat() {
+   const [now, setNow] = useState(Date.now());
+   const [hasUnread, setHasUnread] = useState(false);
+   const [popup, setPopup] = useState<{ id: string; content: string } | null>(null);
++  const [welcome, setWelcome] = useState<string | null>(null);
+   const openRef = useRef(false);
+   const lastPoppedRef = useRef<string | null>(null);
+   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+@@ -207,6 +210,24 @@ export function SupportChat() {
+     return () => window.removeEventListener(AGENT_MESSAGE_EVENT, onAgentMessage);
+   }, [user?.id, authLoading]);
+ 
++  // Automatic welcome for new guests: pop it out like a live-chat bubble and keep it as the first message in the chat.
++  useEffect(() => {
++    if (user || authLoading) return;
++    try { setWelcome(window.localStorage.getItem(WELCOME_KEY)); } catch { /* storage unavailable */ }
++    const onWelcome = (event: Event) => {
++      const detail = (event as CustomEvent<WelcomeMessageDetail>).detail;
++      if (!detail?.content) return;
++      try { window.localStorage.setItem(WELCOME_KEY, detail.content); } catch { /* storage unavailable */ }
++      setWelcome(detail.content);
++      if (openRef.current) return;
++      setHasUnread(true);
++      setPopup({ id: detail.id, content: detail.content });
++      playPing();
++    };
++    window.addEventListener(WELCOME_MESSAGE_EVENT, onWelcome);
++    return () => window.removeEventListener(WELCOME_MESSAGE_EVENT, onWelcome);
++  }, [user?.id, authLoading]);
++
+   useEffect(() => {
+     if (open) messagesEndRef.current?.scrollIntoView({ block: "end" });
+   }, [messages, open]);
+@@ -315,7 +336,7 @@ export function SupportChat() {
+         variant="hero"
+         size="icon"
+         onClick={() => setOpen(true)}
+-        className="fixed bottom-20 right-5 z-40 size-12 rounded-full shadow-lg md:bottom-6 md:right-6"
++        className={`fixed ${raised ? "bottom-28" : "bottom-20"} right-5 z-40 size-12 rounded-full shadow-lg md:bottom-6 md:right-6`}
+         aria-label={hasUnread ? "Open support chat (new reply)" : "Open support chat"}
+       >
+         <MessageCircle className="size-5" />
+@@ -323,7 +344,7 @@ export function SupportChat() {
+       </Button>
+ 
+       {popup && !open && (
+-        <div className="fixed bottom-36 right-5 z-40 w-72 max-w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300 md:bottom-20 md:right-6">
++        <div className={`fixed ${raised ? "bottom-44" : "bottom-36"} right-5 z-40 w-72 max-w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300 md:bottom-20 md:right-6`}>
+           <button
+             type="button"
+             onClick={() => setOpen(true)}
+@@ -336,7 +357,7 @@ export function SupportChat() {
+               <span className="text-xs font-semibold">KodarAI Support</span>
+               <span className="text-[10px] text-muted-foreground">just now</span>
+             </div>
+-            <p className="line-clamp-3 text-sm text-foreground">{popup.content}</p>
++            <p className="line-clamp-5 text-sm text-foreground">{popup.content}</p>
+             <span className="mt-2 block text-xs font-medium text-primary">Tap to reply</span>
+           </button>
+           <button
+@@ -382,7 +403,12 @@ export function SupportChat() {
+                 {!user && messages.length === 0 && (
+                   <p className="text-center text-xs text-muted-foreground">You are chatting as a guest.</p>
+                 )}
+-                {messages.length === 0 && (
++                {!user && welcome && (
++                  <div className="flex justify-start">
++                    <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">{welcome}</div>
++                  </div>
++                )}
++                {messages.length === 0 && !(welcome && !user) && (
+                   <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                     Ask about finding leads, billing, Studio, or virtual numbers. Say "human" to request a reply from the team.
+                   </div>
+diff --git a/src/lib/support-visitors.server.ts b/src/lib/support-visitors.server.ts
+index e831082..0bdac49 100644
+--- a/src/lib/support-visitors.server.ts
++++ b/src/lib/support-visitors.server.ts
+@@ -261,14 +261,33 @@ export async function sweepLeftVisitors() {
+ 
+ export interface PingResult {
+   agent: { id: string; content: string; created_at: string } | null;
++  /** Automatic welcome, returned at most once per visitor. */
++  welcome: { id: string; content: string; created_at: string } | null;
++}
++
++// ───────────────────────── Automatic welcome ─────────────────────────
++const WELCOME_DELAY_MS = 8_000; // let the visitor look around first; the 10s heartbeat delivers it
++const NO_WELCOME_PATHS = /^\/(login|signup|privacy|terms|trial-welcome|welcome|onboarding)/;
++
++function welcomeMessage(path: string) {
++  if (path.startsWith("/start")) {
++    return "Hey 👋 New here? You don't need to know how to code. KodarAI finds businesses that need a website and helps you build a sample to send them. Ask me anything.";
++  }
++  if (path.startsWith("/studio")) {
++    return "Hey 👋 Building a website for a business? Tell me who it's for and I'll help you get the first version ready.";
++  }
++  if (path.startsWith("/numbers")) {
++    return "Hey 👋 Need a virtual number? Tell me the country and what it's for and I'll help you pick one.";
++  }
++  return "Hey 👋 I'm the KodarAI assistant. Tell me if you've built websites before and I'll point you to the right first step.";
+ }
+ 
+ /** Heartbeat from the browser. Updates presence and returns the latest human reply so the widget can pop it out. */
+ export async function pingVisitor(input: { visitorToken: string; path: string }): Promise<PingResult> {
+   try {
+     const hash = hashVisitorToken(input.visitorToken);
+-    const { data: session } = await db.from("support_visitor_sessions").select("id,left_notified_at").eq("visitor_token_hash", hash).maybeSingle();
+-    if (!session) return { agent: null };
++    const { data: session } = await db.from("support_visitor_sessions").select("id,left_notified_at,created_at,welcome_sent_at").eq("visitor_token_hash", hash).maybeSingle();
++    if (!session) return { agent: null, welcome: null };
+ 
+     await db.from("support_visitor_sessions")
+       .update({ last_seen_at: new Date().toISOString(), current_path: input.path, left_notified_at: null })
+@@ -283,12 +302,24 @@ export async function pingVisitor(input: { visitorToken: string; path: string })
+     }
+ 
+     const { data: convo } = await db.from("support_conversations").select("id").eq("visitor_token_hash", hash).maybeSingle();
+-    if (!convo) return { agent: null };
++
++    // Welcome each visitor once, only if they have not already started a chat.
++    let welcome: PingResult["welcome"] = null;
++    const longEnough = Date.now() - new Date(session.created_at).getTime() >= WELCOME_DELAY_MS;
++    if (!convo && !session.welcome_sent_at && longEnough && !NO_WELCOME_PATHS.test(input.path)) {
++      const sentAt = new Date().toISOString();
++      // Claim atomically so two heartbeats or server instances never send it twice.
++      const { data: claimed } = await db.from("support_visitor_sessions")
++        .update({ welcome_sent_at: sentAt }).eq("id", session.id).is("welcome_sent_at", null).select("id");
++      if (claimed?.length) welcome = { id: `welcome-${session.id}`, content: welcomeMessage(input.path), created_at: sentAt };
++    }
++
++    if (!convo) return { agent: null, welcome };
+     const { data: latest } = await db.from("support_messages").select("id,content,created_at")
+       .eq("conversation_id", convo.id).eq("sender", "agent").order("created_at", { ascending: false }).limit(1);
+-    return { agent: latest?.[0] ?? null };
++    return { agent: latest?.[0] ?? null, welcome };
+   } catch (error) {
+     console.error("visitor ping failed", error instanceof Error ? error.message : error);
+-    return { agent: null };
++    return { agent: null, welcome: null };
+   }
+ }
+diff --git a/src/lib/visitor-tracking.ts b/src/lib/visitor-tracking.ts
+index 61d73c6..a8ea5e5 100644
+--- a/src/lib/visitor-tracking.ts
++++ b/src/lib/visitor-tracking.ts
+@@ -51,6 +51,9 @@ export function eventForPath(pathname: string): ClientEvent {
+ export const AGENT_MESSAGE_EVENT = "kodarai:agent-message";
+ export type AgentMessageDetail = { id: string; content: string; created_at: string };
+ 
++export const WELCOME_MESSAGE_EVENT = "kodarai:welcome-message";
++export type WelcomeMessageDetail = { id: string; content: string; created_at: string };
++
+ const HEARTBEAT_MS = 10_000;
+ 
+ /**
+@@ -65,6 +68,7 @@ export function startPresence(): () => void {
+     if (!visitorToken) return;
+     try {
+       const result = await pingVisitorPresence({ data: { visitorToken, path: window.location.pathname } });
++      if (result?.welcome) window.dispatchEvent(new CustomEvent<WelcomeMessageDetail>(WELCOME_MESSAGE_EVENT, { detail: result.welcome }));
+       if (result?.agent) window.dispatchEvent(new CustomEvent<AgentMessageDetail>(AGENT_MESSAGE_EVENT, { detail: result.agent }));
+     } catch {
+       // Presence is best-effort.
+diff --git a/src/routes/start.tsx b/src/routes/start.tsx
+index 8a184e1..463ee9e 100644
+--- a/src/routes/start.tsx
++++ b/src/routes/start.tsx
+@@ -32,6 +32,8 @@ import {
+ 
+ import Autoplay from "embla-carousel-autoplay";
+ 
++import { SupportChat } from "@/components/support/SupportChat";
++
+ import { PACKS, PLANS, formatNgn, getPlanPrice } from "@/lib/billing";
+ 
+ import {
+@@ -611,6 +613,7 @@ function StartPage() {
+ 
+   return (
+     <div className="min-h-[100dvh] bg-[#f8f7f1] text-[#10140f]">
++      <SupportChat raised />
+       {step === 0 && variant === "full" && (
+         <IntroPage
+           hook={hook}
+diff --git a/supabase/migrations/20261005150000_visitor_welcome.sql b/supabase/migrations/20261005150000_visitor_welcome.sql
+new file mode 100644
+index 0000000..300a71b
+--- /dev/null
++++ b/supabase/migrations/20261005150000_visitor_welcome.sql
+@@ -0,0 +1,3 @@
++-- Marks that a visitor already received the automatic live-chat welcome (once per visitor).
++ALTER TABLE public.support_visitor_sessions
++  ADD COLUMN IF NOT EXISTS welcome_sent_at timestamptz;
