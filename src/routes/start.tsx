@@ -978,7 +978,7 @@ const START_FINDER_VIDEO = "/start/finder-loop.mp4";
 // Ad creatives shown in the "See it in action" row so the page matches what people saw in
 // the ad. Add files under public/start/ads/ and list them here. Images that fail to load
 // are hidden automatically.
-const START_AD_IMAGES = ["/start/ads/ad-1.jpg"];
+const START_AD_IMAGES = ["/start/ads/ad-1.jpg", "/start/ads/ad-2.jpeg", "/start/ads/ad-3.png"];
 
 function AdImageCard({ src }: { src: string }) {
   const [failed, setFailed] = useState(false);
