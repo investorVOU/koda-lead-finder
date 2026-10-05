@@ -47,6 +47,13 @@ const messageButton = (sessionId: string) => ({
   reply_markup: { inline_keyboard: [[{ text: "💬 Message visitor", callback_data: `msg:${sessionId}` }]] },
 });
 
+function clip(value: string | null | undefined, maxLength: number) {
+  const normalized = value?.replace(/\s+/g, " ").trim() ?? "";
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 1)}…`
+    : normalized;
+}
+
 async function rememberThread(messageId: number | undefined, sessionId: string) {
   if (!messageId) return;
   await db.from("support_telegram_threads").upsert({ chat_id: operatorChatId(), message_id: messageId, session_id: sessionId });
@@ -165,10 +172,66 @@ export async function sendAgentMessageToSession(sessionId: string, content: stri
 export async function relayVisitorMessageToTelegram(visitorTokenHash: string | null | undefined, content: string) {
   try {
     if (!visitorTokenHash || !telegramConfigured()) return;
-    const { data: session } = await db.from("support_visitor_sessions").select("id").eq("visitor_token_hash", visitorTokenHash).maybeSingle();
+    const { data: session } = await db
+      .from("support_visitor_sessions")
+      .select("*")
+      .eq("visitor_token_hash", visitorTokenHash)
+      .maybeSingle();
     if (!session) return;
+    const [{ data: conversation }, { data: events }] = await Promise.all([
+      db
+        .from("support_conversations")
+        .select("id")
+        .eq("visitor_token_hash", visitorTokenHash)
+        .maybeSingle(),
+      db
+        .from("support_visitor_events")
+        .select("type,path")
+        .eq("session_id", session.id)
+        .order("created_at", { ascending: false })
+        .limit(12),
+    ]);
+    const { data: history } = conversation
+      ? await db
+          .from("support_messages")
+          .select("sender,content")
+          .eq("conversation_id", conversation.id)
+          .order("created_at", { ascending: false })
+          .limit(6)
+      : { data: [] };
+
+    const elapsed = Date.now() - new Date(session.created_at).getTime();
+    const source = sourceLabel(session);
+    const eventRows = (events ?? []) as { type: string; path: string | null }[];
+    const messageRows = (history ?? []) as { sender: "user" | "bot" | "agent"; content: string }[];
+    const journey = Array.from(
+      new Set(
+        eventRows
+          .reverse()
+          .map((event) => EVENT_SHORT[event.type as VisitorEventType] ?? event.path)
+          .filter(Boolean),
+      ),
+    ).slice(0, 8);
+    const transcript = messageRows.reverse().map((item) => {
+      const speaker = { user: "Visitor", agent: "Team", bot: "Assistant" }[item.sender];
+      return `${speaker}: ${clip(item.content, 240)}`;
+    });
+    const context = [
+      `Latest message: ${clip(content, 700)}`,
+      "Visitor context:",
+      `Visit: ${formatDuration(elapsed)}; device: ${session.device || "unknown"}`,
+      `Landing: ${session.landing_path || "unknown"}; now: ${session.current_path || "unknown"}`,
+      `Source: ${source}${session.utm_campaign ? `; campaign: ${clip(session.utm_campaign, 100)}` : ""}`,
+      journey.length ? `Journey: ${journey.join(" > ")}` : "",
+      transcript.length ? `Recent chat:\n${transcript.join("\n")}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
     const sent = await sendTelegram(
-      `💬 Visitor ${visitorLabel(visitorTokenHash)}:\n${content.slice(0, 1500)}\n\n(reply to this message to answer)`,
+      `💬 Visitor ${visitorLabel(visitorTokenHash)}\n${context}\n\n(reply to this message to answer)`.slice(
+        0,
+        3800,
+      ),
       messageButton(session.id),
     );
     await rememberThread(sent?.message_id, session.id);
@@ -266,7 +329,7 @@ export interface PingResult {
 }
 
 // ───────────────────────── Automatic welcome ─────────────────────────
-const WELCOME_DELAY_MS = 8_000; // let the visitor look around first; the 10s heartbeat delivers it
+const WELCOME_DELAY_MS = 2_000;
 const NO_WELCOME_PATHS = /^\/(login|signup|privacy|terms|trial-welcome|welcome|onboarding)/;
 
 function welcomeMessage(path: string) {

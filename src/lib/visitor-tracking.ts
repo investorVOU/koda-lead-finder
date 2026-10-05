@@ -55,6 +55,7 @@ export const WELCOME_MESSAGE_EVENT = "kodarai:welcome-message";
 export type WelcomeMessageDetail = { id: string; content: string; created_at: string };
 
 const HEARTBEAT_MS = 10_000;
+const WELCOME_CHECK_MS = 2_000;
 
 /**
  * Heartbeat while the tab is visible. Tells the server the visitor is still here and
@@ -76,7 +77,12 @@ export function startPresence(): () => void {
   };
   const onVisible = () => { if (document.visibilityState === "visible") void ping(); };
   void ping();
+  const welcomeCheck = window.setTimeout(ping, WELCOME_CHECK_MS);
   const interval = window.setInterval(ping, HEARTBEAT_MS);
   document.addEventListener("visibilitychange", onVisible);
-  return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
+  return () => {
+    window.clearTimeout(welcomeCheck);
+    window.clearInterval(interval);
+    document.removeEventListener("visibilitychange", onVisible);
+  };
 }
