@@ -34,6 +34,7 @@ function ChoosePlanPage() {
         kind: "subscription",
         id: starterPlan.id,
         cycle: "monthly",
+        renewalMode: "manual",
         origin: window.location.origin,
       },
     });
@@ -93,7 +94,7 @@ function ChoosePlanPage() {
               </p>
             </div>
             <div className="rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary">
-              Monthly access
+              30-day access
             </div>
           </div>
 
@@ -129,7 +130,7 @@ function ChoosePlanPage() {
           </Button>
 
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            Secure checkout via Paystack. Real Starter plan. No fake promises or guaranteed income.
+            One-time payment, no automatic renewal. Pay securely with the available Paystack payment methods.
           </p>
         </div>
 
