@@ -123,6 +123,8 @@ export const FREE_PLAN: FreePlan = {
   features: ["0 lead searches", "Full dashboard access", "View saved leads", "Upgrade any time"],
 };
 
+export const STARTER_PLAN_PRICE_NGN = 500;
+
 export const PLANS: Plan[] = [
   {
     id: "starter",
@@ -131,7 +133,7 @@ export const PLANS: Plan[] = [
 
     tagline: "Land your first clients",
 
-    ngn: 6500,
+    ngn: STARTER_PLAN_PRICE_NGN,
 
     credits: 60,
 
@@ -198,7 +200,7 @@ export const PLANS: Plan[] = [
 ];
 
 const LAUNCH_MONTHLY_PRICES: Record<PaidPlanId, number> = {
-  starter: 3500,
+  starter: STARTER_PLAN_PRICE_NGN,
   pro: 9500,
   agency: 24000,
 };
