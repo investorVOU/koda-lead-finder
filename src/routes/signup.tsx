@@ -415,11 +415,11 @@ function SignupPage() {
 
   return (
     <AuthShell
-      title="Create your account"
+      title="Build. Sell. Earn."
       subtitle={
         fromAdFunnel
-          ? "Create your free account and start looking for businesses you can sell to."
-          : "Create your account, then choose the plan that fits your workflow."
+          ? "Use KodarAi to build websites, digital products, and client-ready solutions for businesses, then deliver the work and get paid."
+          : "Use KodarAi to build websites, digital products, and client-ready solutions for businesses, then deliver the work and get paid."
       }
       footer={
         <>
@@ -435,23 +435,37 @@ function SignupPage() {
         </>
       }
     >
-      {fromAdFunnel && (
-        <div className="mb-5 border-l-2 border-primary bg-primary/5 px-4 py-3">
-          <p className="text-sm font-semibold">
-            Your plan is
-            ready.
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Create your
-            account and
-            start finding
-            businesses you
-            can build for
-            and sell to.
-          </p>
+      <div className="mb-5 rounded-xl border border-primary/20 bg-primary/5 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          How it works
+        </p>
+        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              1
+            </span>
+            <span>Find a client</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              2
+            </span>
+            <span>Build with KodarAi</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              3
+            </span>
+            <span>Deliver the work</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              4
+            </span>
+            <span>Get paid</span>
+          </div>
         </div>
-      )}
+      </div>
 
       <GoogleButton
         onClick={
@@ -601,7 +615,7 @@ function SignupPage() {
           {busy ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            "Create free account"
+            "Start Building & Earning"
           )}
         </Button>
       </form>

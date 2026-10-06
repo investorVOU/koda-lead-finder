@@ -1,31 +1,50 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Check, CreditCard, Zap } from "lucide-react";
+import { ArrowRight, Check, Sparkles, Target, Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  PACKS,
-  PLANS,
-  formatNgn,
-  getAnnualSavings,
-  getPlanPrice,
-  type BillingCycle,
-} from "@/lib/billing";
-import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { Logo } from "@/components/landing/Logo";
 import { WelcomeEmailSync } from "@/components/auth/WelcomeEmailSync";
 import { PlanActivationEnrollmentSync } from "@/components/marketing/PlanActivationEnrollmentSync";
-import { trackNumberBonusCtaClicked, trackPlanSkipped } from "@/lib/analytics";
+import { createCheckout } from "@/lib/billing.functions";
+import { PLANS, formatNgn } from "@/lib/billing";
+import { trackPlanSkipped } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
-  head: () => ({ meta: [{ title: "Choose your plan — Kodarai" }] }),
+  head: () => ({ meta: [{ title: "Start building & earning — Kodarai" }] }),
   component: ChoosePlanPage,
 });
 
 function ChoosePlanPage() {
   const navigate = useNavigate();
-  const [cycle, setCycle] = useState<BillingCycle>("monthly");
-  const goToBilling = () => navigate({ to: "/billing", hash: cycle });
+  const runCheckout = useServerFn(createCheckout);
+  const [busy, setBusy] = useState(false);
+
+  const starterPlan = PLANS.find((plan) => plan.id === "starter");
+
+  const handleStarterCheckout = async () => {
+    if (!starterPlan) return;
+
+    setBusy(true);
+
+    const response = await runCheckout({
+      data: {
+        kind: "subscription",
+        id: starterPlan.id,
+        cycle: "monthly",
+        origin: window.location.origin,
+      },
+    });
+
+    if ("error" in response) {
+      toast.error(response.message);
+      setBusy(false);
+      return;
+    }
+
+    window.location.href = response.url!;
+  };
 
   return (
     <div className="min-h-screen bg-[image:var(--gradient-hero)] px-4 py-10 sm:py-12">
@@ -38,168 +57,114 @@ function ChoosePlanPage() {
         </div>
 
         <div className="mt-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Choose how you want to find clients
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary">
+            Starter plan
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-5xl">
+            Start Building. Start Earning.
           </h1>
-          <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-            Start a monthly plan for the full Kodarai workflow, or buy leads once and use them
-            whenever you are ready.
+          <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
+            Kodarai helps you build websites, digital products, and other client-ready solutions for
+            businesses so you can deliver work and get paid.
           </p>
         </div>
 
-        <Tabs defaultValue="plans" className="mt-8 sm:mt-10">
-          <TabsList className="grid h-auto w-full max-w-md grid-cols-2 gap-1 p-1.5 mx-auto">
-            <TabsTrigger value="plans" className="gap-1.5 py-2">
-              <CreditCard className="size-4" />
-              Monthly plans
-            </TabsTrigger>
-            <TabsTrigger value="packs" className="gap-1.5 py-2">
-              <Zap className="size-4" />
-              Lead packs
-            </TabsTrigger>
-          </TabsList>
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
+          {[
+            { icon: Target, title: "Find a client", text: "Identify businesses that need help." },
+            { icon: Sparkles, title: "Build with Kodarai", text: "Create the site or product with AI." },
+            { icon: Check, title: "Deliver", text: "Package the work for your client." },
+            { icon: Wallet, title: "Get paid", text: "Turn your work into revenue." },
+          ].map(({ icon: Icon, title, text }) => (
+            <div key={title} className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm">
+              <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Icon className="size-4" />
+              </div>
+              <p className="mt-3 text-base font-semibold">{title}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{text}</p>
+            </div>
+          ))}
+        </div>
 
-          <TabsContent value="plans" className="mt-7">
-            <BillingCycleToggle cycle={cycle} onChange={setCycle} />
-            <div className="mb-5 text-center">
-              <p className="font-semibold">For freelancers building a steady client pipeline</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Every monthly plan includes Studio and Website Builder access.
+        <div className="mx-auto mt-8 max-w-3xl rounded-[28px] border border-primary/20 bg-card p-6 shadow-[var(--shadow-lg)] sm:p-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Starter
+              </p>
+              <p className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
+                {formatNgn(starterPlan?.ngn ?? 500)}
               </p>
             </div>
-            <div className="mb-5 rounded-2xl border border-primary/35 bg-primary/10 px-4 py-4 text-center shadow-sm sm:px-6">
-              <span className="inline-flex rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-foreground">
-                Free new member bonus
-              </span>
-              <p className="mt-2 text-base font-bold text-foreground">
-                1 U.S. temporary number included with your first paid plan
-              </p>
-              <p className="mt-1 text-sm text-foreground/80">
-                No separate Numbers deposit needed for your bonus number.
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Available once for eligible new paying accounts. Temporary number only. Availability
-                and supported services may vary.
-              </p>
+            <div className="rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary">
+              Monthly access
             </div>
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {PLANS.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`flex flex-col rounded-2xl border-2 bg-card p-6 shadow-sm ${
-                    plan.highlight ? "border-primary shadow-[var(--shadow-md)]" : "border-border"
-                  }`}
-                >
-                  {plan.highlight && (
-                    <span className="mb-2 inline-flex items-center gap-1 self-start rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                      <Zap className="size-3" /> Most popular
-                    </span>
-                  )}
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    {plan.name}
-                  </p>
-                  <p className="mt-2 text-3xl font-bold">
-                    {formatNgn(getPlanPrice(plan, cycle))}
-                    <span className="text-base font-normal text-muted-foreground">
-                      {cycle === "annually" ? "/yr" : "/mo"}
-                    </span>
-                  </p>
-                  {cycle === "annually" && (
-                    <p className="mt-1 text-xs font-medium text-primary">
-                      Save {formatNgn(getAnnualSavings(plan))} yearly
-                    </p>
-                  )}
-                  <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
-                  <ul className="mt-4 flex-1 space-y-2">
-                    {plan.features.map((feature) => (
-                      <li
-                        key={feature}
-                        className="flex items-start gap-2 text-sm text-muted-foreground"
-                      >
-                        <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          {feature}
-                          {feature === "1 U.S. temporary number included" && (
-                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
-                              FREE
-                            </span>
-                          )}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    className="mt-6 w-full"
-                    variant={plan.highlight ? "hero" : "outline"}
-                    onClick={() => {
-                      trackNumberBonusCtaClicked("choose_plan");
-                      goToBilling();
-                    }}
-                  >
-                    Get {plan.name}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
+          <p className="mt-4 text-base text-muted-foreground">
+            Your ₦500 starter plan includes the tools to find business opportunities, generate client
+            work, and manage your pipeline.
+          </p>
 
-          <TabsContent value="packs" className="mt-7">
-            <div className="mb-5 text-center">
-              <p className="font-semibold">For when you only need leads right now</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Pay once. Your lead credits never expire. A monthly plan is required for Studio and
-                Website Builder.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {PACKS.map((pack) => (
-                <div
-                  key={pack.id}
-                  className={`flex flex-col rounded-2xl border-2 bg-card p-6 shadow-sm ${
-                    pack.highlight ? "border-primary shadow-[var(--shadow-md)]" : "border-border"
-                  }`}
-                >
-                  {pack.highlight && (
-                    <span className="mb-2 inline-flex items-center gap-1 self-start rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                      <Zap className="size-3" /> Best value
-                    </span>
-                  )}
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    {pack.name}
-                  </p>
-                  <p className="mt-2 text-3xl font-bold">{formatNgn(pack.ngn)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {pack.credits} lead searches, once
-                  </p>
-                  <ul className="mt-5 flex-1 space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-primary" /> Leads never expire
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-primary" /> Buy only when you
-                      need more
-                    </li>
-                  </ul>
-                  <Button
-                    className="mt-6 w-full"
-                    variant={pack.highlight ? "hero" : "outline"}
-                    onClick={goToBilling}
-                  >
-                    Buy {pack.name}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+          <ul className="mt-5 space-y-3">
+            {[
+              "60 lead searches each month",
+              "50 Studio credits each month",
+              "Kodarai Studio & Website Builder",
+              "AI website scripts and cold-call scripts",
+              "Save leads and manage your pipeline",
+            ].map((feature) => (
+              <li key={feature} className="flex items-start gap-3 text-sm text-foreground/90">
+                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+
+          <Button
+            variant="hero"
+            size="lg"
+            className="mt-6 w-full"
+            onClick={handleStarterCheckout}
+            disabled={busy}
+          >
+            {busy ? "Preparing checkout..." : "Pay ₦500 & Start Earning"}
+            {!busy && <ArrowRight className="ml-2 size-4" />}
+          </Button>
+
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Secure checkout via Paystack. Real Starter plan. No fake promises or guaranteed income.
+          </p>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-card/80 p-4">
+            <p className="font-semibold">What does ₦500 get me?</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Access to Kodarai’s lead finder, Studio builder, and the tools you need to create work
+              you can sell to local businesses.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card/80 p-4">
+            <p className="font-semibold">Is this a get-rich plan?</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              No. It’s a practical toolkit for finding clients, building solutions, and delivering work
+              professionally.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card/80 p-4">
+            <p className="font-semibold">How does payment work?</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              You pay the real Starter plan through the existing Paystack checkout and start using
+              Kodarai immediately.
+            </p>
+          </div>
+        </div>
 
         <div className="mt-8 text-center">
           <p className="font-medium">Not ready yet?</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            You can look around Kodarai first.
-            <br />
-            Some features will stay locked until you choose a plan.
+            You can still explore Kodarai first and come back when you’re ready.
           </p>
           <Button
             variant="ghost"
