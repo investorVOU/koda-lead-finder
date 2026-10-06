@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowRight, Check, Sparkles, Target, Wallet } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/landing/Logo";
@@ -80,23 +80,6 @@ function ChoosePlanPage() {
             Kodarai helps you build websites, digital products, and other client-ready solutions for
             businesses so you can deliver work and get paid.
           </p>
-        </div>
-
-        <div className="mt-8 grid gap-4 md:grid-cols-4">
-          {[
-            { icon: Target, title: "Find a client", text: "Identify businesses that need help." },
-            { icon: Sparkles, title: "Build with Kodarai", text: "Create the site or product with AI." },
-            { icon: Check, title: "Deliver", text: "Package the work for your client." },
-            { icon: Wallet, title: "Get paid", text: "Turn your work into revenue." },
-          ].map(({ icon: Icon, title, text }) => (
-            <div key={title} className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm">
-              <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="size-4" />
-              </div>
-              <p className="mt-3 text-base font-semibold">{title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-            </div>
-          ))}
         </div>
 
         <div className="mx-auto mt-8 max-w-3xl rounded-[28px] border border-primary/20 bg-card p-6 shadow-[var(--shadow-lg)] sm:p-8">
