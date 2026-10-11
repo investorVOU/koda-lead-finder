@@ -76,6 +76,7 @@ export async function recordVisitorEvent(input: TrackInput) {
     const now = new Date().toISOString();
 
     const { data: existing } = await db.from("support_visitor_sessions").select("*").eq("visitor_token_hash", hash).maybeSingle();
+    const previousPath = existing?.current_path ?? null;
     let session = existing;
     let isNew = false;
 
@@ -110,7 +111,9 @@ export async function recordVisitorEvent(input: TrackInput) {
       const { data: seen } = await db.from("support_visitor_events").select("id").eq("session_id", session.id).eq("type", type).limit(1);
       if (seen?.length) return; // each milestone notifies once per visitor
     }
-    if (type === "page_viewed" && session.current_path === input.path && !isNew) return;
+    // Compare against the path before the heartbeat update. Comparing with session.current_path
+    // after updating it silently discarded every navigation from the visitor journey.
+    if (type === "page_viewed" && previousPath === input.path && !isNew) return;
 
     await db.from("support_visitor_events").insert({ session_id: session.id, type, path: input.path });
     if (!telegramConfigured() || type === "page_viewed") return;
@@ -121,7 +124,16 @@ export async function recordVisitorEvent(input: TrackInput) {
       const { count } = await db.from("support_visitor_sessions").select("id", { count: "exact", head: true }).gte("created_at", since);
       if ((count ?? 0) > MAX_NEW_VISITOR_PINGS_PER_MINUTE) return;
       const sent = await sendTelegram(
-        `🟢 NEW VISITOR\n\nPage: ${session.landing_path}\nSource: ${sourceLabel(session)}\nDevice: ${session.device}\nVisitor: ${visitorLabel(hash)}`,
+        [
+          "🟢 NEW VISITOR",
+          "",
+          `Page: ${session.landing_path}`,
+          `Source: ${sourceLabel(session)}`,
+          session.utm_medium ? `Medium: ${clip(session.utm_medium, 100)}` : "",
+          session.utm_campaign ? `Campaign: ${clip(session.utm_campaign, 100)}` : "",
+          `Device: ${session.device}`,
+          `Visitor: ${visitorLabel(hash)}`,
+        ].filter(Boolean).join("\n"),
         messageButton(session.id),
       );
       await rememberThread(sent?.message_id, session.id);

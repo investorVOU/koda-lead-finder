@@ -214,7 +214,8 @@ export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
     return () => window.removeEventListener(AGENT_MESSAGE_EVENT, onAgentMessage);
   }, [user?.id, authLoading]);
 
-  // Open the live chat immediately for a new /start visitor and keep the welcome as its first message.
+  // Keep the chat closed for a new /start visitor. Show the welcome as a small live-chat teaser,
+  // matching the familiar Smartsupp/Tawk pattern; the visitor decides whether to open the full chat.
   useEffect(() => {
     if (user || authLoading) return;
     const isStartPage = pathname === "/start";
@@ -234,7 +235,8 @@ export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
       } catch { /* storage unavailable */ }
       if (shouldShowStartPopup && !openRef.current) {
         lastPoppedRef.current = START_WELCOME_KEY;
-        setOpen(true);
+        setHasUnread(true);
+        setPopup({ id: START_WELCOME_KEY, content: START_WELCOME });
       }
     }
     const onWelcome = (event: Event) => {
@@ -254,7 +256,8 @@ export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
       if (openRef.current) return;
       if (isStartPage) lastPoppedRef.current = START_WELCOME_KEY;
       if (isStartPage) {
-        setOpen(true);
+        setHasUnread(true);
+        setPopup({ id: detail.id, content });
       } else {
         setHasUnread(true);
         setPopup({ id: detail.id, content });
