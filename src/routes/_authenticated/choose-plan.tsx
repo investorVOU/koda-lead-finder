@@ -207,6 +207,15 @@ function ChoosePlanPage() {
             <p className="mt-4 text-sm text-muted-foreground">
               4.8 rating · 126 reviews · A local business that could benefit from a simple booking website.
             </p>
+            <div className="mt-4 rounded-xl border border-primary/15 bg-background/70 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Ask the business to pay
+              </p>
+              <p className="mt-1 text-xl font-bold text-primary">₦80,000–₦150,000</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                An illustrative range for this type of website, not guaranteed earnings.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-3">
