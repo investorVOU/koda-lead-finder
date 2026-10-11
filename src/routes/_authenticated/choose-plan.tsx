@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
@@ -8,6 +8,13 @@ import { Logo } from "@/components/landing/Logo";
 import { SupportChat } from "@/components/support/SupportChat";
 import { WelcomeEmailSync } from "@/components/auth/WelcomeEmailSync";
 import { PlanActivationEnrollmentSync } from "@/components/marketing/PlanActivationEnrollmentSync";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createCheckout } from "@/lib/billing.functions";
 import { PLANS, formatNgn } from "@/lib/billing";
 import { trackPlanSkipped } from "@/lib/analytics";
@@ -18,9 +25,9 @@ export const Route = createFileRoute("/_authenticated/choose-plan")({
 });
 
 function ChoosePlanPage() {
-  const navigate = useNavigate();
   const runCheckout = useServerFn(createCheckout);
   const [busy, setBusy] = useState(false);
+  const [exampleLeadOpen, setExampleLeadOpen] = useState(false);
 
   const starterPlan = PLANS.find((plan) => plan.id === "starter");
   const starterPrice = formatNgn(starterPlan?.ngn ?? 1000);
@@ -49,6 +56,11 @@ function ChoosePlanPage() {
     window.location.href = response.url!;
   };
 
+  const showExampleLead = (position: "top" | "bottom") => {
+    trackPlanSkipped(position);
+    setExampleLeadOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[image:var(--gradient-hero)] px-4 py-10 sm:py-12">
       <WelcomeEmailSync />
@@ -61,12 +73,9 @@ function ChoosePlanPage() {
             type="button"
             variant="outline"
             className="h-10 gap-1.5 rounded-full px-5 font-semibold"
-            onClick={() => {
-              trackPlanSkipped("top");
-              navigate({ to: "/dashboard" });
-            }}
+            onClick={() => showExampleLead("top")}
           >
-            Maybe later
+            See an example lead
             <ArrowRight className="size-4" />
           </Button>
         </div>
@@ -162,20 +171,90 @@ function ChoosePlanPage() {
         <div className="mt-8 text-center">
           <p className="font-medium">Not ready yet?</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            You can still explore Kodarai first and come back when you’re ready.
+            See the kind of business opportunity you can unlock first.
           </p>
           <Button
             variant="ghost"
             className="mt-3"
-            onClick={() => {
-              trackPlanSkipped("bottom");
-              navigate({ to: "/dashboard" });
-            }}
+            onClick={() => showExampleLead("bottom")}
           >
-            I&apos;ll do this later
+            See an example lead first
           </Button>
         </div>
       </div>
+      <Dialog open={exampleLeadOpen} onOpenChange={setExampleLeadOpen}>
+        <DialogContent className="max-w-xl overflow-y-auto p-5 sm:p-6">
+          <DialogHeader className="pr-8 text-left">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              Example lead · illustrative
+            </p>
+            <DialogTitle className="text-2xl">Here&apos;s a business you could pitch</DialogTitle>
+            <DialogDescription>
+              Starter reveals real leads like this, then gives you the tools to create a sample website and pitch.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-lg font-bold">Glow Hair Studio</p>
+                <p className="mt-1 text-sm text-muted-foreground">Lekki, Lagos · Salon</p>
+              </div>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+                No website found
+              </span>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              4.8 rating · 126 reviews · A local business that could benefit from a simple booking website.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl border bg-muted/35 p-3">
+              <div>
+                <p className="font-semibold">Contact details</p>
+                <p className="text-sm text-muted-foreground">Phone and business profile</p>
+              </div>
+              <span className="rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                Unlock with Starter
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border bg-muted/35 p-3">
+              <div>
+                <p className="font-semibold">Website sample</p>
+                <p className="text-sm text-muted-foreground">Create a personalised website to show them</p>
+              </div>
+              <span className="rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                Unlock with Starter
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border bg-muted/35 p-3">
+              <div>
+                <p className="font-semibold">WhatsApp pitch</p>
+                <p className="text-sm text-muted-foreground">Generate a message to start the conversation</p>
+              </div>
+              <span className="rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                Unlock with Starter
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">
+            You choose who to contact, agree your price directly with the business, and deliver the work.
+          </div>
+
+          <Button
+            variant="hero"
+            size="lg"
+            className="w-full"
+            onClick={handleStarterCheckout}
+            disabled={busy}
+          >
+            {busy ? "Preparing checkout..." : `Activate Starter for ${starterPrice}`}
+            {!busy && <ArrowRight className="ml-2 size-4" />}
+          </Button>
+        </DialogContent>
+      </Dialog>
       <SupportChat />
     </div>
   );
