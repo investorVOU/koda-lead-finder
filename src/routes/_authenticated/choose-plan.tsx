@@ -23,6 +23,7 @@ function ChoosePlanPage() {
   const [busy, setBusy] = useState(false);
 
   const starterPlan = PLANS.find((plan) => plan.id === "starter");
+  const starterPrice = formatNgn(starterPlan?.ngn ?? 1000);
 
   const handleStarterCheckout = async () => {
     if (!starterPlan) return;
@@ -90,7 +91,7 @@ function ChoosePlanPage() {
                 Starter
               </p>
               <p className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
-                {formatNgn(starterPlan?.ngn ?? 500)}
+                {starterPrice}
               </p>
             </div>
             <div className="rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary">
@@ -99,7 +100,7 @@ function ChoosePlanPage() {
           </div>
 
           <p className="mt-4 text-base text-muted-foreground">
-            Your ₦500 starter plan includes the tools to find business opportunities, generate client
+            Your {starterPrice} starter plan includes the tools to find business opportunities, generate client
             work, and manage your pipeline.
           </p>
 
@@ -125,7 +126,7 @@ function ChoosePlanPage() {
             onClick={handleStarterCheckout}
             disabled={busy}
           >
-            {busy ? "Preparing checkout..." : "Pay ₦500 & Start Earning"}
+            {busy ? "Preparing checkout..." : `Pay ${starterPrice} & Start Earning`}
             {!busy && <ArrowRight className="ml-2 size-4" />}
           </Button>
 
@@ -136,7 +137,7 @@ function ChoosePlanPage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-border bg-card/80 p-4">
-            <p className="font-semibold">What does ₦500 get me?</p>
+            <p className="font-semibold">What does {starterPrice} get me?</p>
             <p className="mt-2 text-sm text-muted-foreground">
               Access to Kodarai’s lead finder, Studio builder, and the tools you need to create work
               you can sell to local businesses.

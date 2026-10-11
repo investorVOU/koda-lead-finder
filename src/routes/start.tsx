@@ -905,7 +905,7 @@ function IntroPage({
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-[#727d75]">
               <span className="flex items-center gap-1.5">
                 <Check className="size-3.5 text-[#0a9451]" />
-                Plans from {FIRST_PACK_PRICE} · Pay with Paystack
+                Plans from {FIRST_PLAN_PRICE} · Pay with Paystack
               </span>
 
               <span className="flex items-center gap-1.5">
@@ -1095,7 +1095,7 @@ function LeanIntro({
           </div>
 
           <p className="mt-3 text-[12px] leading-5 text-[#687169]">
-            Takes about 30 seconds · Plans from {FIRST_PACK_PRICE} · Pay with Paystack
+            Takes about 30 seconds · Plans from {FIRST_PLAN_PRICE} · Pay with Paystack
           </p>
         </div>
       </section>
@@ -2466,7 +2466,7 @@ function FinalIntroCta({
         </button>
 
         <p className="mt-3 text-[11px] text-[#7a847c]">
-          Plans from {FIRST_PACK_PRICE} · Pay securely with Paystack
+          Plans from {FIRST_PLAN_PRICE} · Pay securely with Paystack
         </p>
 
         {reviews.length >
@@ -2862,7 +2862,7 @@ function Result({
       </button>
 
       <p className="mt-3 text-center text-[11px] text-[#7b827d]">
-        Create your account and see plans from {FIRST_PACK_PRICE}
+        Create your account and see plans from {FIRST_PLAN_PRICE}
       </p>
 
       <p className="mt-5 text-[10px] leading-4 text-[#818982]">

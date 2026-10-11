@@ -123,7 +123,7 @@ export const FREE_PLAN: FreePlan = {
   features: ["0 lead searches", "Full dashboard access", "View saved leads", "Upgrade any time"],
 };
 
-export const STARTER_PLAN_PRICE_NGN = 500;
+export const STARTER_PLAN_PRICE_NGN = 1000;
 
 export const PLANS: Plan[] = [
   {
