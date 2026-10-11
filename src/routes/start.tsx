@@ -527,12 +527,6 @@ function StartPage() {
     );
   };
 
-  // Lean page: the first question is on the landing screen itself.
-  const pickExperienceFromIntro = (value: Experience) => {
-    trackFunnelStarted();
-    chooseExperience(value);
-  };
-
   const chooseGoal = (
     value: Goal,
   ) => {
@@ -638,8 +632,7 @@ function StartPage() {
         <LeanIntro
           hook={hook}
           reviews={reviews}
-          onStart={beginQuestions}
-          onPickExperience={pickExperienceFromIntro}
+          onStart={startSignup}
         />
       )}
 
@@ -1036,19 +1029,16 @@ function LeanSteps() {
   );
 }
 
-// Lean /start: one promise, the first quiz question right under it, one proof,
-// then only the sections that answer a beginner's doubts. The full page stays
-// available at /start?v=full for comparison.
+// Lean /start: show the client-acquisition workflow immediately, then answer
+// a beginner's doubts. The full page stays available at /start?v=full.
 function LeanIntro({
   hook,
   reviews,
   onStart,
-  onPickExperience,
 }: {
   hook: string | null;
   reviews: PublicMarketingReview[];
   onStart: () => void;
-  onPickExperience: (value: Experience) => void;
 }) {
   const [showSticky, setShowSticky] = useState(false);
 
@@ -1077,22 +1067,7 @@ function LeanIntro({
             builds a sample site for each one, and helps you sell it.
           </p>
 
-          <p className="mt-6 text-[13px] font-bold text-[#172019]">
-            Which one sounds like you? Tap to start.
-          </p>
-
-          <div className="mt-3 space-y-2.5">
-            {EXPERIENCE_OPTIONS.map((option) => (
-              <ChoiceCard
-                key={option.value}
-                title={option.title}
-                description={option.description}
-                icon={option.icon}
-                selected={false}
-                onClick={() => onPickExperience(option.value)}
-              />
-            ))}
-          </div>
+          <FirstClientWorkflow onStart={onStart} />
 
           <p className="mt-3 text-[12px] leading-5 text-[#687169]">
             Takes about 30 seconds · Plans from {FIRST_PLAN_PRICE} · Pay with Paystack
@@ -1143,12 +1118,124 @@ function LeanIntro({
             onClick={onStart}
             className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white active:scale-[0.99]"
           >
-            Find my first business
+            Create my account
             <ArrowRight className="size-4" />
           </button>
         </div>
       )}
     </main>
+  );
+}
+
+const FIRST_CLIENT_DEMOS = [
+  {
+    id: "salon",
+    label: "Salon",
+    business: "Glow Hair Studio",
+    location: "Lekki, Lagos",
+    rating: "4.8",
+    reviews: "126",
+    estimate: "₦80,000–₦150,000",
+    website: "A polished booking site for appointments, styles and prices.",
+    pitch: "Hi Glow Hair Studio, I noticed you do not have a website. I made a quick sample to show what your business could look like online.",
+  },
+  {
+    id: "restaurant",
+    label: "Restaurant",
+    business: "Savannah Bites",
+    location: "Wuse 2, Abuja",
+    rating: "4.7",
+    reviews: "89",
+    estimate: "₦100,000–₦200,000",
+    website: "A modern menu and reservation site that makes ordering easy.",
+    pitch: "Hi Savannah Bites, I saw your restaurant has great reviews but no website. I made a quick sample you can look at.",
+  },
+  {
+    id: "fashion",
+    label: "Fashion",
+    business: "Olive & Thread",
+    location: "Ikeja, Lagos",
+    rating: "4.9",
+    reviews: "64",
+    estimate: "₦80,000–₦180,000",
+    website: "A catalogue site to show collections and capture WhatsApp orders.",
+    pitch: "Hi Olive & Thread, I found your work online and made a simple website sample to help customers view and order your collections.",
+  },
+] as const;
+
+function FirstClientWorkflow({ onStart }: { onStart: () => void }) {
+  const [selectedId, setSelectedId] = useState<(typeof FIRST_CLIENT_DEMOS)[number]["id"]>("salon");
+  const selected = FIRST_CLIENT_DEMOS.find((demo) => demo.id === selectedId) ?? FIRST_CLIENT_DEMOS[0];
+
+  const selectBusiness = (id: (typeof FIRST_CLIENT_DEMOS)[number]["id"]) => {
+    setSelectedId(id);
+    trackEvent("start_first_client_business_selected", { business_type: id });
+  };
+
+  return (
+    <section className="mt-7 overflow-hidden rounded-[22px] border border-[#cfe4d2] bg-white shadow-[0_10px_28px_rgba(25,75,43,0.08)]">
+      <div className="border-b border-[#dfe8df] bg-[#eff8ef] px-4 py-4 sm:px-5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#16894e]">Try the first-client workflow</p>
+        <h2 className="mt-1 text-[21px] font-bold leading-tight tracking-[-0.03em] text-[#172019]">This is how you can make money with Kodarai.</h2>
+        <p className="mt-1 text-[12px] leading-5 text-[#526057]">Choose a business. Kodarai finds a no-website lead, helps make a sample, then gives you a message to send.</p>
+      </div>
+
+      <div className="p-4 sm:p-5">
+        <p className="text-[12px] font-semibold text-[#334339]">1. Choose a business to help</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {FIRST_CLIENT_DEMOS.map((demo) => (
+            <button
+              key={demo.id}
+              type="button"
+              onClick={() => selectBusiness(demo.id)}
+              className={`min-h-10 rounded-lg border px-2 text-[12px] font-semibold transition ${selected.id === demo.id ? "border-[#079653] bg-[#e9f8ed] text-[#087b45]" : "border-[#dfe5df] bg-white text-[#526057] hover:border-[#a7cdb0]"}`}
+            >
+              {demo.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-[#e0e7e0] bg-[#fcfdfb] p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#16894e]">Example lead · illustrative</p>
+              <p className="mt-1 text-[15px] font-bold text-[#172019]">{selected.business}</p>
+              <p className="mt-1 text-[11px] text-[#687169]">{selected.location} · {selected.rating}★ · {selected.reviews} Google reviews</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-[#ffe8e8] px-2 py-1 text-[10px] font-bold text-[#c23838]">No website</span>
+          </div>
+          <div className="mt-3 rounded-lg bg-[#eaf7ed] px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#16894e]">Ask the business to pay</p>
+            <p className="mt-0.5 text-[19px] font-bold tracking-[-0.03em] text-[#116a3c]">{selected.estimate}</p>
+            <p className="mt-0.5 text-[10px] leading-4 text-[#55705e]">An example of what you could propose for this kind of website, not guaranteed earnings.</p>
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-[#dfe5df] p-3">
+            <p className="text-[11px] font-bold text-[#16894e]">2. Kodarai helps make the sample</p>
+            <p className="mt-1 text-[12px] leading-5 text-[#526057]">{selected.website}</p>
+          </div>
+          <div className="rounded-xl border border-[#dfe5df] p-3">
+            <p className="text-[11px] font-bold text-[#16894e]">3. You send the pitch</p>
+            <p className="mt-1 line-clamp-3 text-[12px] leading-5 text-[#526057]">“{selected.pitch}”</p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            trackStartWorkflowCtaClicked();
+            onStart();
+          }}
+          className="mt-4 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-4 text-[14px] font-bold text-white shadow-[0_8px_18px_rgba(7,150,83,0.2)] transition hover:bg-[#078549] active:scale-[0.99]"
+        >
+          Create my account and start for {FIRST_PLAN_PRICE}
+          <ArrowRight className="size-4" />
+        </button>
+        <p className="mt-2 text-center text-[11px] leading-4 text-[#687169]">Create your account first. You will see the {FIRST_PLAN_PRICE} Starter plan before any payment.</p>
+      </div>
+    </section>
   );
 }
 

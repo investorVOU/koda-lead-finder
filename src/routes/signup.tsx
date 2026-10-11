@@ -95,12 +95,6 @@ function SignupPage() {
     );
 
   const [
-    fullName,
-    setFullName,
-  ] =
-    useState("");
-
-  const [
     email,
     setEmail,
   ] =
@@ -115,12 +109,6 @@ function SignupPage() {
   const [
     busy,
     setBusy,
-  ] =
-    useState(false);
-
-  const [
-    marketingOptIn,
-    setMarketingOptIn,
   ] =
     useState(false);
 
@@ -207,12 +195,6 @@ function SignupPage() {
       setBusy(true);
 
       const metadata = {
-        full_name:
-          fullName,
-
-        marketing_email_opt_in:
-          marketingOptIn,
-
         ...(funnelData?.source
           ? {
               acquisition_source:
@@ -410,15 +392,11 @@ function SignupPage() {
       }
     };
 
-  const fromAdFunnel =
-    funnelData?.source ===
-    "ads";
-
   return (
     <AuthShell
-      title="Build. Sell. Earn."
+      title="Create your Kodarai account"
       subtitle={
-        "Use KodarAi to build websites, digital products, and client-ready solutions for businesses, then deliver the work and get paid."
+        "No coding needed. Create your account, see how to find your first website client, then choose the ₦1,000 Starter plan when you are ready."
       }
       footer={
         <>
@@ -434,36 +412,6 @@ function SignupPage() {
         </>
       }
     >
-      <div className="mb-5 rounded-xl border border-primary/20 bg-primary/5 p-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">How it works</p>
-        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              1
-            </span>
-            <span>Find a client</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              2
-            </span>
-            <span>Build with KodarAi</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              3
-            </span>
-            <span>Deliver the work</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              4
-            </span>
-            <span>Get paid</span>
-          </div>
-        </div>
-      </div>
-
       <GoogleButton
         onClick={
           handleGoogle
@@ -487,30 +435,6 @@ function SignupPage() {
         }
         className="space-y-4"
       >
-        <div className="space-y-1.5">
-          <Label htmlFor="name">
-            Full name
-          </Label>
-
-          <Input
-            id="name"
-            value={
-              fullName
-            }
-            onChange={(
-              event,
-            ) =>
-              setFullName(
-                event
-                  .target
-                  .value,
-              )
-            }
-            placeholder="Your name"
-            required
-          />
-        </div>
-
         <div className="space-y-1.5">
           <Label htmlFor="email">
             Email
@@ -564,42 +488,6 @@ function SignupPage() {
           />
         </div>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
-          <input
-            type="checkbox"
-            checked={
-              marketingOptIn
-            }
-            onChange={(
-              event,
-            ) =>
-              setMarketingOptIn(
-                event
-                  .target
-                  .checked,
-              )
-            }
-            className="mt-0.5 size-4 accent-primary"
-          />
-
-          <span>
-            <span className="font-medium">
-              Send me weekly
-              lead ideas and
-              KodarAI offers
-            </span>
-
-            <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-              Optional. You
-              can unsubscribe
-              at any time
-              from Settings
-              or an email
-              link.
-            </span>
-          </span>
-        </label>
-
         <Button
           type="submit"
           variant="hero"
@@ -612,9 +500,12 @@ function SignupPage() {
           {busy ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            "Start Building & Earning"
+            "Create account — then see the ₦1,000 Starter"
           )}
         </Button>
+        <p className="text-center text-xs leading-5 text-muted-foreground">
+          No payment is taken on this page. You will review the Starter plan before checkout.
+        </p>
       </form>
       <SupportChat />
     </AuthShell>
