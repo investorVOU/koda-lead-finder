@@ -216,7 +216,7 @@ function ChoosePlanPage() {
               className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-500/[0.08] px-4 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/[0.14] dark:text-emerald-400"
             >
               <MessageCircle className="size-4" />
-              Chat KodarAI on WhatsApp
+              Have a question? Chat KodarAI on WhatsApp
             </a>
           )}
 
