@@ -85,6 +85,7 @@ type ActivationMetrics = {
     reminderSent: number;
     reminderClicked: number;
     reminderConverted: number;
+    whatsappSent: number;
   };
 };
 
@@ -143,7 +144,7 @@ function PlanActivationTab({ passcode }: { passcode: string }) {
     try {
       const result = await runEmails({ data: { passcode } });
       const sent = Object.values(result.planActivation).reduce((total, stage) => total + stage.sent, 0)
-        + result.checkoutRecovery.sent;
+        + result.checkoutRecovery.sent + result.checkoutWhatsApp.sent;
       toast.success(
         sent
           ? `${sent} due activation email${sent === 1 ? "" : "s"} sent.`
@@ -211,6 +212,11 @@ function PlanActivationTab({ passcode }: { passcode: string }) {
               <p className="mt-1 text-xs text-muted-foreground">
                 {data?.checkoutRecovery.reminderClicked ?? 0} clicked · {data?.checkoutRecovery.reminderConverted ?? 0} paid
               </p>
+            </div>
+            <div className="rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">WhatsApp reminders</p>
+              <p className="mt-1 text-2xl font-bold">{data?.checkoutRecovery.whatsappSent ?? 0}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Opt-in only</p>
             </div>
           </div>
 

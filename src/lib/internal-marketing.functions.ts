@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateJsonWithConfiguredAi } from "@/lib/content.functions";
 import { getPlanActivationMetrics, sendPlanActivationCampaign } from "@/lib/plan-activation.server";
-import { getCheckoutRecoveryMetrics, sendCheckoutRecoveryCampaign } from "@/lib/checkout-recovery.server";
+import { getCheckoutRecoveryMetrics, sendCheckoutRecoveryCampaign, sendCheckoutWhatsAppRecoveryCampaign } from "@/lib/checkout-recovery.server";
 
 const platformSchema = z.enum(["linkedin", "x", "facebook", "threads", "pinterest", "instagram"]);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -595,11 +595,12 @@ export const runPlanActivationEmails = createServerFn({ method: "POST" })
   .inputValidator((data) => accessSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requireMarketingAccess(context.userId, data.passcode);
-    const [planActivation, checkoutRecovery] = await Promise.all([
+    const [planActivation, checkoutRecovery, checkoutWhatsApp] = await Promise.all([
       sendPlanActivationCampaign(),
       sendCheckoutRecoveryCampaign(),
+      sendCheckoutWhatsAppRecoveryCampaign(),
     ]);
-    return { planActivation, checkoutRecovery };
+    return { planActivation, checkoutRecovery, checkoutWhatsApp };
   });
 
 export const generateMarketingPost = createServerFn({ method: "POST" })

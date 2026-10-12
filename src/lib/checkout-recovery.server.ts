@@ -5,6 +5,7 @@ import {
   sendCheckoutRecoveryEmail,
 } from "@/lib/email.server";
 import { sendTelegram, telegramConfigured } from "@/lib/telegram.server";
+import { sendCheckoutRecoveryWhatsApp, whatsappConfigured } from "@/lib/whatsapp.server";
 
 const db = supabaseAdmin as any;
 const RECOVERY_DELAY_MS = 30 * 60 * 1000;
@@ -137,6 +138,18 @@ export async function sendCheckoutRecoveryCampaign() {
       .maybeSingle();
     if (!claimed) continue;
 
+    const { data: latestAttempt } = await db.from("checkout_attempts")
+      .select("id")
+      .eq("user_id", attempt.user_id)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestAttempt?.id !== attempt.id) {
+      await db.from("checkout_attempts").update({ recovery_sent_at: claimedAt }).eq("id", attempt.id);
+      result.skipped += 1;
+      continue;
+    }
+
     const profile = profiles.get(attempt.user_id) as {
       email?: string | null;
       full_name?: string | null;
@@ -190,7 +203,7 @@ export async function sendCheckoutRecoveryCampaign() {
 export async function getCheckoutRecoveryMetrics() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const [{ data: attempts, error: attemptsError }, { data: sends, error: sendsError }] = await Promise.all([
-    db.from("checkout_attempts").select("user_id,status").gte("started_at", since),
+    db.from("checkout_attempts").select("user_id,status,whatsapp_recovery_sent_at").gte("started_at", since),
     db.from("marketing_campaign_sends").select("user_id,clicked_at")
       .eq("campaign_key", CHECKOUT_RECOVERY_CAMPAIGN)
       .gte("sent_at", since),
@@ -216,5 +229,104 @@ export async function getCheckoutRecoveryMetrics() {
     reminderSent: recoverySends.length,
     reminderClicked: recoverySends.filter((send: any) => send.clicked_at).length,
     reminderConverted: recoverySends.filter((send: any) => paidUsers.has(send.user_id)).length,
+    whatsappSent: rows.filter((attempt: any) => attempt.whatsapp_recovery_sent_at).length,
   };
+}
+
+/** Sends the one WhatsApp reminder only when the account holder explicitly opted in. */
+export async function sendCheckoutWhatsAppRecoveryCampaign() {
+  if (!whatsappConfigured()) return { eligible: 0, sent: 0, skipped: 0, configured: false };
+
+  const now = new Date();
+  const dueBefore = new Date(now.getTime() - RECOVERY_DELAY_MS).toISOString();
+  const staleClaimBefore = new Date(now.getTime() - CLAIM_TIMEOUT_MS).toISOString();
+  await db.from("checkout_attempts")
+    .update({ whatsapp_recovery_claimed_at: null })
+    .eq("status", "initialized")
+    .is("whatsapp_recovery_checked_at", null)
+    .lt("whatsapp_recovery_claimed_at", staleClaimBefore);
+
+  const { data: dueAttempts, error } = await db.from("checkout_attempts")
+    .select("id,user_id,kind,plan_id,started_at")
+    .eq("status", "initialized")
+    .is("whatsapp_recovery_checked_at", null)
+    .is("whatsapp_recovery_claimed_at", null)
+    .lte("started_at", dueBefore)
+    .order("started_at", { ascending: true })
+    .limit(50);
+  if (error) throw new Error(error.message);
+
+  const attempts = dueAttempts ?? [];
+  const userIds = [...new Set(attempts.map((attempt: any) => attempt.user_id))];
+  if (!userIds.length) return { eligible: 0, sent: 0, skipped: 0, configured: true };
+
+  const [profilesResult, subscriptionsResult, optInsResult] = await Promise.all([
+    db.from("profiles").select("id,full_name").in("id", userIds),
+    db.from("subscriptions").select("user_id,status").in("user_id", userIds),
+    db.from("checkout_whatsapp_opt_ins").select("user_id,phone_e164,opted_out_at").in("user_id", userIds),
+  ]);
+  if (profilesResult.error) throw new Error(profilesResult.error.message);
+  if (subscriptionsResult.error) throw new Error(subscriptionsResult.error.message);
+  if (optInsResult.error) throw new Error(optInsResult.error.message);
+
+  const profiles = new Map((profilesResult.data ?? []).map((profile: any) => [profile.id, profile]));
+  const optIns = new Map((optInsResult.data ?? []).map((optIn: any) => [optIn.user_id, optIn]));
+  const paidUsers = new Set((subscriptionsResult.data ?? [])
+    .filter((subscription: any) => subscription.status === "active" || subscription.status === "canceling")
+    .map((subscription: any) => subscription.user_id));
+  const result = { eligible: 0, sent: 0, skipped: 0, configured: true };
+
+  for (const attempt of attempts as any[]) {
+    const nowIso = new Date().toISOString();
+    const { data: claimed } = await db.from("checkout_attempts")
+      .update({ whatsapp_recovery_claimed_at: nowIso })
+      .eq("id", attempt.id)
+      .eq("status", "initialized")
+      .is("whatsapp_recovery_checked_at", null)
+      .is("whatsapp_recovery_claimed_at", null)
+      .select("id")
+      .maybeSingle();
+    if (!claimed) continue;
+
+    const { data: latestAttempt } = await db.from("checkout_attempts")
+      .select("id")
+      .eq("user_id", attempt.user_id)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestAttempt?.id !== attempt.id) {
+      await db.from("checkout_attempts").update({ whatsapp_recovery_checked_at: nowIso }).eq("id", attempt.id);
+      result.skipped += 1;
+      continue;
+    }
+
+    const optIn = optIns.get(attempt.user_id) as { phone_e164?: string; opted_out_at?: string | null } | undefined;
+    if (paidUsers.has(attempt.user_id) || !optIn?.phone_e164 || optIn.opted_out_at) {
+      await db.from("checkout_attempts").update({ whatsapp_recovery_checked_at: nowIso }).eq("id", attempt.id);
+      result.skipped += 1;
+      continue;
+    }
+
+    result.eligible += 1;
+    const plan = attempt.kind === "subscription" ? findPlan(attempt.plan_id) : null;
+    const profile = profiles.get(attempt.user_id) as { full_name?: string | null } | undefined;
+    const firstName = profile?.full_name?.trim().split(/\s+/)[0] || "there";
+    const sent = await sendCheckoutRecoveryWhatsApp({
+      to: optIn.phone_e164,
+      firstName,
+      planName: plan?.name ?? "your selected",
+    });
+
+    if (!sent.sent) {
+      await db.from("checkout_attempts").update({ whatsapp_recovery_claimed_at: null }).eq("id", attempt.id);
+      continue;
+    }
+
+    await db.from("checkout_attempts")
+      .update({ whatsapp_recovery_checked_at: nowIso, whatsapp_recovery_sent_at: nowIso })
+      .eq("id", attempt.id);
+    result.sent += 1;
+  }
+
+  return result;
 }

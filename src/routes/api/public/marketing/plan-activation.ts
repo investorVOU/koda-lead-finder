@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { sendPlanActivationCampaign } from "@/lib/plan-activation.server";
-import { sendCheckoutRecoveryCampaign } from "@/lib/checkout-recovery.server";
+import { sendCheckoutRecoveryCampaign, sendCheckoutWhatsAppRecoveryCampaign } from "@/lib/checkout-recovery.server";
 
 export const Route = createFileRoute("/api/public/marketing/plan-activation")({
   server: {
@@ -11,11 +11,12 @@ export const Route = createFileRoute("/api/public/marketing/plan-activation")({
         if (request.headers.get("authorization") !== `Bearer ${secret}`) return new Response("Unauthorized", { status: 401 });
 
         try {
-          const [planActivation, checkoutRecovery] = await Promise.all([
+          const [planActivation, checkoutRecovery, checkoutWhatsApp] = await Promise.all([
             sendPlanActivationCampaign(),
             sendCheckoutRecoveryCampaign(),
+            sendCheckoutWhatsAppRecoveryCampaign(),
           ]);
-          return Response.json({ planActivation, checkoutRecovery });
+          return Response.json({ planActivation, checkoutRecovery, checkoutWhatsApp });
         } catch (error) {
           console.error("Plan activation campaign failed:", error);
           return new Response("Campaign failed", { status: 500 });
