@@ -2,10 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { whatsappConfigured } from "@/lib/whatsapp.server";
 
 const inputSchema = z.object({
   phone: z.string().trim().min(7).max(32),
 });
+
+export const getCheckoutWhatsAppAvailability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => ({ available: whatsappConfigured() }));
 
 function normalizeWhatsAppPhone(input: string) {
   const compact = input.replace(/[\s().-]/g, "");

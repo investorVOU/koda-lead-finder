@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createCheckout } from "@/lib/billing.functions";
-import { saveCheckoutWhatsAppOptIn } from "@/lib/checkout-whatsapp.functions";
+import { getCheckoutWhatsAppAvailability, saveCheckoutWhatsAppOptIn } from "@/lib/checkout-whatsapp.functions";
 import { PLANS, formatNgn } from "@/lib/billing";
 import { rememberCheckout, trackCheckoutStarted, trackPlanSkipped } from "@/lib/analytics";
 import { trackVisitorEvent } from "@/lib/visitor-tracking";
@@ -29,10 +29,12 @@ export const Route = createFileRoute("/_authenticated/choose-plan")({
 function ChoosePlanPage() {
   const runCheckout = useServerFn(createCheckout);
   const saveWhatsAppOptIn = useServerFn(saveCheckoutWhatsAppOptIn);
+  const getWhatsAppAvailability = useServerFn(getCheckoutWhatsAppAvailability);
   const [busy, setBusy] = useState(false);
   const [exampleLeadOpen, setExampleLeadOpen] = useState(false);
   const [whatsAppOptIn, setWhatsAppOptIn] = useState(false);
   const [whatsAppPhone, setWhatsAppPhone] = useState("");
+  const [whatsAppAvailable, setWhatsAppAvailable] = useState(false);
 
   const starterPlan = PLANS.find((plan) => plan.id === "starter");
   const starterPrice = formatNgn(starterPlan?.ngn ?? 1000);
@@ -40,7 +42,10 @@ function ChoosePlanPage() {
   // Continue the same browser visitor journey after sign-up so Telegram can surface high-intent plan views.
   useEffect(() => {
     trackVisitorEvent("pricing_opened");
-  }, []);
+    void getWhatsAppAvailability()
+      .then((result) => setWhatsAppAvailable(result.available))
+      .catch(() => setWhatsAppAvailable(false));
+  }, [getWhatsAppAvailability]);
 
   const handleStarterCheckout = async () => {
     if (!starterPlan) return;
@@ -140,7 +145,7 @@ function ChoosePlanPage() {
             work, and manage your pipeline.
           </p>
 
-          <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4">
+          {whatsAppAvailable && <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4">
             <label className="flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
@@ -166,7 +171,7 @@ function ChoosePlanPage() {
                 className="mt-3 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             )}
-          </div>
+          </div>}
 
           <ul className="mt-5 space-y-3">
             {[
