@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
 import { createCheckout } from "@/lib/billing.functions";
 import { PLANS, formatNgn } from "@/lib/billing";
 import { trackPlanSkipped } from "@/lib/analytics";
+import { trackVisitorEvent } from "@/lib/visitor-tracking";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
   head: () => ({ meta: [{ title: "Start building & earning — Kodarai" }] }),
@@ -32,9 +33,15 @@ function ChoosePlanPage() {
   const starterPlan = PLANS.find((plan) => plan.id === "starter");
   const starterPrice = formatNgn(starterPlan?.ngn ?? 1000);
 
+  // Continue the same browser visitor journey after sign-up so Telegram can surface high-intent plan views.
+  useEffect(() => {
+    trackVisitorEvent("pricing_opened");
+  }, []);
+
   const handleStarterCheckout = async () => {
     if (!starterPlan) return;
 
+    trackVisitorEvent("checkout_started");
     setBusy(true);
 
     const response = await runCheckout({

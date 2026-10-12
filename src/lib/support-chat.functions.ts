@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendTransactionalEmail } from "@/lib/email.server";
 import { relayVisitorMessageToTelegram } from "@/lib/support-visitors.server";
+import { PLANS, formatNgn } from "@/lib/billing";
 
 const db = supabaseAdmin as any;
 
@@ -49,14 +50,52 @@ const pushSubscriptionSchema = z.object({
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b"];
+const STARTER_PLAN_PRICE = formatNgn(PLANS.find((plan) => plan.id === "starter")?.ngn ?? 1000);
+
+const KODARAI_PRODUCT_BRIEF = `
+KodarAI is a client-acquisition and website-production toolkit. It does not employ users, pay users a salary, guarantee income, or close sales for them.
+
+How a user can use it: choose a location and business type, research businesses that may have no website or need a better one, choose an opportunity, create a sample website in KodarAI Studio, prepare a message or call script, then contact the business themselves. The user and business agree the scope and price directly; the user delivers the work. Results depend on the user's effort, pricing, work quality, and deals they close.
+
+No coding: users do not need to code to create a first website sample. They can give simple instructions to Studio. Experienced builders can customise further.
+
+Starter: the visible Starter plan is ${STARTER_PLAN_PRICE} for 30-day access. It includes lead searches, Studio credits, the website builder, AI website and cold-call scripts, and a pipeline. The user sees the plan details before checkout. Payment uses Paystack and the plan does not renew automatically.
+
+Lead information: contact details and business information are shown only where available. Users should verify each opportunity before contacting a business.
+
+Other product areas: Finder is for searching and saving business opportunities; Leads and the pipeline help organise outreach; Studio creates, previews and edits website projects; Social Content helps draft content; Revenue and Invoices help users organise their business records; Referrals may reward eligible referral activity according to the current in-product terms. Give a short, feature-specific explanation when asked, but do not claim a feature is included in every plan unless the current plan page says so.
+
+Virtual numbers: availability, countries, and supported services can vary. Never guarantee that a number will work with a particular service.
+
+Support boundaries: do not claim to see a user's account, payment, lead, generated website, or checkout unless that information was provided in the chat. For refunds, failed payments, account access, security, billing disputes, or anything requiring account-specific investigation, hand off to a human.
+`.trim();
 
 type SupportReply = { content: string; status: "bot" | "human" };
 
 function fallbackSupportReply(message: string): SupportReply {
-  if (/human|person|agent|someone|representative/.test(message.toLowerCase())) {
+  const lower = message.toLowerCase();
+  if (/human|person|agent|someone|representative/.test(lower)) {
     return {
       content: "I have passed this to the KodarAI team. An agent will pick it up here as soon as one is available.",
       status: "human",
+    };
+  }
+  if (/make money|earn|earning|get paid|income/.test(lower)) {
+    return {
+      content: "KodarAI does not guarantee income or pay you directly. It helps you find possible business opportunities, create a website sample and prepare a pitch. You contact the business, agree a price with them, and deliver the work if they accept.",
+      status: "bot",
+    };
+  }
+  if (/code|coding|developer/.test(lower)) {
+    return {
+      content: "You do not need to know how to code to make a first website sample in KodarAI Studio. You can give simple instructions, then contact the business yourself and agree the work and price directly.",
+      status: "bot",
+    };
+  }
+  if (/price|cost|starter|plan|₦|naira/.test(lower)) {
+    return {
+      content: `The visible Starter plan is ${STARTER_PLAN_PRICE} for 30-day access. It includes lead searches, Studio credits, the website builder, outreach scripts and a pipeline. You can review the plan details before payment.`,
+      status: "bot",
     };
   }
   return {
@@ -85,7 +124,7 @@ async function generateSupportReply(conversation: SupportConversation, message: 
     role: item.sender === "user" ? "user" : "assistant",
     content: item.content,
   }));
-  const system = `You are KodarAI Support, a concise and helpful product-support assistant. KodarAI helps people find local businesses without websites, save leads, manage outreach and revenue, build sites in Studio, generate content, manage billing, and access virtual numbers. Answer only with information you can support from this context. Do not invent plans, prices, refunds, account activity, delivery times, or actions you cannot perform. For account, billing, security, payment, or complex issues, offer a human handoff. Never ask for passwords, one-time codes, card data, API keys, or other secrets. Return only valid JSON in this exact format: {"reply":"plain text under 900 characters","handoff":false}. Set handoff to true only when a person should take over.`;
+  const system = `You are KodarAI Support, a concise, warm product-support assistant.\n\n${KODARAI_PRODUCT_BRIEF}\n\nAnswer the user's question directly in plain language. Be clear about the user-owned work: KodarAI assists with research, sample creation and outreach preparation; the user contacts the business, agrees terms and delivers. Never frame KodarAI as an automatic income system. Answer only with information supported by this brief or the conversation. Do not invent plans, prices, refunds, account activity, delivery times, or actions you cannot perform. For account, billing, security, payment, refund, or complex issues, offer a human handoff. Never ask for passwords, one-time codes, card data, API keys, or other secrets. Return only valid JSON in this exact format: {"reply":"plain text under 900 characters","handoff":false}. Set handoff to true only when a person should take over.`;
 
   for (const model of GROQ_MODELS) {
     try {

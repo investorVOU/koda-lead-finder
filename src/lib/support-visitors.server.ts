@@ -18,6 +18,36 @@ const NOTIFY_LABEL: Partial<Record<VisitorEventType, string>> = {
   chat_opened: "💬 opened the support chat",
 };
 
+const HOT_LEAD_EVENT_TYPES = new Set<VisitorEventType>([
+  "signup_started",
+  "pricing_opened",
+  "checkout_started",
+  "chat_opened",
+]);
+
+const HOT_LEAD_POINTS: Partial<Record<VisitorEventType, number>> = {
+  visitor_started: 5,
+  finder_opened: 10,
+  studio_opened: 15,
+  pricing_opened: 30,
+  signup_started: 55,
+  checkout_started: 100,
+  chat_opened: 35,
+};
+
+const hotLeadButtons = (sessionId: string) => ({
+  reply_markup: {
+    inline_keyboard: [
+      [{ text: "💬 Message visitor", callback_data: `msg:${sessionId}` }],
+      [
+        { text: "No-code reply", callback_data: `quick:no-code:${sessionId}` },
+        { text: "₦1k plan reply", callback_data: `quick:starter:${sessionId}` },
+      ],
+      [{ text: "Example lead reply", callback_data: `quick:example:${sessionId}` }],
+    ],
+  },
+});
+
 const BOT_RE = /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|pingdom|uptime/i;
 const MAX_NEW_VISITOR_PINGS_PER_MINUTE = 30;
 
@@ -66,6 +96,38 @@ export interface TrackInput {
   referrer?: string;
   utm?: { source?: string; medium?: string; campaign?: string };
   userAgent: string;
+}
+
+async function notifyHotLead(session: any, hash: string, trigger: VisitorEventType, path: string) {
+  if (!HOT_LEAD_EVENT_TYPES.has(trigger)) return;
+
+  const { data: events } = await db
+    .from("support_visitor_events")
+    .select("type")
+    .eq("session_id", session.id);
+  const types = new Set<VisitorEventType>((events ?? []).map((event: { type: VisitorEventType }) => event.type));
+  const score = Math.min(
+    100,
+    Array.from(types).reduce<number>((total, type) => total + (HOT_LEAD_POINTS[type] ?? 0), 0),
+  );
+  if (score < 60) return;
+
+  const urgency = trigger === "checkout_started" ? "READY FOR CHECKOUT" : "HOT LEAD";
+  const sent = await sendTelegram(
+    [
+      `🔥 ${urgency} · ${score}/100`,
+      "",
+      `Visitor: ${visitorLabel(hash)}`,
+      `Just did: ${NOTIFY_LABEL[trigger] ?? trigger}`,
+      `Now on: ${path}`,
+      `Source: ${sourceLabel(session)}`,
+      session.utm_campaign ? `Campaign: ${clip(session.utm_campaign, 100)}` : "",
+      "",
+      "Use a quick reply or message them personally.",
+    ].filter(Boolean).join("\n"),
+    hotLeadButtons(session.id),
+  );
+  await rememberThread(sent?.message_id, session.id);
 }
 
 /** Records the event and pings Telegram. Never throws to the caller. */
@@ -146,6 +208,7 @@ export async function recordVisitorEvent(input: TrackInput) {
       { ...messageButton(session.id), ...(first?.[0] ? { reply_to_message_id: first[0].message_id, allow_sending_without_reply: true } : {}) },
     );
     await rememberThread(sent?.message_id, session.id);
+    await notifyHotLead(session, hash, type, input.path);
   } catch (error) {
     console.error("visitor tracking failed", error instanceof Error ? error.message : error);
   }
@@ -250,6 +313,60 @@ export async function relayVisitorMessageToTelegram(visitorTokenHash: string | n
   } catch (error) {
     console.error("telegram relay failed", error instanceof Error ? error.message : error);
   }
+}
+
+function startOfLagosDay() {
+  const lagos = new Date(Date.now() + 60 * 60 * 1000);
+  lagos.setUTCHours(0, 0, 0, 0);
+  return new Date(lagos.getTime() - 60 * 60 * 1000).toISOString();
+}
+
+/** Compact operator views for Telegram commands. No visitor identity or contact data is exposed. */
+export async function getTelegramActiveVisitors() {
+  const cutoff = new Date(Date.now() - ONLINE_WINDOW_MS).toISOString();
+  const { data, error } = await db
+    .from("support_visitor_sessions")
+    .select("visitor_token_hash,current_path,last_seen_at,utm_source,utm_campaign,referrer")
+    .gte("last_seen_at", cutoff)
+    .order("last_seen_at", { ascending: false })
+    .limit(20);
+  if (error) return "⚠️ Could not load active visitors right now.";
+  if (!data?.length) return "⚪ No visitors are active right now.";
+
+  const lines = data.map((session: any) => {
+    const source = sourceLabel(session);
+    const campaign = session.utm_campaign ? ` · ${clip(session.utm_campaign, 28)}` : "";
+    return `• ${visitorLabel(session.visitor_token_hash)} — ${clip(session.current_path, 50)} · ${source}${campaign}`;
+  });
+  return `🟢 ACTIVE VISITORS (${data.length})\n\n${lines.join("\n")}\n\nTap a visitor button from an alert to message them.`;
+}
+
+export async function getTelegramVisitorStats() {
+  const since = startOfLagosDay();
+  const activeCutoff = new Date(Date.now() - ONLINE_WINDOW_MS).toISOString();
+  const [{ count: visitors }, { count: active }, { data: events, error }] = await Promise.all([
+    db.from("support_visitor_sessions").select("id", { count: "exact", head: true }).gte("created_at", since),
+    db.from("support_visitor_sessions").select("id", { count: "exact", head: true }).gte("last_seen_at", activeCutoff),
+    db.from("support_visitor_events").select("type").gte("created_at", since),
+  ]);
+  if (error) return "⚠️ Could not load visitor stats right now.";
+
+  const counts = (events ?? []).reduce((result: Record<string, number>, event: { type: string }) => {
+    result[event.type] = (result[event.type] ?? 0) + 1;
+    return result;
+  }, {});
+  return [
+    "📊 TODAY'S VISITOR FUNNEL",
+    "",
+    `Visitors: ${visitors ?? 0}`,
+    `Active now: ${active ?? 0}`,
+    `Finder opened: ${counts.finder_opened ?? 0}`,
+    `Studio opened: ${counts.studio_opened ?? 0}`,
+    `Plan viewed: ${counts.pricing_opened ?? 0}`,
+    `Signup started: ${counts.signup_started ?? 0}`,
+    `Checkout started: ${counts.checkout_started ?? 0}`,
+    `Chat opened: ${counts.chat_opened ?? 0}`,
+  ].join("\n");
 }
 
 export { telegramCall };
