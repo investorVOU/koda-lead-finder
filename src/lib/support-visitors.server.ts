@@ -401,9 +401,7 @@ function ensureSweeper() {
   if (sweeperStarted) return;
   sweeperStarted = true;
   // Render runs a long-lived Node process, so a lazy in-process timer is enough; it starts on the first heartbeat.
-  // Presence updates already arrive every 20 seconds from visible tabs; a one-minute sweep keeps
-  // leave notifications timely without every Render process polling the database too aggressively.
-  const timer = setInterval(() => { void sweepLeftVisitors(); }, 60_000);
+  const timer = setInterval(() => { void sweepLeftVisitors(); }, 30_000);
   (timer as any).unref?.();
 }
 
