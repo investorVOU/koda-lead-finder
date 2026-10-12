@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/landing/Logo";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { createCheckout } from "@/lib/billing.functions";
 import { getCheckoutWhatsAppAvailability, saveCheckoutWhatsAppOptIn } from "@/lib/checkout-whatsapp.functions";
+import { getPublicWhatsAppChatSettings } from "@/lib/internal-marketing.functions";
 import { PLANS, formatNgn } from "@/lib/billing";
 import { rememberCheckout, trackCheckoutStarted, trackPlanSkipped } from "@/lib/analytics";
 import { trackVisitorEvent } from "@/lib/visitor-tracking";
@@ -30,14 +31,19 @@ function ChoosePlanPage() {
   const runCheckout = useServerFn(createCheckout);
   const saveWhatsAppOptIn = useServerFn(saveCheckoutWhatsAppOptIn);
   const getWhatsAppAvailability = useServerFn(getCheckoutWhatsAppAvailability);
+  const getWhatsAppChatSettings = useServerFn(getPublicWhatsAppChatSettings);
   const [busy, setBusy] = useState(false);
   const [exampleLeadOpen, setExampleLeadOpen] = useState(false);
   const [whatsAppOptIn, setWhatsAppOptIn] = useState(false);
   const [whatsAppPhone, setWhatsAppPhone] = useState("");
   const [whatsAppAvailable, setWhatsAppAvailable] = useState(false);
+  const [whatsAppChatNumber, setWhatsAppChatNumber] = useState<string | null>(null);
 
   const starterPlan = PLANS.find((plan) => plan.id === "starter");
   const starterPrice = formatNgn(starterPlan?.ngn ?? 1000);
+  const whatsAppChatUrl = whatsAppChatNumber
+    ? `https://wa.me/${whatsAppChatNumber.replace(/\D/g, "")}?text=${encodeURIComponent("Hi KodarAI, I have a question before activating Starter.")}`
+    : null;
 
   // Continue the same browser visitor journey after sign-up so Telegram can surface high-intent plan views.
   useEffect(() => {
@@ -45,7 +51,10 @@ function ChoosePlanPage() {
     void getWhatsAppAvailability()
       .then((result) => setWhatsAppAvailable(result.available))
       .catch(() => setWhatsAppAvailable(false));
-  }, [getWhatsAppAvailability]);
+    void getWhatsAppChatSettings()
+      .then((result) => setWhatsAppChatNumber(result.phone))
+      .catch(() => setWhatsAppChatNumber(null));
+  }, [getWhatsAppAvailability, getWhatsAppChatSettings]);
 
   const handleStarterCheckout = async () => {
     if (!starterPlan) return;
@@ -198,6 +207,18 @@ function ChoosePlanPage() {
             {busy ? "Preparing checkout..." : `Pay ${starterPrice} & Start Earning`}
             {!busy && <ArrowRight className="ml-2 size-4" />}
           </Button>
+
+          {whatsAppChatUrl && (
+            <a
+              href={whatsAppChatUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-500/[0.08] px-4 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/[0.14] dark:text-emerald-400"
+            >
+              <MessageCircle className="size-4" />
+              Chat KodarAI on WhatsApp
+            </a>
+          )}
 
           <p className="mt-3 text-center text-xs text-muted-foreground">
             One-time payment, no automatic renewal. Pay securely with the available Paystack payment methods.

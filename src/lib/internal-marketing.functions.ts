@@ -37,6 +37,10 @@ const clarityProjectSettingsSchema = accessSchema.extend({
   clarityCode: z.string().trim().max(10_000).default(""),
 });
 
+const whatsappBusinessSettingsSchema = accessSchema.extend({
+  phone: z.string().trim().max(80).default(""),
+});
+
 const visitorDimensionSchema = z
   .string()
   .trim()
@@ -198,6 +202,7 @@ type AdSenseSettingsRow = {
   meta_pixel_id: string | null;
   tiktok_pixel_id: string | null;
   clarity_project_id: string | null;
+  whatsapp_business_number: string | null;
 };
 
 function parseAdSenseCode(adCode: string) {
@@ -227,7 +232,7 @@ async function readAdSenseSettings() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabaseAdmin as any)
     .from("marketing_adsense_settings")
-    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id, tiktok_pixel_id, clarity_project_id")
+    .select("is_enabled, publisher_id, landing_ad_slot, google_analytics_measurement_id, meta_pixel_id, tiktok_pixel_id, clarity_project_id, whatsapp_business_number")
     .eq("singleton", true)
     .maybeSingle();
   if (error) throw new Error("Could not read AdSense settings.");
@@ -339,6 +344,30 @@ export const getPublicClaritySettings = createServerFn({ method: "GET" }).handle
   }
 });
 
+// This number is rendered only after sign-up on /choose-plan, never on ad landing pages.
+export const getPublicWhatsAppChatSettings = createServerFn({ method: "GET" }).handler(
+  async () => {
+    try {
+      const settings = await readAdSenseSettings();
+      return { phone: settings?.whatsapp_business_number ?? null } as const;
+    } catch {
+      return { phone: null } as const;
+    }
+  },
+);
+
+function parseWhatsAppBusinessNumber(phone: string) {
+  const input = phone.trim();
+  if (!input) return { phone: null } as const;
+
+  const digits = input.replace(/[^0-9]/g, "");
+  const internationalDigits = /^0\d{10}$/.test(digits) ? `234${digits.slice(1)}` : digits;
+  if (!/^[1-9][0-9]{7,14}$/.test(internationalDigits)) {
+    return { error: "Enter a valid WhatsApp number, for example +234 801 234 5678." } as const;
+  }
+  return { phone: `+${internationalDigits}` } as const;
+}
+
 async function hashVisitorId(visitorId: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(visitorId));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -415,6 +444,7 @@ export const getMarketingVisitorDashboard = createServerFn({ method: "POST" })
       metaPixelId: settings?.meta_pixel_id ?? null,
       tiktokPixelId: settings?.tiktok_pixel_id ?? null,
       clarityProjectId: settings?.clarity_project_id ?? null,
+      whatsappBusinessNumber: settings?.whatsapp_business_number ?? null,
     } as const;
   });
 
@@ -520,6 +550,32 @@ export const saveMarketingClaritySettings = createServerFn({ method: "POST" })
         message: "Could not save Clarity. Apply the Clarity migration first.",
       } as const;
     return { projectId: parsed.projectId } as const;
+  });
+
+export const saveMarketingWhatsAppBusinessNumber = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => whatsappBusinessSettingsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await requireMarketingAccess(context.userId, data.passcode);
+    const parsed = parseWhatsAppBusinessNumber(data.phone);
+    if ("error" in parsed) return { error: "whatsapp_error", message: parsed.error } as const;
+
+    // Supabase types are generated separately; this new migration is not represented yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any).from("marketing_adsense_settings").upsert(
+      {
+        singleton: true,
+        whatsapp_business_number: parsed.phone,
+        updated_by: context.userId,
+      },
+      { onConflict: "singleton" },
+    );
+    if (error)
+      return {
+        error: "whatsapp_error",
+        message: "Could not save the WhatsApp number. Apply the WhatsApp migration first.",
+      } as const;
+    return { phone: parsed.phone } as const;
   });
 
 export const getMarketingAdSenseSettings = createServerFn({ method: "POST" })

@@ -32,6 +32,7 @@ import {
   saveMarketingClaritySettings,
   saveMarketingMetaPixelSettings,
   saveMarketingTikTokPixelSettings,
+  saveMarketingWhatsAppBusinessNumber,
   uploadMarketingAsset,
   verifyMarketingAccess,
 } from "@/lib/internal-marketing.functions";
@@ -306,6 +307,7 @@ type VisitorDashboard = {
   metaPixelId: string | null;
   tiktokPixelId: string | null;
   clarityProjectId: string | null;
+  whatsappBusinessNumber: string | null;
 };
 
 function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
@@ -314,16 +316,19 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
   const saveMetaPixel = useServerFn(saveMarketingMetaPixelSettings);
   const saveTikTokPixelSettingsFn = useServerFn(saveMarketingTikTokPixelSettings);
   const saveClarity = useServerFn(saveMarketingClaritySettings);
+  const saveWhatsAppBusinessNumber = useServerFn(saveMarketingWhatsAppBusinessNumber);
   const [dashboard, setDashboard] = useState<VisitorDashboard | null>(null);
   const [measurementCode, setMeasurementCode] = useState("");
   const [pixelCode, setPixelCode] = useState("");
   const [tiktokPixelCode, setTiktokPixelCode] = useState("");
   const [clarityCode, setClarityCode] = useState("");
+  const [whatsAppBusinessNumber, setWhatsAppBusinessNumber] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPixel, setSavingPixel] = useState(false);
   const [savingTikTokPixel, setSavingTikTokPixel] = useState(false);
   const [savingClarity, setSavingClarity] = useState(false);
+  const [savingWhatsApp, setSavingWhatsApp] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -334,6 +339,7 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       setPixelCode(next.metaPixelId ?? "");
       setTiktokPixelCode(next.tiktokPixelId ?? "");
       setClarityCode(next.clarityProjectId ?? "");
+      setWhatsAppBusinessNumber(next.whatsappBusinessNumber ?? "");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load website analytics.");
     } finally {
@@ -402,6 +408,23 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
       toast.error(error instanceof Error ? error.message : "Could not save Microsoft Clarity.");
     } finally {
       setSavingClarity(false);
+    }
+  };
+
+  const saveWhatsApp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingWhatsApp(true);
+    try {
+      const result = await saveWhatsAppBusinessNumber({
+        data: { passcode, phone: whatsAppBusinessNumber },
+      });
+      if ("error" in result) throw new Error(result.message);
+      toast.success(result.phone ? "WhatsApp chat is live on the plan page." : "WhatsApp chat is hidden.");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the WhatsApp number.");
+    } finally {
+      setSavingWhatsApp(false);
     }
   };
 
@@ -550,6 +573,28 @@ function WebsiteAnalyticsTab({ passcode }: { passcode: string }) {
             <Button className="mt-4" type="submit" disabled={savingClarity || !clarityCode.trim()}>
               {savingClarity && <Loader2 className="size-4 animate-spin" />}
               {savingClarity ? "Saving..." : "Connect Microsoft Clarity"}
+            </Button>
+          </form>
+
+          <form className="mt-7 border-t border-border pt-6" onSubmit={saveWhatsApp}>
+            <Label htmlFor="whatsapp-business-number">KodarAI WhatsApp Business number</Label>
+            <Input
+              id="whatsapp-business-number"
+              className="mt-2"
+              value={whatsAppBusinessNumber}
+              onChange={(event) => setWhatsAppBusinessNumber(event.target.value)}
+              maxLength={80}
+              inputMode="tel"
+              placeholder="+234 801 234 5678"
+            />
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Save a normal WhatsApp Business number to show a free “Chat KodarAI on WhatsApp”
+              button on /choose-plan only. Leave this empty and save to hide it. It never appears
+              on /start or other ad landing pages.
+            </p>
+            <Button className="mt-4" type="submit" disabled={savingWhatsApp}>
+              {savingWhatsApp && <Loader2 className="size-4 animate-spin" />}
+              {savingWhatsApp ? "Saving..." : "Save WhatsApp chat"}
             </Button>
           </form>
         </>
