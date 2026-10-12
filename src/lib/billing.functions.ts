@@ -12,6 +12,7 @@ import {
   paystackFetch,
   getPaystackPlanCode,
 } from "@/lib/billing.server";
+import { recordCheckoutAttempt } from "@/lib/checkout-recovery.server";
 import { sendUserTransactionalEmail } from "@/lib/email.server";
 
 const checkoutSchema = z.object({
@@ -82,6 +83,7 @@ export const createCheckout = createServerFn({ method: "POST" })
         const res = await paystackFetch<{
           data: {
             authorization_url: string;
+            reference: string;
           };
         }>(
           "/transaction/initialize",
@@ -89,8 +91,20 @@ export const createCheckout = createServerFn({ method: "POST" })
           payload,
         );
 
+        await recordCheckoutAttempt({
+          userId,
+          reference: res.data.reference,
+          kind: "subscription",
+          planId: plan.id,
+          amount,
+          currency: "NGN",
+          cycle,
+          renewalMode,
+        });
+
         return {
           url: res.data.authorization_url,
+          reference: res.data.reference,
         } as const;
       }
 
@@ -106,6 +120,7 @@ export const createCheckout = createServerFn({ method: "POST" })
       const res = await paystackFetch<{
         data: {
           authorization_url: string;
+          reference: string;
         };
       }>(
         "/transaction/initialize",
@@ -123,8 +138,18 @@ export const createCheckout = createServerFn({ method: "POST" })
         },
       );
 
+      await recordCheckoutAttempt({
+        userId,
+        reference: res.data.reference,
+        kind: "pack",
+        planId: pack.id,
+        amount: pack.ngn,
+        currency: "NGN",
+      });
+
       return {
         url: res.data.authorization_url,
+        reference: res.data.reference,
       } as const;
     } catch (e) {
       console.error("checkout error", e);

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { createCheckout } from "@/lib/billing.functions";
 import { PLANS, formatNgn } from "@/lib/billing";
-import { trackPlanSkipped } from "@/lib/analytics";
+import { rememberCheckout, trackCheckoutStarted, trackPlanSkipped } from "@/lib/analytics";
 import { trackVisitorEvent } from "@/lib/visitor-tracking";
 
 export const Route = createFileRoute("/_authenticated/choose-plan")({
@@ -59,6 +59,10 @@ function ChoosePlanPage() {
       setBusy(false);
       return;
     }
+
+    const checkoutData = { plan: starterPlan.id, currency: "NGN", value: starterPlan.ngn };
+    trackCheckoutStarted(checkoutData);
+    rememberCheckout(checkoutData);
 
     window.location.href = response.url!;
   };

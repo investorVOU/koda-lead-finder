@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import {
+  CHECKOUT_RECOVERY_CAMPAIGN,
   PLAN_ACTIVATION_CAMPAIGNS,
   verifyMarketingCampaignToken,
 } from "@/lib/email.server";
@@ -8,7 +9,10 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const clickSchema = z.object({
   user: z.string().uuid(),
-  campaign: z.enum(PLAN_ACTIVATION_CAMPAIGNS),
+  campaign: z.union([
+    z.enum(PLAN_ACTIVATION_CAMPAIGNS),
+    z.literal(CHECKOUT_RECOVERY_CAMPAIGN),
+  ]),
   token: z.string().length(64),
 });
 

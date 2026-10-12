@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateJsonWithConfiguredAi } from "@/lib/content.functions";
 import { getPlanActivationMetrics, sendPlanActivationCampaign } from "@/lib/plan-activation.server";
+import { getCheckoutRecoveryMetrics, sendCheckoutRecoveryCampaign } from "@/lib/checkout-recovery.server";
 
 const platformSchema = z.enum(["linkedin", "x", "facebook", "threads", "pinterest", "instagram"]);
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -582,7 +583,11 @@ export const getPlanActivationDashboard = createServerFn({ method: "POST" })
   .inputValidator((data) => accessSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requireMarketingAccess(context.userId, data.passcode);
-    return getPlanActivationMetrics();
+    const [activation, checkoutRecovery] = await Promise.all([
+      getPlanActivationMetrics(),
+      getCheckoutRecoveryMetrics(),
+    ]);
+    return { ...activation, checkoutRecovery };
   });
 
 export const runPlanActivationEmails = createServerFn({ method: "POST" })
@@ -590,7 +595,11 @@ export const runPlanActivationEmails = createServerFn({ method: "POST" })
   .inputValidator((data) => accessSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requireMarketingAccess(context.userId, data.passcode);
-    return sendPlanActivationCampaign();
+    const [planActivation, checkoutRecovery] = await Promise.all([
+      sendPlanActivationCampaign(),
+      sendCheckoutRecoveryCampaign(),
+    ]);
+    return { planActivation, checkoutRecovery };
   });
 
 export const generateMarketingPost = createServerFn({ method: "POST" })

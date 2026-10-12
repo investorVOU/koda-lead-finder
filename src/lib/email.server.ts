@@ -32,6 +32,12 @@ export const PLAN_ACTIVATION_CAMPAIGNS = [
 export type PlanActivationCampaignKey =
   (typeof PLAN_ACTIVATION_CAMPAIGNS)[number];
 
+export const CHECKOUT_RECOVERY_CAMPAIGN = "checkout-recovery-30m" as const;
+
+export type MarketingCampaignKey =
+  | PlanActivationCampaignKey
+  | typeof CHECKOUT_RECOVERY_CAMPAIGN;
+
 const WELCOME_EMAIL_SENT_KEY =
   "kodarai_welcome_email_sent_at";
 
@@ -252,7 +258,7 @@ export function verifyMarketingUnsubscribeToken(
 
 export function createMarketingCampaignToken(
   userId: string,
-  campaignKey: PlanActivationCampaignKey,
+  campaignKey: MarketingCampaignKey,
 ) {
   const secret = unsubscribeSecret();
 
@@ -270,7 +276,7 @@ export function createMarketingCampaignToken(
 
 export function verifyMarketingCampaignToken(
   userId: string,
-  campaignKey: PlanActivationCampaignKey,
+  campaignKey: MarketingCampaignKey,
   token: string,
 ) {
   const expected = createMarketingCampaignToken(
@@ -471,6 +477,55 @@ export async function sendPlanActivationEmail({
     footerHtml:
       `You are receiving this because you signed up for KodarAI and reached plan selection. ` +
       `<a href="${escapeHtml(unsubscribeUrl)}" style="color:#52525b;">Unsubscribe from these emails</a>.` +
+      `<br />KodarAI, ${escapeHtml(postalAddress)}`,
+  });
+}
+
+/** A single, consent-aware reminder after a user explicitly started checkout. */
+export async function sendCheckoutRecoveryEmail({
+  userId,
+  to,
+  name,
+  planName,
+  price,
+}: {
+  userId: string;
+  to: string;
+  name?: string | null;
+  planName: string;
+  price: string;
+}) {
+  const unsubscribeToken = createMarketingUnsubscribeToken(userId);
+  const campaignToken = createMarketingCampaignToken(userId, CHECKOUT_RECOVERY_CAMPAIGN);
+  const postalAddress = process.env.MARKETING_POSTAL_ADDRESS?.trim();
+
+  if (!unsubscribeToken || !campaignToken || !postalAddress) {
+    return { sent: false, reason: "Marketing email configuration is incomplete." } as const;
+  }
+
+  const unsubscribeUrl = `${getAppUrl()}/api/public/marketing/unsubscribe?user=${encodeURIComponent(userId)}&token=${encodeURIComponent(unsubscribeToken)}`;
+  const clickUrl = `${getAppUrl()}/api/public/marketing/click?user=${encodeURIComponent(userId)}&campaign=${CHECKOUT_RECOVERY_CAMPAIGN}&token=${encodeURIComponent(campaignToken)}`;
+  const firstName = name?.trim().split(/\s+/)[0] || "there";
+
+  return sendTransactionalEmail({
+    to,
+    subject: `Complete your KodarAI ${planName} setup`,
+    title: "Your setup is almost ready",
+    preview: `Finish activating ${planName} for ${price} when you are ready.`,
+    body:
+      `Hi ${firstName},\n\n` +
+      `You started activating the KodarAI ${planName} plan for ${price}, but the payment was not completed.\n\n` +
+      `Your account is still ready. Complete setup when you are ready, then you can use Finder, Studio, and your client-workflow tools.\n\n` +
+      `If a payment was successful, you can ignore this email — activation may take a moment to appear.`,
+    ctaLabel: "Complete setup",
+    ctaUrl: clickUrl,
+    headers: {
+      "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+    footerHtml:
+      `You are receiving this because you started a KodarAI checkout. ` +
+      `<a href="${escapeHtml(unsubscribeUrl)}" style="color:#52525b;">Unsubscribe from these reminders</a>.` +
       `<br />KodarAI, ${escapeHtml(postalAddress)}`,
   });
 }

@@ -13,6 +13,7 @@ import {
 import { activateVirtualNumber } from "@/lib/numbers.server";
 import { creditWallet } from "@/lib/wallet.server";
 import { revokeAvailableNumberBonusForPaymentReference } from "@/lib/number-bonus.server";
+import { markCheckoutPaid } from "@/lib/checkout-recovery.server";
 
 type PaystackWebhookEvent = {
   event?: string;
@@ -81,6 +82,7 @@ export const Route = createFileRoute("/api/public/webhooks/paystack")({
               const planId = meta.plan_id;
               const amount = (data.amount ?? 0) / 100;
               const currency = data.currency ?? "NGN";
+              await markCheckoutPaid(data.reference);
               if (!userId) break;
               if (kind === "wallet_topup") {
                 const amountNgn = Number(meta.amount_ngn ?? data.amount / 100);

@@ -78,6 +78,14 @@ type ActivationMetrics = {
     email: string | null;
     converted: boolean;
   }[];
+  checkoutRecovery: {
+    started: number;
+    paid: number;
+    unpaid: number;
+    reminderSent: number;
+    reminderClicked: number;
+    reminderConverted: number;
+  };
 };
 
 const platforms: { value: Platform; label: string }[] = [
@@ -103,6 +111,7 @@ const activationLabels: Record<string, string> = {
   "plan-activation-24h": "24 hours",
   "plan-activation-3d": "3 days",
   "plan-activation-7d": "7 days",
+  "checkout-recovery-30m": "Checkout reminder",
 };
 
 function PlanActivationTab({ passcode }: { passcode: string }) {
@@ -133,7 +142,8 @@ function PlanActivationTab({ passcode }: { passcode: string }) {
     setRunning(true);
     try {
       const result = await runEmails({ data: { passcode } });
-      const sent = Object.values(result).reduce((total, stage) => total + stage.sent, 0);
+      const sent = Object.values(result.planActivation).reduce((total, stage) => total + stage.sent, 0)
+        + result.checkoutRecovery.sent;
       toast.success(
         sent
           ? `${sent} due activation email${sent === 1 ? "" : "s"} sent.`
@@ -153,8 +163,8 @@ function PlanActivationTab({ passcode }: { passcode: string }) {
         <div>
           <h2 className="text-lg font-semibold">Plan activation emails</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Ad-acquired users are enrolled when they reach plan selection. The hourly schedule sends
-            each stage once, stops after a paid conversion, and records CTA clicks.
+            Track real Paystack checkout starts and recover unfinished checkouts after 30 minutes.
+            The schedule runs every 15 minutes, stops after a paid conversion, and records CTA clicks.
           </p>
         </div>
         <div className="flex gap-2">
@@ -178,7 +188,7 @@ function PlanActivationTab({ passcode }: { passcode: string }) {
         </div>
       ) : (
         <>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-xl border border-border p-4">
               <p className="text-sm text-muted-foreground">Ad leads enrolled</p>
               <p className="mt-1 text-2xl font-bold">{data?.enrolled ?? 0}</p>
@@ -186,6 +196,21 @@ function PlanActivationTab({ passcode }: { passcode: string }) {
             <div className="rounded-xl border border-border p-4">
               <p className="text-sm text-muted-foreground">Unpaid and still eligible</p>
               <p className="mt-1 text-2xl font-bold">{data?.unpaid ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">Paystack checkouts (30d)</p>
+              <p className="mt-1 text-2xl font-bold">{data?.checkoutRecovery.started ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">Paid checkouts (30d)</p>
+              <p className="mt-1 text-2xl font-bold">{data?.checkoutRecovery.paid ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">Recovery emails</p>
+              <p className="mt-1 text-2xl font-bold">{data?.checkoutRecovery.reminderSent ?? 0}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {data?.checkoutRecovery.reminderClicked ?? 0} clicked · {data?.checkoutRecovery.reminderConverted ?? 0} paid
+              </p>
             </div>
           </div>
 

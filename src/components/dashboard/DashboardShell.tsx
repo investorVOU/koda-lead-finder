@@ -44,6 +44,7 @@ import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/lib/queries";
 import { ProductTourProvider } from "@/components/onboarding/ProductTourProvider";
 import { PreviewModeBanner } from "@/components/billing/PlanPreviewGate";
+import { CheckoutRecoveryBanner } from "@/components/billing/CheckoutRecoveryBanner";
 import { trackPreviewModeEntered } from "@/lib/analytics";
 import { isPreviewMode } from "@/lib/plan-access";
 
@@ -339,6 +340,7 @@ export function DashboardShell({
 
       <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:py-8 md:pb-8">
         <PreviewModeBanner />
+        <CheckoutRecoveryBanner />
         <div
           key={location.pathname}
           className="animate-page-enter"
