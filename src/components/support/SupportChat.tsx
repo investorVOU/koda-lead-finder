@@ -101,7 +101,17 @@ export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
     const load = async () => {
       setLoading(true);
       const result = user
-        ? await runGetChat()
+        ? await runGetChat({
+          data: {
+            visitorToken: (() => {
+              try {
+                return window.localStorage.getItem(GUEST_TOKEN_KEY) ?? undefined;
+              } catch {
+                return undefined;
+              }
+            })(),
+          },
+        })
         : await (async () => {
           const savedToken = window.localStorage.getItem(GUEST_TOKEN_KEY);
           if (savedToken) {
@@ -199,7 +209,7 @@ export function SupportChat({ raised = false }: { raised?: boolean } = {}) {
   // Guests have no realtime channel. The visitor heartbeat (VisitorTracker) broadcasts new human replies;
   // we pop them out like a live-chat bubble when the widget is closed.
   useEffect(() => {
-    if (user || authLoading) return;
+    if (authLoading) return;
     const onAgentMessage = (event: Event) => {
       const agent = (event as CustomEvent<AgentMessageDetail>).detail;
       if (!agent || openRef.current || lastPoppedRef.current === agent.id) return;

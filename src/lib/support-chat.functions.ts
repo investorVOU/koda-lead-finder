@@ -166,6 +166,55 @@ async function getOrCreateConversation(userId: string) {
   return created as SupportConversation;
 }
 
+/**
+ * A person can start as an anonymous visitor, receive a Telegram reply, then create an account.
+ * Keep that browser's existing conversation so the reply remains visible after authentication.
+ */
+async function getOrClaimConversation(userId: string, visitorToken?: string) {
+  const { data: userConversation, error: userError } = await db
+    .from("support_conversations")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (userError) throw new Error(userError.message);
+
+  if (!visitorToken) return (userConversation as SupportConversation | null) ?? getOrCreateConversation(userId);
+
+  const visitorTokenHash = hashVisitorToken(visitorToken);
+  const { data: guestConversation, error: guestError } = await db
+    .from("support_conversations")
+    .select("*")
+    .eq("visitor_token_hash", visitorTokenHash)
+    .maybeSingle();
+  if (guestError) throw new Error(guestError.message);
+
+  if (!guestConversation) return (userConversation as SupportConversation | null) ?? getOrCreateConversation(userId);
+  if (guestConversation.user_id === userId) return guestConversation as SupportConversation;
+
+  if (userConversation) {
+    const { error: moveError } = await db
+      .from("support_messages")
+      .update({ conversation_id: userConversation.id })
+      .eq("conversation_id", guestConversation.id);
+    if (moveError) throw new Error(moveError.message);
+    const { error: deleteError } = await db.from("support_conversations").delete().eq("id", guestConversation.id);
+    if (deleteError) throw new Error(deleteError.message);
+    return userConversation as SupportConversation;
+  }
+
+  const { data: claimed, error: claimError } = await db
+    .from("support_conversations")
+    .update({ user_id: userId, updated_at: new Date().toISOString() })
+    .eq("id", guestConversation.id)
+    .is("user_id", null)
+    .select("*")
+    .maybeSingle();
+  if (claimError) throw new Error(claimError.message);
+  if (claimed) return claimed as SupportConversation;
+
+  return getOrCreateConversation(userId);
+}
+
 function hashVisitorToken(visitorToken: string) {
   return createHash("sha256").update(visitorToken).digest("hex");
 }
@@ -324,16 +373,17 @@ export const getSupportAdminAccess = createServerFn({ method: "GET" })
 
 export const getSupportChat = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data) => z.object({ visitorToken: z.string().uuid().optional() }).parse(data))
+  .handler(async ({ data, context }) => {
     try {
-      const conversation = await getOrCreateConversation(context.userId);
-      const { data, error } = await db
+      const conversation = await getOrClaimConversation(context.userId, data.visitorToken);
+      const { data: messages, error } = await db
         .from("support_messages")
         .select("*")
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true });
       if (error) return { error: error.message, messages: [] as SupportMessage[] } as const;
-      return { conversation, messages: (data ?? []) as SupportMessage[] } as const;
+      return { conversation, messages: (messages ?? []) as SupportMessage[] } as const;
     } catch (error) {
       return {
         error: error instanceof Error ? error.message : "Unable to start support chat.",

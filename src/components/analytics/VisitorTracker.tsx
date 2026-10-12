@@ -14,7 +14,7 @@ export function VisitorTracker() {
   }, [pathname, user?.id, loading]);
 
   useEffect(() => {
-    if (loading || user) return;
+    if (loading) return;
     return startPresence();
   }, [user?.id, loading]);
 

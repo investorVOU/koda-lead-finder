@@ -54,7 +54,9 @@ export type AgentMessageDetail = { id: string; content: string; created_at: stri
 export const WELCOME_MESSAGE_EVENT = "kodarai:welcome-message";
 export type WelcomeMessageDetail = { id: string; content: string; created_at: string };
 
-const HEARTBEAT_MS = 10_000;
+// Presence does not need sub-10-second polling. Twenty seconds keeps live replies responsive
+// while cutting the request volume from visible tabs in half.
+const HEARTBEAT_MS = 20_000;
 const WELCOME_CHECK_MS = 2_000;
 
 /**
