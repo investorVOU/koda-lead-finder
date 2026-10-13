@@ -16,16 +16,22 @@ import { LiveNotification } from "@/components/LiveNotification";
 import { SupportChat } from "@/components/support/SupportChat";
 import { AdSenseUnit } from "@/components/marketing/AdSenseUnit";
 import { MarketingVisitorTracker } from "@/components/analytics/MarketingVisitorTracker";
+import { SmsLanding } from "@/components/sms/SmsLanding";
+
+const smsFunnelMode = import.meta.env.VITE_SMS_FUNNEL_MODE === "true";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       {
-        title: "Kodarai — Find Businesses Without Websites & Close Them Fast",
+        title: smsFunnelMode
+          ? "KodarAI SMS — Virtual Numbers"
+          : "Kodarai — Find Businesses Without Websites & Close Them Fast",
       },
       {
         name: "description",
-        content:
-          "Kodarai helps web designers find businesses in the locations they choose, generate AI website prompts, and get cold-call scripts to close clients fast.",
+        content: smsFunnelMode
+          ? "Browse available virtual numbers and manage SMS in one KodarAI account."
+          : "Kodarai helps web designers find businesses in the locations they choose, generate AI website prompts, and get cold-call scripts to close clients fast.",
       },
       {
         property: "og:title",
@@ -55,13 +61,15 @@ export const Route = createFileRoute("/")({
           "Find high-rated businesses without websites, build a website, and close clients faster.",
       },
     ],
-    links: [{ rel: "canonical", href: "https://kodarai.xyz/" }],
+    links: [{ rel: "canonical", href: smsFunnelMode ? "https://sms.kodarai.xyz/" : "https://kodarai.xyz/" }],
   }),
 
   component: Index,
 });
 
 function Index() {
+  if (smsFunnelMode) return <SmsLanding />;
+
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />

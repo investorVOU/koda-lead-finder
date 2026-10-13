@@ -1,6 +1,5 @@
 import {
   createFileRoute,
-  Link,
   useNavigate,
 } from "@tanstack/react-router";
 
@@ -83,6 +82,18 @@ function SignupPage() {
   const navigate =
     useNavigate();
 
+  const numbersSignup =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("next") === "numbers";
+
+  const continueAfterSignup = () => {
+    if (numbersSignup) {
+      navigate({ to: "/numbers" });
+      return;
+    }
+    navigate({ to: "/choose-plan" });
+  };
+
   const {
     user,
     loading,
@@ -164,9 +175,7 @@ function SignupPage() {
       !loading &&
       user
     ) {
-      navigate({
-        to: "/choose-plan",
-      });
+      continueAfterSignup();
     }
   }, [
     user,
@@ -270,10 +279,8 @@ function SignupPage() {
 
             options: {
               emailRedirectTo:
-                window
-                  .location
-                  .origin +
-                "/dashboard",
+                window.location.origin +
+                (numbersSignup ? "/numbers" : "/dashboard"),
 
               data:
                 metadata,
@@ -340,9 +347,7 @@ function SignupPage() {
           "Account created. Let's get started.",
         );
 
-        navigate({
-          to: "/choose-plan",
-        });
+        continueAfterSignup();
 
         return;
       }
@@ -373,10 +378,8 @@ function SignupPage() {
 
             options: {
               redirectTo:
-                window
-                  .location
-                  .origin +
-                "/choose-plan",
+                window.location.origin +
+                (numbersSignup ? "/numbers" : "/choose-plan"),
             },
           },
         );
@@ -396,6 +399,9 @@ function SignupPage() {
     <AuthShell
       title="Create your Kodarai account"
       subtitle={
+        numbersSignup
+          ? "Create your account to browse available virtual numbers and review the price before you buy."
+          :
         "No coding needed. Create your account, see how to find your first website client, then choose the ₦1,000 Starter plan when you are ready."
       }
       footer={
@@ -403,12 +409,12 @@ function SignupPage() {
           Already have an
           account?{" "}
 
-          <Link
-            to="/login"
+          <a
+            href={numbersSignup ? "/login?next=numbers" : "/login"}
             className="font-semibold text-primary hover:underline"
           >
             Sign in
-          </Link>
+          </a>
         </>
       }
     >
@@ -500,11 +506,13 @@ function SignupPage() {
           {busy ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            "Create account — then see the ₦1,000 Starter"
+            numbersSignup ? "Create account & browse numbers" : "Create account — then see the ₦1,000 Starter"
           )}
         </Button>
         <p className="text-center text-xs leading-5 text-muted-foreground">
-          No payment is taken on this page. You will review the Starter plan before checkout.
+          {numbersSignup
+            ? "No payment is taken on this page. You will review a number and its price before checkout."
+            : "No payment is taken on this page. You will review the Starter plan before checkout."}
         </p>
       </form>
       <SupportChat />

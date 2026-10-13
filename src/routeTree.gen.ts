@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrialWelcomeRouteImport } from './routes/trial-welcome'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StartRouteImport } from './routes/start'
+import { Route as SmsRouteImport } from './routes/sms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -77,6 +78,11 @@ const TermsRoute = TermsRouteImport.update({
 const StartRoute = StartRouteImport.update({
   id: '/start',
   path: '/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SmsRoute = SmsRouteImport.update({
+  id: '/sms',
+  path: '/sms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -363,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sms': typeof SmsRoute
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
@@ -418,6 +425,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sms': typeof SmsRoute
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
@@ -474,6 +482,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sms': typeof SmsRoute
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/trial-welcome': typeof TrialWelcomeRoute
@@ -531,6 +540,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/sms'
     | '/start'
     | '/terms'
     | '/trial-welcome'
@@ -586,6 +596,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/sms'
     | '/start'
     | '/terms'
     | '/trial-welcome'
@@ -641,6 +652,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/sms'
     | '/start'
     | '/terms'
     | '/trial-welcome'
@@ -698,6 +710,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SmsRoute: typeof SmsRoute
   StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
   TrialWelcomeRoute: typeof TrialWelcomeRoute
@@ -741,6 +754,13 @@ declare module '@tanstack/react-router' {
       path: '/start'
       fullPath: '/start'
       preLoaderRoute: typeof StartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sms': {
+      id: '/sms'
+      path: '/sms'
+      fullPath: '/sms'
+      preLoaderRoute: typeof SmsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -1184,6 +1204,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SmsRoute: SmsRoute,
   StartRoute: StartRoute,
   TermsRoute: TermsRoute,
   TrialWelcomeRoute: TrialWelcomeRoute,

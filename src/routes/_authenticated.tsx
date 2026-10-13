@@ -64,6 +64,8 @@ function AuthenticatedLayout() {
       "/onboarding",
       "/choose-plan",
       "/billing",
+      // Only the separate SMS Render deployment enables direct number purchases.
+      ...(import.meta.env.VITE_SMS_FUNNEL_MODE === "true" ? ["/numbers"] : []),
     ];
 
     if (exemptPaths.includes(pathname)) {

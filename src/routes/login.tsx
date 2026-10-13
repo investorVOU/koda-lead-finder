@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { KeyRound, Loader2 } from "lucide-react";
@@ -23,6 +23,17 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const numbersLogin =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("next") === "numbers";
+
+  const continueAfterLogin = () => {
+    if (numbersLogin) {
+      navigate({ to: "/numbers" });
+      return;
+    }
+    navigate({ to: "/dashboard" });
+  };
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +48,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate({ to: "/dashboard" });
+      continueAfterLogin();
     }
   }, [user, loading, navigate]);
 
@@ -61,9 +72,7 @@ function LoginPage() {
 
     toast.success("Welcome back!");
 
-    navigate({
-      to: "/dashboard",
-    });
+    continueAfterLogin();
   };
 
   const handleForgotPassword = async () => {
@@ -95,7 +104,7 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin + "/dashboard",
+        redirectTo: window.location.origin + (numbersLogin ? "/numbers" : "/dashboard"),
       },
     });
 
@@ -108,16 +117,16 @@ function LoginPage() {
   return (
     <AuthShell
       title="Sign in to Kodarai"
-      subtitle="Find businesses without websites and close them fast."
+      subtitle={numbersLogin ? "Sign in to browse and manage your virtual numbers." : "Find businesses without websites and close them fast."}
       footer={
         <>
           New here?{" "}
-          <Link
-            to="/signup"
+          <a
+            href={numbersLogin ? "/signup?next=numbers" : "/signup"}
             className="font-semibold text-primary hover:underline"
           >
             Create an account
-          </Link>
+          </a>
         </>
       }
     >
