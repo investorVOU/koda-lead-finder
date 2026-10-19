@@ -138,7 +138,6 @@ export const PLANS: Plan[] = [
     credits: 60,
 
     features: [
-      "1 U.S. temporary number included",
       "60 lead searches each month",
       "50 Studio credits each month",
       "Kodarai Studio & Website Builder",
@@ -163,7 +162,6 @@ export const PLANS: Plan[] = [
     highlight: true,
 
     features: [
-      "1 U.S. temporary number included",
       "250 lead searches each month",
       "200 Studio credits each month",
       "Kodarai Studio & Website Builder",
@@ -188,7 +186,6 @@ export const PLANS: Plan[] = [
     credits: 800,
 
     features: [
-      "1 U.S. temporary number included",
       "800 lead searches each month",
       "Unlimited Studio credits",
       "Kodarai Studio & Website Builder",

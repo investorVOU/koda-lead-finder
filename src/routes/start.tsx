@@ -2871,12 +2871,6 @@ function Result({
         }
       />
 
-      <div className="mt-8 rounded-xl border border-[#dfe5df] bg-[#fcfcf9] p-4">
-        <p className="text-[12px] font-semibold text-[#24352a]">And when you choose your first KodarAI plan:</p>
-        <p className="mt-1 text-[15px] font-bold text-[#079653]">Get 1 U.S. temporary number included.</p>
-        <p className="mt-2 text-[11px] leading-5 text-[#687169]">Useful when you want a U.S. number as part of your outreach setup. Available once for eligible new paying users. Temporary number only. Availability and supported services may vary.</p>
-      </div>
-
       <button
         type="button"
         onClick={

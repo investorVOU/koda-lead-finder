@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, CreditCard, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,13 +13,9 @@ import {
 } from "@/lib/billing";
 import { BillingCycleToggle } from "@/components/billing/BillingCycleToggle";
 import { FadeUp } from "./FadeUp";
-import { trackNumberBonusCtaClicked, trackNumberBonusPricingViewed } from "@/lib/analytics";
 
 export function Pricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
-  useEffect(() => {
-    trackNumberBonusPricingViewed();
-  }, []);
   return (
     <section id="pricing" className="border-y border-border bg-secondary/40">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-28">
@@ -59,22 +55,6 @@ export function Pricing() {
               </p>
             </div>
           </div>
-        </div>
-
-        <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-primary/35 bg-primary/10 px-4 py-4 text-center shadow-sm sm:px-6">
-          <span className="inline-flex rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-foreground">
-            Free new member bonus
-          </span>
-          <p className="mt-2 text-base font-bold text-foreground">
-            1 U.S. temporary number included with your first paid plan
-          </p>
-          <p className="mt-1 text-sm text-foreground/80">
-            No separate Numbers deposit needed for your bonus number.
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Available once for eligible new paying accounts. Temporary number only. Availability and
-            supported services may vary.
-          </p>
         </div>
 
         <Tabs defaultValue="plans" className="mt-9 sm:mt-12">
@@ -133,7 +113,7 @@ export function Pricing() {
                     className="mt-6 w-full"
                     asChild
                   >
-                    <Link to="/signup" onClick={() => trackNumberBonusCtaClicked("pricing")}>
+                    <Link to="/signup">
                       Get {plan.name}
                     </Link>
                   </Button>
@@ -141,14 +121,7 @@ export function Pricing() {
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2.5 text-sm">
                         <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          {feature}
-                          {feature === "1 U.S. temporary number included" && (
-                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
-                              FREE
-                            </span>
-                          )}
-                        </span>
+                        <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
