@@ -981,7 +981,7 @@ function LeanSteps() {
   ];
 
   return (
-    <section className="bg-[#f8f7f1]">
+    <section id="start-how-it-works" className="bg-[#f8f7f1]">
       <div className="mx-auto w-full max-w-[640px] px-5 py-10 sm:px-8">
         <ol className="space-y-4">
           {steps.map((step, index) => (
@@ -1001,6 +1001,113 @@ function LeanSteps() {
   );
 }
 
+const START_PROJECT_EXAMPLES = [
+  {
+    image: "/ad-creatives/kodarai-make-money-websites-restaurant-800k.png",
+    title: "Restaurant website",
+    description: "A menu, booking details and a mobile-friendly way for customers to find the business.",
+  },
+  {
+    image: "/ad-creatives/kodarai-make-money-websites-beauty-800k.png",
+    title: "Beauty-business website",
+    description: "A polished service, booking and product showcase for a local beauty brand.",
+  },
+  {
+    image: "/ad-creatives/kodarai-make-money-websites-woman-real-estate-800k.png",
+    title: "Property website",
+    description: "A professional property listing site a real-estate business can show to buyers.",
+  },
+] as const;
+
+function StartProjectExamples() {
+  return (
+    <section id="start-examples" className="border-y border-[#dfe5df] bg-white">
+      <div className="mx-auto w-full max-w-[960px] px-5 py-10 sm:px-8 sm:py-14">
+        <div className="max-w-[620px]">
+          <Pill>What you can create</Pill>
+          <h2 className="mt-4 text-[28px] font-bold leading-[1.05] tracking-[-0.04em] text-[#172019] sm:text-[38px]">
+            Help a business look professional online.
+          </h2>
+          <p className="mt-3 text-[14px] leading-6 text-[#526057] sm:text-[15px]">
+            Kodarai helps you make a sample website to show a business before you pitch your work.
+            You choose who to contact and agree the price directly with them.
+          </p>
+        </div>
+
+        <div className="mt-7 flex snap-x gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
+          {START_PROJECT_EXAMPLES.map((example) => (
+            <article
+              key={example.title}
+              className="w-[78vw] shrink-0 snap-start overflow-hidden rounded-2xl border border-[#dfe5df] bg-[#fcfdfb] sm:w-auto"
+            >
+              <img
+                src={example.image}
+                alt={`KodarAI example: ${example.title}`}
+                loading="lazy"
+                width={1254}
+                height={1254}
+                className="aspect-square w-full object-cover"
+              />
+              <div className="p-4">
+                <h3 className="text-[15px] font-bold text-[#172019]">{example.title}</h3>
+                <p className="mt-1 text-[12px] leading-5 text-[#5f6b63]">{example.description}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <p className="mt-4 text-[11px] leading-5 text-[#687169]">
+          Project examples are illustrative. What you earn depends on your work, pricing and the deals you close.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function MobileStartNav({ onStart }: { onStart: () => void }) {
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const actions = [
+    { label: "Home", icon: Search, onClick: () => scrollTo("start-top") },
+    { label: "How it works", icon: Laptop, onClick: () => scrollTo("start-how-it-works") },
+    { label: "Examples", icon: ImageIcon, onClick: () => scrollTo("start-examples") },
+  ];
+
+  return (
+    <nav
+      aria-label="Start page quick actions"
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+10px)] z-40 rounded-2xl border border-[#dfe5df] bg-white/95 p-1.5 shadow-[0_12px_30px_rgba(22,39,27,0.16)] backdrop-blur lg:hidden"
+    >
+      <div className="grid grid-cols-4 gap-1">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.label}
+              type="button"
+              onClick={action.onClick}
+              className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold text-[#526057] transition active:scale-[0.97]"
+            >
+              <Icon className="size-4 text-[#287048]" />
+              <span>{action.label}</span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onStart}
+          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl bg-[#079653] px-1 text-[10px] font-bold text-white shadow-sm transition active:scale-[0.97]"
+        >
+          <ArrowRight className="size-4" />
+          <span>Start</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 // Lean /start: show the client-acquisition workflow immediately, then answer
 // a beginner's doubts. The full page stays available at /start?v=full.
 function LeanIntro({
@@ -1012,23 +1119,18 @@ function LeanIntro({
   reviews: PublicMarketingReview[];
   onStart: () => void;
 }) {
-  const [showSticky, setShowSticky] = useState(false);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       trackViewContent("start_intro");
     }, 10000);
-    const onScroll = () => setShowSticky(window.scrollY > 520);
-    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener("scroll", onScroll);
     };
   }, []);
 
   return (
-    <main className="overflow-hidden pb-24 lg:pb-0">
-      <section className="mx-auto w-full max-w-[640px] px-5 pb-10 pt-6 sm:px-8">
+    <main className="overflow-hidden pb-[calc(env(safe-area-inset-bottom,0px)+98px)] lg:pb-0">
+      <section id="start-top" className="mx-auto w-full max-w-[640px] px-5 pb-10 pt-6 sm:px-8">
         <Brand />
 
         <div className="mt-7">
@@ -1049,21 +1151,10 @@ function LeanIntro({
 
       <PlainEnglish />
       <LeanSteps />
+      <StartProjectExamples />
       <StartFaq />
       <FinalIntroCta reviews={reviews} onStart={onStart} />
-
-      {showSticky && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e0e5df] bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur lg:hidden">
-          <button
-            type="button"
-            onClick={onStart}
-            className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#079653] px-5 text-[15px] font-semibold text-white active:scale-[0.99]"
-          >
-            Create my account
-            <ArrowRight className="size-4" />
-          </button>
-        </div>
-      )}
+      <MobileStartNav onStart={onStart} />
     </main>
   );
 }
