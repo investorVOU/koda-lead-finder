@@ -402,7 +402,7 @@ function SignupPage() {
         numbersSignup
           ? "Create your account to browse available virtual numbers and review the price before you buy."
           :
-        "No coding needed. Create your account, see how to find your first website client, then choose the ₦1,000 Starter plan when you are ready."
+        "No coding needed. Create your account, see how to find your first website client, then choose the ₦2,000 Starter plan when you are ready."
       }
       footer={
         <>
@@ -506,7 +506,7 @@ function SignupPage() {
           {busy ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            numbersSignup ? "Create account & browse numbers" : "Create account — then see the ₦1,000 Starter"
+            numbersSignup ? "Create account & browse numbers" : "Create account — then see the ₦2,000 Starter"
           )}
         </Button>
         <p className="text-center text-xs leading-5 text-muted-foreground">

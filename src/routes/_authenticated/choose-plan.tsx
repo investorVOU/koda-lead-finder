@@ -40,7 +40,7 @@ function ChoosePlanPage() {
   const [whatsAppChatNumber, setWhatsAppChatNumber] = useState<string | null>(null);
 
   const starterPlan = PLANS.find((plan) => plan.id === "starter");
-  const starterPrice = formatNgn(starterPlan?.ngn ?? 1000);
+  const starterPrice = formatNgn(starterPlan?.ngn ?? 2000);
   const whatsAppChatUrl = whatsAppChatNumber
     ? `https://wa.me/${whatsAppChatNumber.replace(/\D/g, "")}?text=${encodeURIComponent("Hi KodarAI, I have a question before activating Starter.")}`
     : null;

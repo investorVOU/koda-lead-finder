@@ -463,7 +463,7 @@ const NO_WELCOME_PATHS = /^\/(login|signup|privacy|terms|trial-welcome|welcome|o
 
 function welcomeMessage(path: string) {
   if (path.startsWith("/start")) {
-    return "Welcome! You don't need to know how to code. KodarAI finds businesses that need websites and helps you build a website sample and pitch to send them. Your job is to contact the business, send the sample, agree a price, and get paid in naira. To begin, register on KodarAI, activate the ₦1,000 Starter plan, then start exploring.";
+    return "Welcome! You don't need to know how to code. KodarAI finds businesses that need websites and helps you build a website sample and pitch to send them. Your job is to contact the business, send the sample, agree a price, and get paid in naira. To begin, register on KodarAI, activate the ₦2,000 Starter plan, then start exploring.";
   }
   if (path.startsWith("/studio")) {
     return "Hey 👋 Want to build a website for a business? Pick a plan and tell me who it’s for, and I’ll help you get the first version ready.";

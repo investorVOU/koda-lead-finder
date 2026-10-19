@@ -59,7 +59,7 @@ const GUEST_TOKEN_KEY = "kodarai_support_guest_token";
 const AGENT_SEEN_KEY = "kodarai_support_agent_seen";
 const WELCOME_KEY = "kodarai_support_welcome";
 const START_WELCOME_KEY = "kodarai_start_welcome_v1_seen";
-const START_WELCOME = "Welcome! You don't need to know how to code. KodarAI finds businesses that need websites and helps you build a website sample and pitch to send them. Your job is to contact the business, send the sample, agree a price, and get paid in naira. To begin, register on KodarAI, activate the ₦1,000 Starter plan, then start exploring.";
+const START_WELCOME = "Welcome! You don't need to know how to code. KodarAI finds businesses that need websites and helps you build a website sample and pitch to send them. Your job is to contact the business, send the sample, agree a price, and get paid in naira. To begin, register on KodarAI, activate the ₦2,000 Starter plan, then start exploring.";
 
 /** `raised` lifts the bubble on mobile for pages with a fixed bottom CTA bar (e.g. /start). */
 export function SupportChat({ raised = false }: { raised?: boolean } = {}) {

@@ -14,7 +14,7 @@ const ok = () => new Response("ok", { status: 200 });
 
 const QUICK_REPLIES: Record<string, string> = {
   "no-code": "You do not need to know how to code to get started. KodarAI helps you find businesses that need a website and create a sample website to show them. You choose who to contact, discuss the work with the business, and agree a price directly.",
-  starter: "The Starter plan is ₦1,000 for 30-day access. It includes lead searches, Studio credits, the website builder, outreach scripts, and a pipeline to manage opportunities. You will see the plan details before payment.",
+  starter: "The Starter plan is ₦2,000 for 30-day access. It includes lead searches, Studio credits, the website builder, outreach scripts, and a pipeline to manage opportunities. You will see the plan details before payment.",
   example: "An example lead is a local business that may not have a website yet. KodarAI helps you research the opportunity, create a sample website, and prepare a pitch. Any price you ask the business to pay is agreed directly with them and is not guaranteed.",
 };
 
